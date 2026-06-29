@@ -1,0 +1,43 @@
+# Entorno y secretos
+.env
+.env.dev
+.env.local
+.env.production
+*.env
+
+# Archivos de control locales (no versionar)
+AGENTS.md
+WORKFLOW_LOCAL.md
+PROJECT_REFERENCE.md
+SECURITY_OVERVIEW.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+dist/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+.pnpm-store/
+*.tsbuildinfo
+
+# Docker
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,311 @@
+{
+  "_readme": "Estados válidos: pending | spec_ready | in_progress | done. sdd:true requiere spec aprobada antes de implementar. Fases: 0=fundaciones+diseño, 1=MVP+multidominio, 2=branding+difusión, 3=LOPDP, 4=antifraude+entrega, 5=escala. Frontend: diseñar en Claude Design (Adobe Express) → exportar HTML → implementar en Next.js/Tailwind. Guardar HTML en specs/<feature>/design-export.html.",
+  "features": [
+    {
+      "id": "infra-fork",
+      "title": "Fase 0 — Infraestructura: fork, branches, Docker, nginx, CI/CD, Cloudflare",
+      "description": "Inicializar repo fork de proy_forms-qsm. Remote: git@github.com:qsm-lab/petition-cauce.git. Configurar branches dev/main. Adaptar docker-compose (puertos 8011/3002, schema petition_cause, red petition_cause_network). Nginx server block para cauce.ecuadornotlc.org. GitHub Actions deploy.yml (push main → SSH VPS, timeout 20m, sin --no-cache). Pasos previos Cloudflare: (1) verificar ecuadornotlc.org en CF, (2) DNS A cauce→VPS_IP proxied, (3) SSL/TLS Full strict, (4) Always HTTPS, (5) WAF rule /login 2req/10s (única regla Free), (6) nuevo widget Turnstile para cauce.ecuadornotlc.org.",
+      "status": "in_progress",
+      "sdd": true,
+      "area": "infra",
+      "phase": 0
+    },
+    {
+      "id": "harness-setup",
+      "title": "Fase 0 — Harness SDD: andamiaje de control",
+      "description": "CLAUDE.md, AGENTS.md, WORKFLOW_LOCAL.md, PROJECT_REFERENCE.md, SECURITY_OVERVIEW.md, feature_list.json, progress/current.md, progress/history.md, .gitignore adaptado. Base para todas las sesiones siguientes.",
+      "status": "done",
+      "sdd": false,
+      "area": "harness",
+      "phase": 0
+    },
+    {
+      "id": "modelo-base",
+      "title": "Fase 0 — Modelo de datos: migraciones Alembic base",
+      "description": "Migraciones para tablas nuevas: domains (host, campaign_id, tls_status), signatures (PII cifrable: cedula_encrypted, email_encrypted; region, visibility, source), consents (text_snapshot, version, legal_basis, timestamp, ip_hmac), privacy_config (por campaña: aviso, base legal, retención), lifecycle_events (estados: lanzada→recolección→entrega→diálogo→decisión). RLS desde el inicio en signatures y consents.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 0
+    },
+    {
+      "id": "lopdp-base",
+      "title": "Fase 0 — LOPDP: plantillas legales y contratos de encargo",
+      "description": "Plantilla de aviso de privacidad por campaña. Política de retención base. Modelo de contrato de encargo de tratamiento (Encargado↔Responsable). Registro de Actividades de Tratamiento (RAT) plantilla inicial. Runbook de notificación de brechas (SPDP/ARCOTEL/CSIRT).",
+      "status": "pending",
+      "sdd": true,
+      "area": "legal",
+      "phase": 0
+    },
+    {
+      "id": "ui-design-system",
+      "title": "Fase 0 — Sistema de diseño UI: tokens, componentes base, flujo Claude Design",
+      "description": "Establecer el sistema de diseño de la plataforma usando Claude Design (Adobe Express). Definir: paleta de colores multi-campaña (tokens base + sobreescritura por campaña vía meta JSONB), tipografías web auto-hosteadas, componentes base (botones, cards, formularios, badges de estado). Exportar HTML de Claude Design → traducir a componentes Next.js + Tailwind. Guardar en specs/ui-design-system/design-export.html. El sistema de diseño es neutro (no es el diseño de QSM) — cada campaña lo sobreescribe con su branding.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 0
+    },
+    {
+      "id": "multidominio",
+      "title": "Fase 1 — Multi-dominio: ruteo por Host header (base desde MVP)",
+      "description": "Arquitectura multi-dominio desde el primer deploy, no como extensión posterior. Tabla domains (host, campaign_id, tls_status, verified_at). Nginx enruta por Host header hacia Next.js. Next.js resuelve campaña y branding en server-side desde el Host sin flash de contenido. Para MVP el único dominio activo es cauce.ecuadornotlc.org; la arquitectura ya soporta N dominios. TLS por Cloudflare (proxy naranja). Middleware Next.js extrae Host → consulta DB domains → inyecta campaign_id y branding en el request.",
+      "status": "pending",
+      "sdd": true,
+      "area": "infra",
+      "phase": 1
+    },
+    {
+      "id": "landing-campana",
+      "title": "Fase 1 — MVP: página pública de campaña",
+      "description": "Página pública resuelta por Host header (multidominio): título, descripción, imagen de campaña, CTA principal. Meta + barra de % de avance hacia objetivo. Contador de firmas (caché ligero). Open Graph/SEO por campaña.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 1
+    },
+    {
+      "id": "ciclo-vida-basico",
+      "title": "Fase 1 — MVP: indicador de ciclo de vida público",
+      "description": "Indicador visual de 5 etapas (lanzada → recolección → entrega → diálogo → decisión) mostrado en la landing pública. Etapa actual resaltada. Solo lectura pública; gestión admin en Fase 2.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 1
+    },
+    {
+      "id": "formulario-firma",
+      "title": "Fase 1 — MVP: formulario de firma con consentimiento LOPDP",
+      "description": "Formulario mínimo de firma: nombre, cédula, correo, región, visibilidad preferida. Consentimiento LOPDP con checkbox NO pre-marcado, texto específico del fin, enlace a aviso de privacidad. Doble opt-in por email (verificación antes de confirmar firma). Persistencia en tabla signatures + tabla consents con versión.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "firma-visibilidad",
+      "title": "Fase 1 — MVP: visibilidad de firma elegida por el firmante",
+      "description": "Opciones al firmar: pública (nombre visible en feed), anónima (solo conteo), secreta (no aparece ni en feed). Default: anónima. Respetada en el feed público de firmas recientes y en el dashboard admin.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "firmas-recientes",
+      "title": "Fase 1 — MVP: feed de firmas recientes en vivo",
+      "description": "Feed de firmas recientes en la landing pública. Solo muestra firmas con visibility=pública. Polling ligero o SSE. Prueba social que respeta la privacidad elegida.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "difusion-social",
+      "title": "Fase 1 — MVP: botones de compartir (kit de difusión básico)",
+      "description": "Botones de compartir en landing pública: WhatsApp, Telegram, Facebook, X (Twitter), email. URLs con parámetro de tracking de origen (para Fase 5). Metadatos OG ya resueltos en landing-campana.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 1
+    },
+    {
+      "id": "anti-fraude-basico",
+      "title": "Fase 1 — MVP: anti-fraude básico",
+      "description": "Turnstile Cloudflare (Non-interactive, heredado de forms-qsm). Rate limiting por IP con HMAC (slowapi + Redis). Deduplicación básica por email normalizado (rechaza duplicado en misma campaña). Validación formato cédula ecuatoriana (dígito verificador, solo formato — validación completa en Fase 4).",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 1
+    },
+    {
+      "id": "dashboard-firmas",
+      "title": "Fase 1 — MVP: dashboard admin de firmas",
+      "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "editor-branding",
+      "title": "Fase 2 — Editor de branding por campaña",
+      "description": "Editor admin: colores, logo, copys, imágenes de landing. Vive en meta JSONB (patrón heredado de forms-qsm welcome_* y colores). Sin migraciones por campaña. Preview en tiempo real.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "perfiles-org",
+      "title": "Fase 2 — Perfiles de organización + taxonomía",
+      "description": "Perfil de organización cliente (nombre, logo, descripción, contacto). Taxonomía de campañas: temas (minería, agua, bosques, aire…) y regiones. Las campañas pertenecen a una organización y se clasifican. Habilita catálogo público multi-org.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "enlace-corto-qr",
+      "title": "Fase 2 — Enlace corto + código QR por campaña",
+      "description": "Enlace corto generado por campaña (slug corto o dominio propio). Código QR generado on-demand. Descargable desde el admin. Usado en el volante PDF.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "volante-pdf",
+      "title": "Fase 2 — Volante con QR en PDF para difusión presencial",
+      "description": "Generación de PDF con diseño de volante (branding de campaña, QR, CTA, tear-off). Descargable desde admin. Para distribución offline en territorio. Usable en zonas sin conectividad.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 2
+    },
+    {
+      "id": "ciclo-vida-admin",
+      "title": "Fase 2 — Gestión del ciclo de vida desde admin",
+      "description": "Admin puede avanzar etapas del ciclo (lanzada→recolección→entrega→diálogo→decisión), registrar fechas y notas. Registrado en lifecycle_events. Refleja en el indicador público (ciclo-vida-basico).",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "derechos-arco",
+      "title": "Fase 3 — LOPDP: flujo ARCO + portabilidad + oposición (self-service)",
+      "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 3
+    },
+    {
+      "id": "retencion-datos",
+      "title": "Fase 3 — LOPDP: job de retención y purga/anonimización",
+      "description": "Job programado que purga o anonimiza datos de firmantes según la política de retención definida en privacy_config de cada campaña. Se ejecuta tras presentar el expediente o al expirar el plazo. Registra la acción en audit log.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 3
+    },
+    {
+      "id": "cifrado-reposo",
+      "title": "Fase 3 — LOPDP: cifrado en reposo de PII",
+      "description": "Cifrado de columnas PII (cedula_encrypted, email_encrypted) en tabla signatures. Columnas ya diseñadas para esto desde modelo-base. Usar AES-256-GCM con clave derivada de secreto del VPS. Transparente para el backend; búsquedas sobre hash normalizado.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 3
+    },
+    {
+      "id": "rat-autogenerado",
+      "title": "Fase 3 — LOPDP: Registro de Actividades de Tratamiento por campaña",
+      "description": "RAT autogenerado desde la privacy_config de cada campaña: qué datos, fines, bases legales, plazos, flujos, destinatarios. Exportable en PDF para cumplimiento documental ante SPDP.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 3
+    },
+    {
+      "id": "novedades-campana",
+      "title": "Fase 3 — Updates/News por campaña",
+      "description": "El iniciador de la campaña publica actualizaciones del trámite. Visibles en la landing pública. Notificación por email a firmantes que consintieron recibir novedades (consentimiento separado).",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 3
+    },
+    {
+      "id": "embudo-post-firma",
+      "title": "Fase 3 — Embudo post-firma: compartir → suscribir",
+      "description": "Pantalla post-firma con CTA de compartir + opción de suscribirse a novedades de la campaña. Consentimiento separado del de la firma (no empaquetado). LOPDP: base de legitimación independiente.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 3
+    },
+    {
+      "id": "validacion-cedula",
+      "title": "Fase 4 — Anti-fraude: validación completa cédula ecuatoriana",
+      "description": "Validación del algoritmo de dígito verificador de cédula ecuatoriana (10 dígitos, módulo 10). Anti-fraude: rechaza cédulas matemáticamente inválidas. Complementa la deduplicación.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 4
+    },
+    {
+      "id": "deduplicacion-robusta",
+      "title": "Fase 4 — Anti-fraude: deduplicación robusta",
+      "description": "Deduplicación por cédula + email normalizados con scoring de confianza. Detecta variantes (cédula con/sin guiones, email con dots/alias). Métricas de velocidad de firmas y patrones por IP para detección de abuso.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 4
+    },
+    {
+      "id": "firma-hibrida",
+      "title": "Fase 4 — Firma híbrida: hoja PDF + conciliación de papel",
+      "description": "Generación de hoja de recolección en PDF (con QR y campos para firmar en papel). Subida de hojas escaneadas y conciliación con el lote digital. Da peso formal a la entrega ante autoridades que valoran soporte físico.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 4
+    },
+    {
+      "id": "mapa-geografico",
+      "title": "Fase 4 — Mapa de distribución geográfica por región",
+      "description": "Mapa interactivo de apoyo por región/cantón/provincia (a partir del campo región capturado en formulario-firma). Demuestra respaldo territorial ante autoridades. Respeta visibilidad elegida por firmantes.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 4
+    },
+    {
+      "id": "documento-entrega",
+      "title": "Fase 4 — Documento de apoyo con valor probatorio",
+      "description": "Agrupación del lote de firmas en documento entregable: fechado, numerado, con hash SHA-256 de integridad del lote y sello de tiempo (timestamp server). Conexión con el ciclo de vida (etapa entrega). PDF generado y guardado como artefacto inmutable.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 4
+    },
+    {
+      "id": "cache-contador",
+      "title": "Fase 5 — Escala: caché Redis del contador de firmas",
+      "description": "Caché del contador de firmas por campaña en Redis (prefijo petition:counter:<campaign_id>) para no golpear la BD en picos virales. TTL corto + invalidación en cada firma nueva.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 5
+    },
+    {
+      "id": "tracking-origen",
+      "title": "Fase 5 — Tracking de origen de firmas (analítica self-hosted)",
+      "description": "Analítica self-hosted con Matomo. Sin enviar PII a terceros. Tracking del parámetro de referente de los botones de difusión-social. Métricas por fuente de tráfico.",
+      "status": "pending",
+      "sdd": true,
+      "area": "infra",
+      "phase": 5
+    },
+    {
+      "id": "widget-embebible",
+      "title": "Fase 5 — Widget/banner embebible para sitios aliados",
+      "description": "Widget iframe o JS snippet que sitios aliados pueden incluir para mostrar el contador y la caja de firma. Multiplica alcance sin necesitar que el usuario navegue al sitio principal.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 5
+    },
+    {
+      "id": "multi-idioma",
+      "title": "Fase 5 — Multi-idioma: español + kichwa + inglés",
+      "description": "Soporte i18n para español (base), kichwa (inclusión territorial en Ecuador) e inglés. Alto esfuerzo. Requiere traducción comunitaria para kichwa.",
+      "status": "pending",
+      "sdd": true,
+      "area": "frontend",
+      "phase": 5
+    }
+  ]
+}

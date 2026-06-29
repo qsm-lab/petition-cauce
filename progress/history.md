@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-06-29 — Sesión 6: Admin shell desde handoff Claude Design
+
+**Completado:**
+- Incorporado handoff `design_handoff_cauce_back-admin/README.md` al proyecto
+- Nuevo `AdminSidebarClient.tsx`: sidebar 220px, bg `--bink`, 6 nav items, RBAC por rol, iconos SVG, logout
+- Nuevo `layout.tsx` del admin: server component, fetch user, filtra nav según `role: admin|gestor`
+- 6 nuevas rutas: `/admin/resumen`, `/admin/campanas`, `/admin/firmas`, `/admin/organizaciones`, `/admin/usuarios`, `/admin/configuracion`
+- Redirigidos `/admin/dashboard` y login post-auth a `/admin/resumen`
+- RBAC: gestores ven solo Campañas y Firmas; admin ve todo; páginas admin-only redirigen a /campanas si gestor accede
+- Todos los stubs con design shells completos (badges, tablas, filtros, toggles) según spec del README
+- `User.role` extendido con `"gestor"`
+- TypeScript: 0 errores
+
+**Pendiente:**
+- Verificación visual V1/V3/V4 del admin shell
+- Commit de todo lo pendiente de sesiones 5+6
+- `modelo-base` para datos reales en el admin
+
+---
+
 ## 2026-06-27 — Sesión de apertura: planificación y andamiaje Harness SDD
 
 **Completado:**
@@ -96,3 +116,38 @@
 - D3 + F8 + Cloudflare + GitHub Secrets — se hacen antes del primer deploy a VPS
 
 **Próxima sesión:** Feature `ui-design-system` (spec SDD → diseño Claude Design → Next.js/Tailwind).
+
+---
+
+## 2026-06-29 — Sesión 5: ui-design-system (implementación) + acceso admin operativo
+
+**Completado:**
+
+**Sistema de diseño base (ui-design-system):**
+- Tokens CSS (custom properties `--bp`, `--bop`, `--bsec`, `--bink`, `--bmut`, `--bsurf`, `--bbg`, `--bbord`, `--br`) con tema Bosque por defecto
+- `@layer utilities` en `globals.css` — 15 clases semánticas que responden a sobreescrituras de tokens por campaña
+- Fuentes: Poppins (display) + Inter (body) via `next/font/google` (build-time, sin CDN en runtime)
+- Componentes: `Button`, `Card`, `Badge`, `FormField`, `Alert`, `cn()`, `design-tokens.ts` (3 presets + `campaignStyleTag()`)
+- Login page completamente rediseñada con identidad "Cauce Petition" y toggle show/hide password
+
+**Bugs críticos resueltos (acceso admin):**
+
+| Bug | Causa raíz | Fix aplicado |
+|-----|-----------|-------------|
+| Migraciones no aplicadas | Alembic nunca ejecutado en este entorno | `alembic upgrade head` (5 migraciones) |
+| Email de seed rechazado | `.local` TLD reservado, pydantic 422 | `admin@cauce.local` → `admin@cauce.ec` |
+| JavaScript bloqueado | CSP sin `'unsafe-eval'`; Next.js dev lo requiere | Agregado a `script-src` en `next.config.mjs` |
+| Cookie rechazado por browser | `secure=True` con HTTP en dev | `secure=settings.environment == "production"` en `auth.py` |
+
+**Admin accesible y verificado al cierre de sesión.**
+
+**Lección técnica registrada:**
+- Tailwind v3 no genera utilidades para colores definidos como `var(--css-var)` — usar `@layer utilities` en CSS
+- `next.config.mjs` se copia en la imagen Docker en build; requiere `--build` para actualizar (no es volumen)
+
+**Pendiente (no bloquea):**
+- V1/V3/V4 verificación visual del design system
+- Commit de todos los archivos pendientes (revisar lista en `progress/current.md`)
+- Infra VPS: D3/F8/Cloudflare/GitHub Secrets — antes del primer deploy
+
+**Próxima sesión:** Verificaciones V1/V3/V4 + commit, luego `modelo-base` o `landing-campana`.

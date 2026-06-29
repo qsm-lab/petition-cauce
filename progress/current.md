@@ -1,13 +1,10 @@
-# Estado actual — cierre sesión 2026-06-28 (sesión 4)
+# Estado actual — cierre sesión 2026-06-29 (sesión 6)
 
 ## Resumen de sesión
 
-Completados los últimos bloques de `infra-fork`:
-- Verificación F1–F7 del entorno local: todos los checks pasan
-- C4: adaptados `api.ts`, `api-server.ts`, `ExportButtons.tsx` (puertos y container names)
-- C5: renombradas referencias forms-qsm en todos los scripts Python seed y migración 004_rls
-
-El entorno local está completamente operativo y aislado de forms-qsm.
+Implementado el shell completo del panel admin (layout + sidebar + 6 rutas) a partir del
+handoff de Claude Design (`design_handoff_cauce_back-admin/README.md`). El admin ahora tiene
+identidad propia de Cauce Petition, navegación RBAC por rol y 6 vistas definidas.
 
 ---
 
@@ -16,97 +13,150 @@ El entorno local está completamente operativo y aislado de forms-qsm.
 | Feature | Estado | Notas |
 |---------|--------|-------|
 | `harness-setup` | **done** | Completo |
-| `infra-fork` | **in_progress** | Local completo. Pendiente: D3 (VPS nginx real_ip) + F8 (primer push → Actions) |
-| `ui-design-system` | pending | **Siguiente en Fase 0** |
-| `modelo-base` | pending | Después de ui-design-system |
+| `infra-fork` | **in_progress** | Local completo + admin accesible; pendiente D3/F8/Cloudflare/Secrets |
+| `ui-design-system` | **in_progress** | Admin shell incorporado; verificaciones V1/V3/V4 pendientes |
+| `modelo-base` | pending | Siguiente en Fase 0 |
 | `lopdp-base` | pending | Después de modelo-base |
-| Fase 1 (6 features) | pending | Después de Fase 0 completa |
+| Fase 1–5 (27 features) | pending | Después de Fase 0 |
 
 ---
 
-## Lo que falta de `infra-fork` para cerrarla completamente
+## Lo completado esta sesión
 
-| Tarea | Quién | Cuándo |
-|-------|-------|--------|
-| **D3** Verificar `real_ip_header CF-Connecting-IP` en `nginx.conf` del VPS | Usuario (VPS SSH) | Cuando se haga el primer deploy |
-| **F8** Primer push a `main` → GitHub Actions completa sin timeout | Usuario | Cuando esté listo para deploy |
-| **Cloudflare §5** DNS A, SSL, WAF, Turnstile widget real | Usuario (panel CF) | Antes del deploy a producción |
-| **GitHub Secrets** Configurar `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `DEPLOY_PATH` | Usuario (repo GitHub) | Antes de F8 |
+### Admin shell — incorporación del handoff Claude Design
 
-Estas tareas son de VPS/producción, no bloquean el desarrollo local ni la siguiente feature.
+Fuente: `specs/ui-design-system/design_handoff_cauce_back-admin/README.md`
 
----
+#### Archivos nuevos
 
-## Archivos modificados esta sesión (pendientes de commit)
+| Archivo | Descripción |
+|---------|-------------|
+| `apps/web/src/app/admin/AdminSidebarClient.tsx` | Sidebar client: `usePathname` para estado activo, logout, iconos SVG, tokens de diseño |
+| `apps/web/src/app/admin/layout.tsx` | Layout server: fetch user → filtra nav por rol → renderiza shell |
+| `apps/web/src/app/admin/resumen/page.tsx` | Dashboard: 4 KPI cards + campañas recientes + feed actividad (stubs) |
+| `apps/web/src/app/admin/campanas/page.tsx` | Lista de campañas: filter bar + tabla con columnas del spec (empty state) |
+| `apps/web/src/app/admin/firmas/page.tsx` | Página de selección: redirige al usuario a elegir campaña |
+| `apps/web/src/app/admin/organizaciones/page.tsx` | Organizaciones: tabla + filter bar (admin only, empty state) |
+| `apps/web/src/app/admin/usuarios/page.tsx` | Usuarios: tabla + filter bar + fila del usuario actual (admin only) |
+| `apps/web/src/app/admin/configuracion/page.tsx` | Configuración: toggles interactivos (client), 3 secciones (admin only) |
 
-```
-apps/web/src/lib/api.ts                    — fallback 8010 → 8011
-apps/web/src/lib/api-server.ts             — container forms-api-dev → petition-api-dev
-apps/web/src/app/admin/campaigns/[id]/ExportButtons.tsx  — fallback 8010 → 8011
-apps/api/app/scripts/seed_admin.py         — container, org slug (qsm→cauce), nombres
-apps/api/app/scripts/seed_dev.py           — org slug, nombre, email (qsm→cauce)
-apps/api/app/scripts/reset_qsm_questions.py — container name
-apps/api/app/scripts/seed_qsm_form.py      — container names + puerto 3001→3002
-apps/api/migrations/versions/004_rls.py    — comentario forms_app→petition_app
-specs/infra-fork/tasks.md                  — C4 y C5 marcados completados
-```
+#### Archivos modificados
 
----
+| Archivo | Cambio |
+|---------|--------|
+| `apps/web/src/lib/types.ts` | `User.role` ahora incluye `"gestor"` |
+| `apps/web/src/middleware.ts` | Redirect post-login: `/admin/dashboard` → `/admin/resumen` |
+| `apps/web/src/app/(auth)/login/page.tsx` | `router.push` → `/admin/resumen` |
+| `apps/web/src/app/admin/dashboard/page.tsx` | Reemplazado por `redirect("/admin/resumen")` |
 
-## Estado del entorno local al cierre
+### RBAC implementado
 
-- `make dev` levanta 4 contenedores: `petition-api-dev`, `petition-web-dev`, `petition-db-dev`, `petition-redis-dev`
-- API health: `{"status":"ok","db":"ok","redis":"ok","version":"1.0.0"}`
-- Web responde 307 (redirect normal Next.js)
-- `petition_app` sin superusuario, RLS activo
-- Base de datos `petition_cause` creada y accessible
-- Sin colisión de puertos con `proy_forms-qsm` (3001/8010)
+| Elemento | Admin | Gestor |
+|----------|-------|--------|
+| Resumen | ✅ | ❌ |
+| Campañas | ✅ | ✅ |
+| Firmas | ✅ | ✅ |
+| Organizaciones | ✅ (redirect a /campanas si gestor accede directo) | ❌ |
+| Usuarios | ✅ (idem) | ❌ |
+| Configuración | ✅ (idem) | ❌ |
 
----
+### Spec del diseño cumplida
 
-## Pasos antes del commit (tú los ejecutas)
-
-**1. Verificar que el entorno sigue levantado:**
-```bash
-make status
-```
-
-**2. Probar el backend** — los cambios C4/C5 no tocan rutas, pero confirmar que la API sigue respondiendo:
-```bash
-curl http://localhost:8011/health
-# Esperado: {"status":"ok","db":"ok","redis":"ok","version":"1.0.0"}
-```
-
-**3. Probar el frontend en el navegador:**
-- Abrir `http://localhost:3002`
-- Verificar que la app carga sin errores de consola relacionados a URLs de API
-- Navegar a `/admin` o `/login` para confirmar que los fetch usan el puerto 8011
-
-**4. Solo si todo pasa → hacer el commit:**
-```bash
-cd ~/Devs/proy_petition-cauce
-git add apps/web/src/lib/api.ts \
-        apps/web/src/lib/api-server.ts \
-        "apps/web/src/app/admin/campaigns/[id]/ExportButtons.tsx" \
-        apps/api/app/scripts/seed_admin.py \
-        apps/api/app/scripts/seed_dev.py \
-        apps/api/app/scripts/reset_qsm_questions.py \
-        apps/api/app/scripts/seed_qsm_form.py \
-        apps/api/migrations/versions/004_rls.py \
-        specs/infra-fork/tasks.md \
-        progress/
-
-git commit -m "infra-fork: adapt web config, seed scripts and migrations from forms-qsm"
-```
+Del `README.md` del handoff:
+- ✅ Sidebar 220px, bg `--bink`, 6 nav items ordenados
+- ✅ Nav activo: `bg rgba(255,255,255,.10)` + `color #fff`
+- ✅ Nav inactivo: `color rgba(255,255,255,.52)`, hover `80%`  
+- ✅ Logo: icono `30×30px` bg `--bp` + texto Poppins 800
+- ✅ User footer: avatar iniciales + email + botón logout
+- ✅ Sticky page header por vista: `bg bsurf`, `border-bottom bbord`
+- ✅ Entry animation: `animate-pc-rise` (250ms) en cada contenido de vista
+- ✅ KPI cards: 4-col grid, tokens correctos, Poppins 800 28px
+- ✅ Badges de estado por entidad (campañas, orgs, usuarios, firmas)
+- ✅ Toggles interactivos en Configuración (42×24px, animados CSS)
+- ✅ `aria-current="page"` en nav activo
+- ✅ `role="navigation"` en el aside
 
 ---
 
-## Próxima sesión: iniciar `ui-design-system`
+## Credenciales de desarrollo (activas)
 
-Feature `pending`, requiere:
-1. Aprobar spec SDD (Claude genera `specs/ui-design-system/`)
-2. Diseño en Claude Design (Adobe Express) — paleta, tipografía, componentes base
-3. Exportar HTML → `specs/ui-design-system/design-export.html`
-4. Implementar en Next.js + Tailwind
+| Campo | Valor |
+|-------|-------|
+| Email | `admin@cauce.ec` |
+| Password | `admin123dev` |
+| URL login | `http://localhost:3002/login` |
+| URL admin | `http://localhost:3002/admin/resumen` |
 
-Ver instrucciones de inicio: CLAUDE.md §"Flujo de frontend — Claude Design + Next.js"
+---
+
+## Archivos pendientes de commit
+
+```
+# ui-design-system (sesión 5 — aún sin commitear)
+apps/web/src/app/globals.css
+apps/web/tailwind.config.ts
+apps/web/src/app/layout.tsx
+apps/web/src/lib/utils.ts
+apps/web/src/lib/design-tokens.ts
+apps/web/src/components/ui/Button.tsx
+apps/web/src/components/ui/Card.tsx
+apps/web/src/components/ui/Badge.tsx
+apps/web/src/components/ui/FormField.tsx
+apps/web/src/components/ui/Alert.tsx
+apps/web/src/components/ui/index.ts
+apps/web/package.json
+apps/web/pnpm-lock.yaml
+specs/ui-design-system/
+
+# Admin shell — sesión 6
+apps/web/src/app/admin/layout.tsx
+apps/web/src/app/admin/AdminSidebarClient.tsx
+apps/web/src/app/admin/resumen/page.tsx
+apps/web/src/app/admin/campanas/page.tsx
+apps/web/src/app/admin/firmas/page.tsx
+apps/web/src/app/admin/organizaciones/page.tsx
+apps/web/src/app/admin/usuarios/page.tsx
+apps/web/src/app/admin/configuracion/page.tsx
+apps/web/src/app/admin/dashboard/page.tsx
+apps/web/src/app/(auth)/login/page.tsx
+apps/web/src/lib/types.ts
+apps/web/src/middleware.ts
+progress/
+
+# Bugfixes sesión 5 — aún sin commitear
+apps/api/app/routers/auth.py
+apps/api/app/scripts/seed_dev.py
+apps/web/next.config.mjs
+```
+
+---
+
+## Verificaciones pendientes (antes de marcar ui-design-system como done)
+
+- [ ] V1: Fidelidad visual del admin shell vs. `AdminPanel.dc.html`
+- [ ] V3: Fuentes sin requests a CDN externo (Network tab)
+- [ ] V4: Inyección de tokens de campaña en el shell
+
+---
+
+## Páginas del admin — estado por sección
+
+| Ruta | Diseño | Datos reales | Bloqueo |
+|------|--------|--------------|---------|
+| `/admin/resumen` | ✅ Shell completo | ❌ Stubs | modelo-base + /v1/admin/dashboard |
+| `/admin/campanas` | ✅ Shell completo | ❌ Stubs | modelo-base + /v1/admin/campaigns |
+| `/admin/campanas/:id/editar` | pendiente | ❌ | spec + modelo-base |
+| `/admin/campanas/:id/firmas` | pendiente | ❌ | spec + modelo-base |
+| `/admin/firmas` | ✅ Página selección | — | (por diseño, no tiene lista propia) |
+| `/admin/organizaciones` | ✅ Shell completo | ❌ Stubs | modelo-base |
+| `/admin/usuarios` | ✅ Shell completo | usuario actual | modelo-base |
+| `/admin/configuracion` | ✅ Completa (toggles) | ❌ Sin persistir | /v1/admin/settings |
+
+---
+
+## Próxima sesión
+
+Opciones según prioridad:
+1. **Verificación visual V1/V3/V4** del admin shell + commit de todo lo pendiente (sesión 5+6)
+2. **`modelo-base`** — migraciones Alembic para signatures/consents/privacy_config/lifecycle_events
+3. **`landing-campana`** — ya tiene diseño completo en Claude Design
