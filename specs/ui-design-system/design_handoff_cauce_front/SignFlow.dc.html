@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@keyframes sf-spin{to{transform:rotate(360deg)}}
+@keyframes sf-pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes sf-rise{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important}}
+</style>
+</helmet>
+<div role="dialog" aria-modal="true" aria-label="Firmar esta petición" style="font-family:var(--fb,'Inter',system-ui,sans-serif); color:var(--bink,#15241b); background:var(--bsurf,#fff); border-radius:28px 28px 0 0; box-shadow:0 -10px 44px rgba(0,0,0,.22); overflow:hidden; display:flex; flex-direction:column; max-height:100%; width:100%;">
+
+  <div style="flex:0 0 auto; padding:14px 18px 12px; border-bottom:1px solid var(--bbord,#e3e3e3); position:relative;">
+    <div style="width:38px; height:5px; border-radius:99px; background:var(--bbord,#dcdcdc); margin:0 auto 12px;"></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:700; font-size:17px; line-height:1.15;">{{ headerTitle }}</div>
+        <div style="font-size:12.5px; color:var(--bmut,#5a6b60); margin-top:2px;">{{ headerSub }}</div>
+      </div>
+      <button type="button" aria-label="Cerrar" onClick="{{ close }}" style="flex:0 0 auto; width:44px; height:44px; border:none; background:transparent; color:var(--bmut,#5a6b60); border-radius:99px; cursor:pointer; font-size:22px; line-height:1; display:flex; align-items:center; justify-content:center;" style-hover="background:var(--bbg,#eef4ec)">✕</button>
+    </div>
+  </div>
+
+  <div style="flex:1 1 auto; overflow-y:auto; padding:18px;">
+
+    <sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+      <div style="animation:sf-rise .25s ease both;">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+
+          <label style="display:block;">
+            <span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Nombre completo</span>
+            <input value="{{ name }}" onInput="{{ setName }}" placeholder="Tu nombre" aria-label="Nombre completo" style="width:100%; box-sizing:border-box; min-height:48px; padding:0 16px; border:1.5px solid var(--bbord,#dcdcdc); border-radius:16px; font-size:15px; font-family:inherit; color:var(--bink,#15241b); background:var(--bbg,#f7faf6);" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794a) 40%, transparent); border-color:var(--bp,#18794a)" />
+          </label>
+
+          <label style="display:block;">
+            <span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Correo electrónico</span>
+            <input value="{{ email }}" onInput="{{ setEmail }}" type="email" placeholder="tucorreo@ejemplo.com" aria-label="Correo electrónico" style="width:100%; box-sizing:border-box; min-height:48px; padding:0 16px; border:1.5px solid var(--bbord,#dcdcdc); border-radius:16px; font-size:15px; font-family:inherit; color:var(--bink,#15241b); background:var(--bbg,#f7faf6);" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794a) 40%, transparent); border-color:var(--bp,#18794a)" />
+            <span style="display:block; font-size:11.5px; color:var(--bmut,#5a6b60); margin-top:5px;">Lo usamos solo para confirmar tu firma. No lo publicamos.</span>
+          </label>
+
+          <div style="display:flex; gap:12px;">
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Cédula</span>
+              <input value="{{ cedula }}" onInput="{{ setCedula }}" inputmode="numeric" placeholder="0102030405" aria-label="Cédula" style="width:100%; box-sizing:border-box; min-height:48px; padding:0 14px; border:1.5px solid var(--bbord,#dcdcdc); border-radius:16px; font-size:15px; font-family:inherit; color:var(--bink,#15241b); background:var(--bbg,#f7faf6);" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794a) 40%, transparent); border-color:var(--bp,#18794a)" />
+            </label>
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Provincia</span>
+              <select value="{{ provincia }}" onChange="{{ setProvincia }}" aria-label="Provincia" style="width:100%; box-sizing:border-box; min-height:48px; padding:0 12px; border:1.5px solid var(--bbord,#dcdcdc); border-radius:16px; font-size:15px; font-family:inherit; color:var(--bink,#15241b); background:var(--bbg,#f7faf6); appearance:none;" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794a) 40%, transparent); border-color:var(--bp,#18794a)">
+                <option>Azuay</option><option>Pichincha</option><option>Guayas</option><option>Loja</option><option>Cañar</option><option>Otra</option>
+              </select>
+            </label>
+          </div>
+          <p style="margin:-4px 0 0; font-size:11.5px; color:var(--bmut,#5a6b60); display:flex; gap:6px; align-items:flex-start;"><span aria-hidden="true">🔒</span><span>Pedimos solo lo que la autoridad exige para validar el trámite. Nada más.</span></p>
+
+          <div style="height:1px; background:var(--bbord,#e3e3e3); margin:2px 0;"></div>
+
+          <fieldset style="border:none; padding:0; margin:0;">
+            <legend style="font-size:13px; font-weight:600; padding:0; margin-bottom:8px;">Visibilidad de mi firma</legend>
+            <div role="radiogroup" aria-label="Visibilidad de mi firma" style="display:flex; gap:8px;">
+              <button type="button" role="radio" aria-checked="{{ visIsPub }}" onClick="{{ pickPub }}" style="{{ visPubStyle }}">Pública</button>
+              <button type="button" role="radio" aria-checked="{{ visIsAnon }}" onClick="{{ pickAnon }}" style="{{ visAnonStyle }}">Anónima</button>
+              <button type="button" role="radio" aria-checked="{{ visIsSec }}" onClick="{{ pickSec }}" style="{{ visSecStyle }}">Secreta</button>
+            </div>
+            <p style="margin:8px 0 0; font-size:12.5px; line-height:1.45; color:var(--bmut,#5a6b60);">{{ visMicro }}</p>
+          </fieldset>
+
+          <label style="display:flex; gap:11px; align-items:flex-start; cursor:pointer; padding:12px 14px; border:1.5px solid {{ consentBorder }}; border-radius:16px; background:var(--bbg,#f7faf6);">
+            <input type="checkbox" checked="{{ consent }}" onChange="{{ toggleConsent }}" aria-describedby="sf-consent-text" style="flex:0 0 auto; width:22px; height:22px; margin-top:1px; accent-color:var(--bp,#18794a); cursor:pointer;" />
+            <span id="sf-consent-text" style="font-size:12.5px; line-height:1.5; color:var(--bink,#15241b);">He leído y acepto el <a href="#aviso" style="color:var(--bp,#18794a); font-weight:600; text-decoration:underline;">aviso de privacidad</a>. Mis datos se entregan a la autoridad como respaldo del trámite. Puedo <strong>revocar mi consentimiento</strong> cuando quiera.</span>
+          </label>
+
+          <button type="button" onClick="{{ submit }}" disabled="{{ submitDisabled }}" aria-disabled="{{ submitDisabled }}" style="{{ submitStyle }}" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794a) 45%, transparent); outline-offset:2px">{{ submitLabel }}</button>
+          <p style="margin:-4px 0 0; text-align:center; font-size:11.5px; color:var(--bmut,#5a6b60);">Verificación anti-bot invisible · doble confirmación por correo</p>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSending }}" hint-placeholder-val="{{ false }}">
+      <div aria-busy="true" aria-live="polite" style="padding:48px 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:18px;">
+        <div style="width:52px; height:52px; border-radius:99px; border:5px solid var(--bbord,#dcdcdc); border-top-color:var(--bp,#18794a); animation:sf-spin .9s linear infinite;"></div>
+        <div>
+          <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:600; font-size:16px;">Registrando tu firma…</div>
+          <div style="font-size:13px; color:var(--bmut,#5a6b60); margin-top:4px;">Un momento, no cierres esta ventana.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isSuccess }}" hint-placeholder-val="{{ false }}">
+      <div aria-live="polite" style="padding:26px 8px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px;">
+        <div style="width:64px; height:64px; border-radius:99px; background:color-mix(in srgb, var(--bsec,#2f855a) 16%, transparent); color:var(--bsec,#2f855a); display:flex; align-items:center; justify-content:center; font-size:30px; animation:sf-pop .4s ease both;" aria-hidden="true">✉️</div>
+        <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:700; font-size:19px; line-height:1.2;">Casi listo: revisa tu correo</div>
+        <p style="margin:0; font-size:13.5px; line-height:1.55; color:var(--bmut,#5a6b60); max-width:300px;">Enviamos un enlace de confirmación a <strong style="color:var(--bink,#15241b);">{{ emailShown }}</strong>. Tu firma se cuenta cuando confirmes (doble opt-in).</p>
+        <div style="display:flex; flex-direction:column; gap:10px; width:100%; margin-top:6px;">
+          <button type="button" onClick="{{ goThanks }}" style="{{ primaryBtn }}">Ya confirmé — continuar →</button>
+          <button type="button" style="min-height:46px; border:1.5px solid var(--bbord,#dcdcdc); background:transparent; color:var(--bink,#15241b); border-radius:99px; font-weight:600; font-size:14px; font-family:inherit; cursor:pointer;" style-hover="background:var(--bbg,#eef4ec)">Reenviar correo de confirmación</button>
+        </div>
+        <p style="margin:4px 0 0; font-size:11.5px; color:var(--bmut,#5a6b60);">¿No llega? Revisa spam o vuelve a intentarlo en 1 minuto.</p>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+      <div role="alert" aria-live="assertive" style="padding:26px 8px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px;">
+        <div style="width:64px; height:64px; border-radius:99px; background:color-mix(in srgb, #d9483b 14%, transparent); color:#d9483b; display:flex; align-items:center; justify-content:center; font-size:30px;" aria-hidden="true">⚠</div>
+        <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:700; font-size:18px;">No pudimos registrar tu firma</div>
+        <p style="margin:0; font-size:13.5px; line-height:1.55; color:var(--bmut,#5a6b60); max-width:300px;">Hubo un problema de conexión. Tus datos no se perdieron: solo vuelve a intentar.</p>
+        <div style="display:flex; flex-direction:column; gap:10px; width:100%; margin-top:6px;">
+          <button type="button" onClick="{{ submit }}" style="{{ primaryBtn }}">Reintentar</button>
+          <button type="button" onClick="{{ backToForm }}" style="min-height:46px; border:1.5px solid var(--bbord,#dcdcdc); background:transparent; color:var(--bink,#15241b); border-radius:99px; font-weight:600; font-size:14px; font-family:inherit; cursor:pointer;" style-hover="background:var(--bbg,#eef4ec)">Volver al formulario</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isThanks }}" hint-placeholder-val="{{ false }}">
+      <div aria-live="polite" style="padding:20px 4px 8px; display:flex; flex-direction:column; gap:16px;">
+        <div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+          <div style="width:60px; height:60px; border-radius:99px; background:color-mix(in srgb, var(--bsec,#2f855a) 16%, transparent); color:var(--bsec,#2f855a); display:flex; align-items:center; justify-content:center; font-size:28px; animation:sf-pop .4s ease both;" aria-hidden="true">✓</div>
+          <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:700; font-size:20px; line-height:1.15;">{{ thanksTitle }}</div>
+          <p style="margin:0; font-size:13.5px; line-height:1.5; color:var(--bmut,#5a6b60); max-width:300px;">Tu firma ya cuenta para el total. <strong style="color:var(--bink,#15241b);">Tu firma vale el doble si invitas a una persona.</strong></p>
+        </div>
+
+        <div style="background:color-mix(in srgb, var(--bp,#18794a) 9%, var(--bsurf,#fff)); border:1px solid var(--bbord,#dcdcdc); border-radius:20px; padding:14px 16px; text-align:center;">
+          <div style="font-family:var(--fd,'Poppins',sans-serif); font-weight:700; font-size:24px; color:var(--bp,#18794a);">192 <span style="font-size:14px; color:var(--bmut,#5a6b60); font-weight:600;">de 500</span></div>
+          <div style="font-size:12px; color:var(--bmut,#5a6b60);">¡Acabas de mover el contador!</div>
+        </div>
+
+        <div>
+          <div style="font-size:13px; font-weight:600; margin-bottom:9px;">Comparte para multiplicar tu firma</div>
+          <div style="display:flex; gap:9px;">
+            <span style="flex:1; min-height:48px; border-radius:16px; background:var(--bp,#18794a); color:var(--bop,#fff); display:flex; align-items:center; justify-content:center; gap:7px; font-weight:600; font-size:13.5px; cursor:pointer;"><span aria-hidden="true">🟢</span>WhatsApp</span>
+            <span style="flex:1; min-height:48px; border-radius:16px; border:1.5px solid var(--bbord,#dcdcdc); color:var(--bink,#15241b); display:flex; align-items:center; justify-content:center; gap:7px; font-weight:600; font-size:13.5px; cursor:pointer;"><span aria-hidden="true">✈️</span>Telegram</span>
+            <span style="flex:0 0 48px; min-height:48px; border-radius:16px; border:1.5px solid var(--bbord,#dcdcdc); color:var(--bink,#15241b); display:flex; align-items:center; justify-content:center; cursor:pointer;" aria-label="Más opciones para compartir">⋯</span>
+          </div>
+        </div>
+
+        <label style="display:flex; gap:11px; align-items:flex-start; cursor:pointer; padding:12px 14px; border:1.5px solid var(--bbord,#dcdcdc); border-radius:16px;">
+          <input type="checkbox" checked="{{ subscribe }}" onChange="{{ toggleSub }}" style="flex:0 0 auto; width:22px; height:22px; margin-top:1px; accent-color:var(--bp,#18794a); cursor:pointer;" />
+          <span style="font-size:12.5px; line-height:1.5; color:var(--bink,#15241b);">Quiero recibir novedades de esta causa por correo. <span style="color:var(--bmut,#5a6b60);">(Opcional, consentimiento separado. Puedes darte de baja cuando quieras.)</span></span>
+        </label>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:680},&quot;forceStep&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:null,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:4},&quot;onClose&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;}}">
+class Component extends DCLogic {
+  state = { step: 0, vis: 'anon', consent: false, subscribe: false, name: '', email: '', cedula: '', provincia: 'Azuay' };
+
+  set(k){ return (e)=> this.setState({ [k]: e.target.value }); }
+
+  pick(v){ return ()=> this.setState({ vis: v }); }
+
+  submit = () => {
+    if (!this.state.consent) return;
+    this.setState({ step: 1 });
+    clearTimeout(this._t);
+    this._t = setTimeout(()=> this.setState({ step: 2 }), 1300);
+  };
+
+  renderVals(){
+    const s = this.state;
+    const fs = this.props.forceStep;
+    const step = (fs === undefined || fs === null || fs === '') ? s.step : Number(fs);
+
+    const micro = {
+      pub: 'Tu nombre y provincia aparecerán en la lista pública de firmas.',
+      anon: 'Aparecerás como “Anónimo” en las listas. Tus datos van solo a la autoridad. (Recomendado)',
+      sec: 'No apareces en ninguna lista. Solo la autoridad te cuenta para el total.'
+    };
+
+    const seg = (active) => 'flex:1; min-height:48px; padding:0 4px; border-radius:14px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s,border-color .15s; ' +
+      (active
+        ? 'background:var(--bp,#18794a); color:var(--bop,#fff); border:1.5px solid var(--bp,#18794a);'
+        : 'background:var(--bbg,#f7faf6); color:var(--bink,#15241b); border:1.5px solid var(--bbord,#dcdcdc);');
+
+    const consent = !!s.consent;
+    const submitDisabled = !consent;
+    const primaryBtn = 'width:100%; min-height:52px; border:none; border-radius:99px; background:var(--bp,#18794a); color:var(--bop,#fff); font-family:var(--fd,"Poppins",sans-serif); font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 6px 18px color-mix(in srgb, var(--bp,#18794a) 32%, transparent);';
+    const submitStyle = submitDisabled
+      ? 'width:100%; min-height:52px; border:none; border-radius:99px; background:var(--bbord,#cdd6c9); color:var(--bmut,#7d8a80); font-family:var(--fd,"Poppins",sans-serif); font-weight:700; font-size:16px; cursor:not-allowed;'
+      : primaryBtn;
+
+    return {
+      isForm: step === 0, isSending: step === 1, isSuccess: step === 2, isError: step === 3, isThanks: step === 4,
+      headerTitle: step === 4 ? '¡Gracias por firmar!' : 'Firmar esta petición',
+      headerSub: step === 4 ? 'Tu apoyo quedó registrado' : 'Páramo del Cajas · 2 datos obligatorios',
+      name: s.name, email: s.email, cedula: s.cedula, provincia: s.provincia,
+      setName: this.set('name'), setEmail: this.set('email'), setCedula: this.set('cedula'), setProvincia: this.set('provincia'),
+      vis: s.vis, visIsPub: s.vis==='pub', visIsAnon: s.vis==='anon', visIsSec: s.vis==='sec',
+      visMicro: micro[s.vis],
+      visPubStyle: seg(s.vis==='pub'), visAnonStyle: seg(s.vis==='anon'), visSecStyle: seg(s.vis==='sec'),
+      pickPub: this.pick('pub'), pickAnon: this.pick('anon'), pickSec: this.pick('sec'),
+      consent, toggleConsent: (e)=> this.setState({ consent: e.target.checked }),
+      consentBorder: consent ? 'var(--bp,#18794a)' : 'var(--bbord,#dcdcdc)',
+      subscribe: !!s.subscribe, toggleSub: (e)=> this.setState({ subscribe: e.target.checked }),
+      submitDisabled, submitStyle, submitLabel: 'Firmar la petición', primaryBtn,
+      submit: this.submit,
+      goThanks: ()=> this.setState({ step: 4 }),
+      backToForm: ()=> this.setState({ step: 0 }),
+      close: this.props.onClose || (()=>{}),
+      emailShown: s.email || 'tu correo',
+      thanksTitle: s.name ? ('¡Gracias, ' + s.name.split(' ')[0] + '!') : '¡Gracias por firmar!'
+    };
+  }
+}
+</script>
+</body>
+</html>

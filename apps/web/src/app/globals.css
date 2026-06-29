@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================
+   PETITION-CAUCE — Design tokens (Bosque · default)
+   Sobreescritura por campaña: inyectar <style> en el
+   layout server-side con los valores de meta.branding.
+   ===================================================== */
+:root {
+  --bp:    #18794A;
+  --bop:   #ffffff;
+  --bsec:  #2F855A;
+  --bink:  #15241B;
+  --bmut:  #5A6B60;
+  --bsurf: #ffffff;
+  --bbg:   #EEF4EC;
+  --bbord: #DBE6D6;
+  --br:    24px;
+}
+
+/* =====================================================
+   Utilidades semánticas de campaña.
+   Definidas en @layer utilities para que siempre se
+   incluyan y respondan a sobreescrituras de tokens.
+   ===================================================== */
+@layer utilities {
+  /* Fondos */
+  .bg-brand-primary   { background-color: var(--bp); }
+  .bg-brand-secondary { background-color: var(--bsec); }
+  .bg-brand-surface   { background-color: var(--bsurf); }
+  .bg-brand-bg        { background-color: var(--bbg); }
+
+  /* Texto */
+  .text-brand-primary    { color: var(--bp); }
+  .text-brand-on-primary { color: var(--bop); }
+  .text-brand-secondary  { color: var(--bsec); }
+  .text-brand-ink        { color: var(--bink); }
+  .text-brand-muted      { color: var(--bmut); }
+
+  /* Bordes */
+  .border-brand-primary { border-color: var(--bp); }
+  .border-brand-border  { border-color: var(--bbord); }
+
+  /* Ring (focus) */
+  .ring-brand-primary { --tw-ring-color: var(--bp); }
+
+  /* Accent (checkboxes, radios) */
+  .accent-brand-primary { accent-color: var(--bp); }
+
+  /* Fill (SVG) */
+  .fill-brand-primary { fill: var(--bp); }
+
+  /* Border-radius desde token */
+  .rounded-petition { border-radius: var(--br); }
+}
+
+/* Animaciones compartidas por componentes de campaña */
+@keyframes pc-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+@keyframes pc-float-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes pc-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pc-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pc-rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

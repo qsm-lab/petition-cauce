@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@keyframes ap-rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms !important}}
+</style>
+</helmet>
+
+<div style="{{ rootStyle }}">
+
+  <!-- ===== LOGIN ===== -->
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; align-items:center; justify-content:center; height:100%; background:var(--bbg,#EEF4EC); padding:24px; box-sizing:border-box;">
+      <div style="width:420px; max-width:100%; background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:20px; padding:40px; box-shadow:0 20px 60px color-mix(in srgb, var(--bink,#15241B) 8%, transparent); animation:ap-rise .3s ease;">
+
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:28px;">
+          <div style="width:40px; height:40px; border-radius:11px; background:var(--bp,#18794A); display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:800; font-size:18px; color:var(--bop,#fff); flex-shrink:0;">F</div>
+          <div>
+            <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:17px; color:var(--bink,#15241B); line-height:1.1;">FirmaEC</div>
+            <div style="font-size:11.5px; color:var(--bmut,#5A6B60);">Panel de administración</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:4px; margin-bottom:26px; padding:4px; background:var(--bbg,#EEF4EC); border-radius:12px;">
+          <button type="button" onClick="{{ pickAdmin }}" style="{{ tabAdminStyle }}">Administrador</button>
+          <button type="button" onClick="{{ pickGestor }}" style="{{ tabGestorStyle }}">Gestor de campaña</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
+          <label style="display:block;">
+            <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Correo electrónico</span>
+            <input type="email" placeholder="admin@firma.ec" style="width:100%; box-sizing:border-box; min-height:46px; padding:0 14px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:12px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794A) 35%, transparent); border-color:var(--bp,#18794A);" />
+          </label>
+          <label style="display:block;">
+            <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Contraseña</span>
+            <input type="password" placeholder="••••••••" style="width:100%; box-sizing:border-box; min-height:46px; padding:0 14px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:12px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:3px solid color-mix(in srgb, var(--bp,#18794A) 35%, transparent); border-color:var(--bp,#18794A);" />
+          </label>
+        </div>
+
+        <button type="button" onClick="{{ doLogin }}" style="width:100%; min-height:50px; border:none; border-radius:12px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 6px 18px color-mix(in srgb, var(--bp,#18794A) 30%, transparent);">Ingresar</button>
+
+        <div style="text-align:center; margin-top:14px;">
+          <a href="#" style="font-size:12.5px; color:var(--bp,#18794A); text-decoration:none; font-weight:500;">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <div style="margin-top:22px; padding-top:16px; border-top:1px solid var(--bbord,#DBE6D6); text-align:center; font-size:11.5px; color:var(--bmut,#5A6B60); line-height:1.65;">
+          ¿Eres una organización ciudadana?<br>La plataforma pública está en <strong style="color:var(--bink,#15241B);">firma.ec</strong>
+        </div>
+
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== APP SHELL ===== -->
+  <sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex; height:100%; overflow:hidden;">
+
+      <!-- SIDEBAR -->
+      <nav aria-label="Navegación principal" style="flex:0 0 220px; width:220px; background:var(--bink,#15241B); display:flex; flex-direction:column; height:100%; overflow-y:auto;">
+
+        <div style="padding:20px 18px 16px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:10px; flex-shrink:0;">
+          <div style="width:30px; height:30px; border-radius:9px; background:var(--bp,#18794A); display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:800; font-size:14px; color:var(--bop,#fff); flex-shrink:0;">F</div>
+          <div>
+            <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:14px; color:#fff; line-height:1.1;">FirmaEC</div>
+            <div style="font-size:10px; color:rgba(255,255,255,.35);">Admin Panel</div>
+          </div>
+        </div>
+
+        <div style="flex:1; padding:10px 0; display:flex; flex-direction:column; gap:1px;">
+          <sc-for list="{{ navItems }}" as="ni" hint-placeholder-count="6">
+            <button type="button" onClick="{{ ni.onClick }}" style="{{ ni.style }}">{{ ni.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="padding:14px 16px; border-top:1px solid rgba(255,255,255,.07); display:flex; align-items:center; gap:10px; flex-shrink:0;">
+          <div style="width:32px; height:32px; border-radius:99px; background:color-mix(in srgb, var(--bp,#18794A) 45%, transparent); display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; color:var(--bop,#fff); flex-shrink:0;">A</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12.5px; font-weight:600; color:#fff; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ userName }}</div>
+            <div style="font-size:10.5px; color:rgba(255,255,255,.38);">{{ userEmail }}</div>
+          </div>
+          <button type="button" aria-label="Cerrar sesión" onClick="{{ doLogout }}" style="background:transparent; border:none; color:rgba(255,255,255,.38); cursor:pointer; font-size:16px; padding:4px; line-height:1; flex-shrink:0;" style-hover="color:rgba(255,255,255,.8);">↩</button>
+        </div>
+
+      </nav>
+
+      <!-- MAIN AREA -->
+      <div style="flex:1; min-width:0; overflow-y:auto; background:var(--bbg,#EEF4EC); display:flex; flex-direction:column;">
+
+        <!-- ====== DASHBOARD ====== -->
+        <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:18px; color:var(--bink,#15241B);">Resumen general</div>
+              <div style="font-size:12px; color:var(--bmut,#5A6B60); margin-top:1px;">Hoy · 28 jun 2026</div>
+            </div>
+            <button type="button" style="min-height:38px; padding:0 16px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; background:transparent; color:var(--bink,#15241B); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;" style-hover="background:var(--bbg,#EEF4EC);">Exportar informe</button>
+          </div>
+
+          <div style="padding:24px; display:flex; flex-direction:column; gap:20px; animation:ap-rise .25s ease;">
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+              <sc-for list="{{ statsCards }}" as="sc" hint-placeholder-count="4">
+                <div style="{{ sc.cardStyle }}">
+                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--bmut,#5A6B60); font-weight:700; margin-bottom:10px;">{{ sc.label }}</div>
+                  <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:28px; color:var(--bink,#15241B); line-height:1; margin-bottom:6px;">{{ sc.value }}</div>
+                  <div style="{{ sc.trendStyle }}">{{ sc.trend }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start;">
+
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+                <div style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bbord,#DBE6D6);">
+                  <span style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B);">Campañas recientes</span>
+                  <button type="button" onClick="{{ goToCampaigns }}" style="font-size:12.5px; color:var(--bp,#18794A); font-weight:600; background:transparent; border:none; cursor:pointer; padding:0;" style-hover="text-decoration:underline;">Ver todas →</button>
+                </div>
+                <sc-for list="{{ recentCampaigns }}" as="rc" hint-placeholder-count="5">
+                  <div style="padding:11px 18px; border-bottom:1px solid color-mix(in srgb, var(--bbord,#DBE6D6) 50%, transparent); display:flex; align-items:center; gap:12px;">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; color:var(--bink,#15241B); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ rc.title }}</div>
+                      <div style="font-size:11px; color:var(--bmut,#5A6B60); margin-top:2px;">{{ rc.org }}</div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0; margin-right:8px;">
+                      <div style="font-size:12.5px; font-weight:700; color:var(--bink,#15241B);">{{ rc.count }}</div>
+                      <div style="font-size:10.5px; color:var(--bmut,#5A6B60);">de {{ rc.goal }}</div>
+                    </div>
+                    <span style="{{ rc.badgeStyle }}">{{ rc.status }}</span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+                <div style="padding:14px 18px; border-bottom:1px solid var(--bbord,#DBE6D6);">
+                  <span style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B);">Actividad reciente</span>
+                </div>
+                <div style="padding:6px 0;">
+                  <sc-for list="{{ activityItems }}" as="ai" hint-placeholder-count="5">
+                    <div style="padding:10px 16px; display:flex; align-items:flex-start; gap:10px;">
+                      <div style="{{ ai.dotStyle }}"></div>
+                      <div style="flex:1; min-width:0;">
+                        <div style="font-size:12.5px; color:var(--bink,#15241B); line-height:1.4;">{{ ai.text }}</div>
+                        <div style="font-size:11px; color:var(--bmut,#5A6B60); margin-top:2px;">{{ ai.time }}</div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== CAMPAIGNS ====== -->
+        <sc-if value="{{ isCampaigns }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:18px; color:var(--bink,#15241B);">Gestión de campañas</div>
+              <div style="font-size:12px; color:var(--bmut,#5A6B60); margin-top:1px;">12 activas · 3 en revisión · 6 cerradas</div>
+            </div>
+            <button type="button" onClick="{{ goToEditor }}" style="min-height:38px; padding:0 18px; border:none; border-radius:10px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 4px 12px color-mix(in srgb, var(--bp,#18794A) 28%, transparent);">+ Nueva campaña</button>
+          </div>
+          <div style="padding:24px; display:flex; flex-direction:column; gap:16px; animation:ap-rise .25s ease;">
+
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:12px; padding:12px 16px; display:flex; gap:10px; align-items:center;">
+              <input placeholder="Buscar campaña…" style="flex:1; min-height:38px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC); box-sizing:border-box;" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+              <select style="min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bsurf,#fff); min-width:130px;">
+                <option>Todos los estados</option><option>Activa</option><option>Borrador</option><option>Cerrada</option><option>Pendiente</option>
+              </select>
+              <select style="min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bsurf,#fff); min-width:150px;">
+                <option>Todas las categorías</option><option>Agua y páramos</option><option>Bosques</option><option>Manglares</option><option>Minería</option>
+              </select>
+            </div>
+
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+              <div style="display:flex; padding:10px 16px; background:var(--bbg,#EEF4EC); border-bottom:1.5px solid var(--bbord,#DBE6D6);">
+                <div style="flex:0 0 300px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Campaña</div>
+                <div style="flex:0 0 130px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Organización</div>
+                <div style="flex:0 0 140px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Progreso</div>
+                <div style="flex:0 0 90px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Estado</div>
+                <div style="flex:0 0 90px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Cierre</div>
+                <div style="flex:1; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px; text-align:right;">Acciones</div>
+              </div>
+              <sc-for list="{{ campaigns }}" as="camp" hint-placeholder-count="5">
+                <div style="{{ camp.rowStyle }}">
+                  <div style="flex:0 0 300px; padding:0 4px; min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:var(--bink,#15241B); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-height:38px;">{{ camp.title }}</div>
+                    <div style="font-size:10.5px; color:var(--bmut,#5A6B60); margin-top:2px;">{{ camp.region }}</div>
+                  </div>
+                  <div style="flex:0 0 130px; padding:0 4px;">
+                    <div style="font-size:12px; color:var(--bink,#15241B); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ camp.org }}</div>
+                  </div>
+                  <div style="flex:0 0 140px; padding:0 4px;">
+                    <div style="font-size:12px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">{{ camp.count }} / {{ camp.goal }}</div>
+                    <div style="height:5px; border-radius:99px; background:color-mix(in srgb, var(--bp,#18794A) 12%, var(--bbg,#EEF4EC)); overflow:hidden;">
+                      <div style="{{ camp.barStyle }}"></div>
+                    </div>
+                  </div>
+                  <div style="flex:0 0 90px; padding:0 4px;"><span style="{{ camp.badgeStyle }}">{{ camp.status }}</span></div>
+                  <div style="flex:0 0 90px; padding:0 4px;"><span style="font-size:12px; color:var(--bmut,#5A6B60);">{{ camp.closes }}</span></div>
+                  <div style="flex:1; padding:0 4px; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+                    <button type="button" onClick="{{ camp.onEdit }}" style="min-height:30px; padding:0 11px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:8px; background:transparent; color:var(--bink,#15241B); font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="border-color:var(--bp,#18794A); color:var(--bp,#18794A);">Editar</button>
+                    <button type="button" onClick="{{ camp.onSigs }}" style="min-height:30px; padding:0 11px; border:none; border-radius:8px; background:color-mix(in srgb, var(--bp,#18794A) 10%, transparent); color:var(--bp,#18794A); font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="background:color-mix(in srgb, var(--bp,#18794A) 18%, transparent);">Firmas</button>
+                    <button type="button" onClick="{{ camp.onArchive }}" style="min-height:30px; padding:0 11px; border:1.5px solid color-mix(in srgb,#dc2626 28%,var(--bbord,#DBE6D6)); border-radius:8px; background:transparent; color:#dc2626; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="background:color-mix(in srgb,#dc2626 8%,transparent);">Archivar</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== EDITOR ====== -->
+        <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-size:11.5px; color:var(--bmut,#5A6B60); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                <button type="button" onClick="{{ goToCampaigns }}" style="background:transparent; border:none; color:var(--bp,#18794A); font-size:11.5px; cursor:pointer; padding:0; font-family:inherit;" style-hover="text-decoration:underline;">Campañas</button>
+                <span>›</span><span>Editar campaña</span>
+              </div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; color:var(--bink,#15241B);">Protejamos el páramo del Cajas de la minería metálica</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" style="min-height:38px; padding:0 16px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; background:transparent; color:var(--bink,#15241B); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;" style-hover="background:var(--bbg,#EEF4EC);">Guardar borrador</button>
+              <button type="button" style="min-height:38px; padding:0 18px; border:none; border-radius:10px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 3px 10px color-mix(in srgb, var(--bp,#18794A) 28%, transparent);">Publicar campaña</button>
+            </div>
+          </div>
+          <div style="padding:24px; display:grid; grid-template-columns:1fr 280px; gap:20px; align-items:start; animation:ap-rise .25s ease;">
+
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B); margin-bottom:16px;">Información básica</div>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Título de la campaña</span>
+                    <input defaultValue="Protejamos el páramo del Cajas de la minería metálica" style="width:100%; box-sizing:border-box; min-height:44px; padding:0 13px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                  </label>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <label style="display:block;">
+                      <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Categoría</span>
+                      <select style="width:100%; min-height:44px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);">
+                        <option>Agua y páramos</option><option>Bosques</option><option>Ríos y costas</option><option>Manglares</option><option>Minería</option><option>Residuos</option>
+                      </select>
+                    </label>
+                    <label style="display:block;">
+                      <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Meta de firmas</span>
+                      <input type="number" defaultValue="500" style="width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                    </label>
+                  </div>
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Autoridad destinataria</span>
+                    <input defaultValue="Ministerio del Ambiente, Agua y Transición Ecológica" style="width:100%; box-sizing:border-box; min-height:44px; padding:0 13px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                  </label>
+                </div>
+              </div>
+
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B); margin-bottom:16px;">Contenido de la campaña</div>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Lo que pedimos <span style="font-weight:400; color:var(--bmut,#5A6B60);">— una demanda por línea</span></span>
+                    <textarea rows="4" style="width:100%; box-sizing:border-box; padding:12px 13px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:13.5px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC); resize:vertical; line-height:1.6;" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);">Declarar el macizo del Cajas como zona libre de minería metálica.
+Auditar y suspender las concesiones que afectan las fuentes de agua.
+Garantizar consulta ambiental real a las comunidades de Azuay y Cañar.</textarea>
+                  </label>
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Por qué importa <span style="font-weight:400; color:var(--bmut,#5A6B60);">— descripción completa</span></span>
+                    <textarea rows="5" style="width:100%; box-sizing:border-box; padding:12px 13px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:13.5px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC); resize:vertical; line-height:1.6;" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);">El Cajas abastece de agua a más de medio millón de personas en Cuenca y su región. Sus humedales de altura almacenan y filtran el agua que llega a los hogares, los cultivos y las pequeñas hidroeléctricas.
+
+Las concesiones mineras avanzan sobre las zonas de recarga hídrica. Una sola fuga compromete el agua de generaciones. Pedimos protección permanente, no promesas temporales.</textarea>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:16px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; color:var(--bink,#15241B); margin-bottom:12px;">Estado de publicación</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                  <span style="display:inline-flex; align-items:center; padding:5px 11px; border-radius:99px; background:color-mix(in srgb, var(--bp,#18794A) 12%, transparent); color:var(--bp,#18794A); font-size:12px; font-weight:700;">Activa</span>
+                  <button type="button" style="font-size:12px; color:#dc2626; font-weight:600; background:transparent; border:none; cursor:pointer; padding:0;">Suspender</button>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:9px;">
+                  <label style="display:block;">
+                    <span style="display:block; font-size:11.5px; font-weight:600; color:var(--bmut,#5A6B60); margin-bottom:4px;">Fecha de inicio</span>
+                    <input type="date" defaultValue="2026-06-12" style="width:100%; box-sizing:border-box; min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" />
+                  </label>
+                  <label style="display:block;">
+                    <span style="display:block; font-size:11.5px; font-weight:600; color:var(--bmut,#5A6B60); margin-bottom:4px;">Fecha de cierre</span>
+                    <input type="date" defaultValue="2026-08-31" style="width:100%; box-sizing:border-box; min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" />
+                  </label>
+                </div>
+              </div>
+
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:16px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; color:var(--bink,#15241B); margin-bottom:12px;">Documentos <span style="font-weight:400; font-size:11.5px; color:var(--bmut,#5A6B60);">3 / 5</span></div>
+                <div style="border:2px dashed var(--bbord,#DBE6D6); border-radius:10px; padding:14px; text-align:center; margin-bottom:10px; cursor:pointer;" style-hover="border-color:var(--bp,#18794A); background:color-mix(in srgb, var(--bp,#18794A) 4%, transparent);">
+                  <div style="font-size:18px; color:var(--bmut,#5A6B60); margin-bottom:3px;">↑</div>
+                  <div style="font-size:12.5px; color:var(--bink,#15241B); font-weight:600;">Arrastra PDFs aquí</div>
+                  <div style="font-size:11px; color:var(--bmut,#5A6B60); margin-top:1px;">o haz clic · máx. 5 archivos</div>
+                </div>
+                <sc-for list="{{ editorDocs }}" as="ed" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid color-mix(in srgb, var(--bbord,#DBE6D6) 55%, transparent);">
+                    <span style="font-size:14px; flex-shrink:0;">📄</span>
+                    <div style="flex:1; min-width:0; font-size:11.5px; color:var(--bink,#15241B); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ ed.name }}</div>
+                    <div style="font-size:10.5px; color:var(--bmut,#5A6B60); flex-shrink:0;">{{ ed.size }}</div>
+                    <button type="button" aria-label="Eliminar" style="background:transparent; border:none; color:var(--bmut,#5A6B60); cursor:pointer; font-size:13px; padding:2px; line-height:1; flex-shrink:0;" style-hover="color:#dc2626;">✕</button>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:14px 16px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; color:var(--bink,#15241B); margin-bottom:10px;">Previsualización</div>
+                <button type="button" style="width:100%; min-height:38px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; background:transparent; color:var(--bp,#18794A); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" style-hover="background:color-mix(in srgb, var(--bp,#18794A) 6%, transparent); border-color:var(--bp,#18794A);">Ver campaña pública ↗</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== SIGNATURES ====== -->
+        <sc-if value="{{ isSignatures }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-size:11.5px; color:var(--bmut,#5A6B60); margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                <button type="button" onClick="{{ goToCampaigns }}" style="background:transparent; border:none; color:var(--bp,#18794A); font-size:11.5px; cursor:pointer; padding:0; font-family:inherit;" style-hover="text-decoration:underline;">Campañas</button>
+                <span>›</span><span>Firmas registradas</span>
+              </div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; color:var(--bink,#15241B);">Páramo del Cajas · 191 firmas</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" style="min-height:38px; padding:0 16px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; background:transparent; color:var(--bink,#15241B); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;" style-hover="background:var(--bbg,#EEF4EC);">Exportar CSV</button>
+              <button type="button" style="min-height:38px; padding:0 16px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; background:transparent; color:var(--bink,#15241B); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer;" style-hover="background:var(--bbg,#EEF4EC);">Exportar PDF oficial</button>
+            </div>
+          </div>
+          <div style="padding:24px; display:flex; flex-direction:column; gap:16px; animation:ap-rise .25s ease;">
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+              <sc-for list="{{ sigStats }}" as="ss" hint-placeholder-count="4">
+                <div style="{{ ss.cardStyle }}">
+                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; margin-bottom:8px;">{{ ss.label }}</div>
+                  <div style="{{ ss.valueStyle }}">{{ ss.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+              <div style="display:flex; padding:10px 16px; background:var(--bbg,#EEF4EC); border-bottom:1.5px solid var(--bbord,#DBE6D6);">
+                <div style="flex:0 0 44px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">#</div>
+                <div style="flex:0 0 160px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Nombre</div>
+                <div style="flex:0 0 110px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Cédula</div>
+                <div style="flex:0 0 110px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Provincia</div>
+                <div style="flex:0 0 100px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Visibilidad</div>
+                <div style="flex:0 0 95px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Verificación</div>
+                <div style="flex:1; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Fecha</div>
+                <div style="flex:0 0 64px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px; text-align:right;">Acc.</div>
+              </div>
+              <sc-for list="{{ signatures }}" as="sig" hint-placeholder-count="6">
+                <div style="{{ sig.rowStyle }}">
+                  <div style="flex:0 0 44px; padding:0 4px; font-size:13px; font-weight:700; color:var(--bp,#18794A);">{{ sig.n }}</div>
+                  <div style="flex:0 0 160px; padding:0 4px; font-size:13px; font-weight:600; color:var(--bink,#15241B);">{{ sig.name }}</div>
+                  <div style="flex:0 0 110px; padding:0 4px; font-size:12.5px; color:var(--bmut,#5A6B60); font-family:'Inter',monospace;">{{ sig.cedula }}</div>
+                  <div style="flex:0 0 110px; padding:0 4px; font-size:12.5px; color:var(--bink,#15241B);">{{ sig.prov }}</div>
+                  <div style="flex:0 0 100px; padding:0 4px;"><span style="{{ sig.visBadgeStyle }}">{{ sig.vis }}</span></div>
+                  <div style="flex:0 0 95px; padding:0 4px;"><span style="{{ sig.verifiedStyle }}">{{ sig.verifiedLabel }}</span></div>
+                  <div style="flex:1; padding:0 4px; font-size:11.5px; color:var(--bmut,#5A6B60);">{{ sig.date }}</div>
+                  <div style="flex:0 0 64px; padding:0 4px; display:flex; justify-content:flex-end;">
+                    <button type="button" style="min-height:28px; padding:0 9px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:7px; background:transparent; color:var(--bmut,#5A6B60); font-size:11.5px; font-family:inherit; cursor:pointer;" style-hover="color:#dc2626; border-color:#dc2626;">Anular</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== ORGANIZATIONS ====== -->
+        <sc-if value="{{ isOrgs }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:18px; color:var(--bink,#15241B);">Organizaciones</div>
+              <div style="font-size:12px; color:var(--bmut,#5A6B60); margin-top:1px;">18 registradas · 14 verificadas · 2 pendientes · 2 archivadas</div>
+            </div>
+            <button type="button" style="min-height:38px; padding:0 18px; border:none; border-radius:10px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 4px 12px color-mix(in srgb, var(--bp,#18794A) 28%, transparent);">+ Nueva organización</button>
+          </div>
+          <div style="padding:24px; display:flex; flex-direction:column; gap:16px; animation:ap-rise .25s ease;">
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:12px; padding:12px 16px; display:flex; gap:10px; align-items:center;">
+              <input placeholder="Buscar organización…" style="flex:1; min-height:38px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC); box-sizing:border-box;" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+              <select style="min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bsurf,#fff); min-width:140px;">
+                <option>Todos los estados</option><option>Verificada</option><option>Pendiente</option><option>Archivada</option>
+              </select>
+            </div>
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+              <div style="display:flex; padding:10px 16px; background:var(--bbg,#EEF4EC); border-bottom:1.5px solid var(--bbord,#DBE6D6);">
+                <div style="flex:0 0 230px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Organización</div>
+                <div style="flex:0 0 140px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Responsable</div>
+                <div style="flex:0 0 80px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Campañas</div>
+                <div style="flex:0 0 105px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Estado</div>
+                <div style="flex:0 0 100px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Registro</div>
+                <div style="flex:1; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px; text-align:right;">Acciones</div>
+              </div>
+              <sc-for list="{{ orgs }}" as="org" hint-placeholder-count="5">
+                <div style="{{ org.rowStyle }}">
+                  <div style="flex:0 0 230px; padding:0 4px; min-width:0;">
+                    <div style="font-size:13px; font-weight:700; color:var(--bink,#15241B); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ org.name }}</div>
+                    <div style="font-size:11px; color:var(--bmut,#5A6B60); margin-top:1px; font-family:'Inter',monospace;">{{ org.domain }}</div>
+                  </div>
+                  <div style="flex:0 0 140px; padding:0 4px;"><div style="font-size:12.5px; color:var(--bink,#15241B);">{{ org.rep }}</div></div>
+                  <div style="flex:0 0 80px; padding:0 4px;">
+                    <div style="font-size:13px; font-weight:700; color:var(--bink,#15241B);">{{ org.campaigns }}</div>
+                    <div style="font-size:10.5px; color:var(--bmut,#5A6B60);">activas</div>
+                  </div>
+                  <div style="flex:0 0 105px; padding:0 4px;"><span style="{{ org.badgeStyle }}">{{ org.status }}</span></div>
+                  <div style="flex:0 0 100px; padding:0 4px;"><span style="font-size:12px; color:var(--bmut,#5A6B60);">{{ org.date }}</span></div>
+                  <div style="flex:1; padding:0 4px; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+                    <button type="button" style="min-height:30px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:8px; background:transparent; color:var(--bink,#15241B); font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="border-color:var(--bp,#18794A); color:var(--bp,#18794A);">Ver ↗</button>
+                    <button type="button" style="min-height:30px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:8px; background:transparent; color:var(--bink,#15241B); font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="border-color:var(--bp,#18794A); color:var(--bp,#18794A);">Editar</button>
+                    <button type="button" onClick="{{ org.onArchive }}" style="min-height:30px; padding:0 10px; border:1.5px solid color-mix(in srgb,#dc2626 28%,var(--bbord,#DBE6D6)); border-radius:8px; background:transparent; color:#dc2626; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="background:color-mix(in srgb,#dc2626 8%,transparent);">Archivar</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== USERS ====== -->
+        <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:18px; color:var(--bink,#15241B);">Usuarios del panel</div>
+              <div style="font-size:12px; color:var(--bmut,#5A6B60); margin-top:1px;">2 administradores · 14 gestores activos · 1 pendiente</div>
+            </div>
+            <button type="button" style="min-height:38px; padding:0 18px; border:none; border-radius:10px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 4px 12px color-mix(in srgb, var(--bp,#18794A) 28%, transparent);">+ Invitar usuario</button>
+          </div>
+          <div style="padding:24px; display:flex; flex-direction:column; gap:16px; animation:ap-rise .25s ease;">
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:12px; padding:12px 16px; display:flex; gap:10px; align-items:center;">
+              <input placeholder="Buscar usuario…" style="flex:1; min-height:38px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC); box-sizing:border-box;" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+              <select style="min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bsurf,#fff); min-width:130px;">
+                <option>Todos los roles</option><option>Administrador</option><option>Gestor</option>
+              </select>
+              <select style="min-height:38px; padding:0 10px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:9px; font-size:13px; font-family:inherit; color:var(--bink,#15241B); background:var(--bsurf,#fff); min-width:130px;">
+                <option>Todos los estados</option><option>Activo</option><option>Pendiente</option><option>Archivado</option>
+              </select>
+            </div>
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; overflow:hidden;">
+              <div style="display:flex; padding:10px 16px; background:var(--bbg,#EEF4EC); border-bottom:1.5px solid var(--bbord,#DBE6D6);">
+                <div style="flex:0 0 210px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Usuario</div>
+                <div style="flex:0 0 90px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Rol</div>
+                <div style="flex:0 0 170px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Organización</div>
+                <div style="flex:0 0 120px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Último acceso</div>
+                <div style="flex:0 0 90px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px;">Estado</div>
+                <div style="flex:1; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--bmut,#5A6B60); font-weight:700; padding:0 4px; text-align:right;">Acciones</div>
+              </div>
+              <sc-for list="{{ users }}" as="usr" hint-placeholder-count="5">
+                <div style="{{ usr.rowStyle }}">
+                  <div style="flex:0 0 210px; padding:0 4px; min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:var(--bink,#15241B); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ usr.name }}</div>
+                    <div style="font-size:11px; color:var(--bmut,#5A6B60); margin-top:1px; font-family:'Inter',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ usr.email }}</div>
+                  </div>
+                  <div style="flex:0 0 90px; padding:0 4px;"><span style="{{ usr.roleBadgeStyle }}">{{ usr.role }}</span></div>
+                  <div style="flex:0 0 170px; padding:0 4px;"><div style="font-size:12px; color:var(--bink,#15241B); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ usr.org }}</div></div>
+                  <div style="flex:0 0 120px; padding:0 4px;"><div style="font-size:12px; color:var(--bmut,#5A6B60);">{{ usr.lastAccess }}</div></div>
+                  <div style="flex:0 0 90px; padding:0 4px;"><span style="{{ usr.statusBadgeStyle }}">{{ usr.status }}</span></div>
+                  <div style="flex:1; padding:0 4px; display:flex; gap:6px; justify-content:flex-end; align-items:center;">
+                    <button type="button" style="min-height:30px; padding:0 11px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:8px; background:transparent; color:var(--bink,#15241B); font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="border-color:var(--bp,#18794A); color:var(--bp,#18794A);">Editar</button>
+                    <button type="button" onClick="{{ usr.onArchive }}" style="min-height:30px; padding:0 11px; border:1.5px solid color-mix(in srgb,#dc2626 28%,var(--bbord,#DBE6D6)); border-radius:8px; background:transparent; color:#dc2626; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer;" style-hover="background:color-mix(in srgb,#dc2626 8%,transparent);">Archivar</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ====== SETTINGS ====== -->
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bsurf,#fff); border-bottom:1px solid var(--bbord,#DBE6D6); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:18px; color:var(--bink,#15241B);">Configuración</div>
+              <div style="font-size:12px; color:var(--bmut,#5A6B60); margin-top:1px;">Ajustes generales de la plataforma</div>
+            </div>
+            <button type="button" style="min-height:38px; padding:0 18px; border:none; border-radius:10px; background:var(--bp,#18794A); color:var(--bop,#fff); font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 4px 12px color-mix(in srgb, var(--bp,#18794A) 28%, transparent);">Guardar cambios</button>
+          </div>
+          <div style="padding:24px; display:grid; grid-template-columns:190px 1fr; gap:24px; align-items:start; animation:ap-rise .25s ease;">
+            <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:8px; position:sticky; top:80px;">
+              <sc-for list="{{ settingsNav }}" as="sn" hint-placeholder-count="4">
+                <button type="button" style="{{ sn.style }}">{{ sn.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B); margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--bbord,#DBE6D6);">Plataforma</div>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <label style="display:block;">
+                      <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Nombre de la plataforma</span>
+                      <input defaultValue="FirmaEC" style="width:100%; box-sizing:border-box; min-height:42px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                    </label>
+                    <label style="display:block;">
+                      <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">URL base</span>
+                      <input defaultValue="firma.ec" style="width:100%; box-sizing:border-box; min-height:42px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:'Inter',monospace; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                    </label>
+                  </div>
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Descripción breve</span>
+                    <input defaultValue="Plataforma de firmas ambientales del Ecuador" style="width:100%; box-sizing:border-box; min-height:42px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:inherit; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                  </label>
+                  <label style="display:block;">
+                    <span style="display:block; font-size:12.5px; font-weight:600; color:var(--bink,#15241B); margin-bottom:5px;">Correo remitente</span>
+                    <input type="email" defaultValue="noreply@firma.ec" style="width:100%; box-sizing:border-box; min-height:42px; padding:0 12px; border:1.5px solid var(--bbord,#DBE6D6); border-radius:10px; font-size:14px; font-family:'Inter',monospace; color:var(--bink,#15241B); background:var(--bbg,#EEF4EC);" style-focus="outline:2px solid color-mix(in srgb, var(--bp,#18794A) 30%, transparent); border-color:var(--bp,#18794A);" />
+                  </label>
+                </div>
+              </div>
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B); margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--bbord,#DBE6D6);">Notificaciones por correo</div>
+                <sc-for list="{{ notifItems }}" as="ni" hint-placeholder-count="4">
+                  <div style="{{ ni.rowStyle }}">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; color:var(--bink,#15241B);">{{ ni.label }}</div>
+                      <div style="font-size:11.5px; color:var(--bmut,#5A6B60); margin-top:2px;">{{ ni.desc }}</div>
+                    </div>
+                    <div style="{{ ni.toggleStyle }}"><div style="{{ ni.knobStyle }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:14px; color:var(--bink,#15241B); margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--bbord,#DBE6D6);">Seguridad</div>
+                <sc-for list="{{ secItems }}" as="si" hint-placeholder-count="3">
+                  <div style="{{ si.rowStyle }}">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; color:var(--bink,#15241B);">{{ si.label }}</div>
+                      <div style="font-size:11.5px; color:var(--bmut,#5A6B60); margin-top:2px;">{{ si.desc }}</div>
+                    </div>
+                    <div style="{{ si.controlStyle }}"><div style="{{ si.knobStyle }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1200, &quot;height&quot;: 820 },
+  &quot;view&quot;: {
+    &quot;editor&quot;: &quot;enum&quot;,
+    &quot;default&quot;: &quot;dashboard&quot;,
+    &quot;options&quot;: [&quot;login&quot;, &quot;dashboard&quot;, &quot;campaigns&quot;, &quot;editor&quot;, &quot;signatures&quot;],
+    &quot;tsType&quot;: &quot;string&quot;,
+    &quot;section&quot;: &quot;Vista&quot;
+  }
+}">
+class Component extends DCLogic {
+  state = { view: null, loginRole: 'admin' };
+
+  renderVals() {
+    const view = this.props.view || this.state.view || 'dashboard';
+    const isLogin = view === 'login';
+    const isApp = !isLogin;
+    const isDashboard = view === 'dashboard';
+    const isCampaigns = view === 'campaigns';
+    const isEditor = view === 'editor';
+    const isSignatures = view === 'signatures';
+    const isOrgs     = view === 'orgs';
+    const isUsers    = view === 'users';
+    const isSettings = view === 'settings';
+
+    const rootStyle = {
+      position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
+      background: 'var(--bbg,#EEF4EC)', color: 'var(--bink,#15241B)',
+      fontFamily: "var(--fb,'Inter',system-ui,sans-serif)"
+    };
+
+    const tabBase = 'flex:1; min-height:36px; border-radius:9px; font-family:inherit; font-weight:600; font-size:13px; cursor:pointer; border:none; ';
+    const tabAdminStyle = tabBase + (this.state.loginRole === 'admin'
+      ? 'background:var(--bsurf,#fff); color:var(--bink,#15241B); box-shadow:0 1px 4px rgba(0,0,0,.10);'
+      : 'background:transparent; color:var(--bmut,#5A6B60);');
+    const tabGestorStyle = tabBase + (this.state.loginRole === 'gestor'
+      ? 'background:var(--bsurf,#fff); color:var(--bink,#15241B); box-shadow:0 1px 4px rgba(0,0,0,.10);'
+      : 'background:transparent; color:var(--bmut,#5A6B60);');
+
+    const isAdmin = this.state.loginRole === 'admin';
+    const userName = isAdmin ? 'Administrador' : 'Gestor · Ríos Libres';
+    const userEmail = isAdmin ? 'admin@firma.ec' : 'gestor@rioslibre.org';
+
+    const navDefs = [
+      { id:'dashboard', label:'Resumen' },
+      { id:'campaigns', label:'Campañas' },
+      { id:'signatures', label:'Firmas' },
+      { id:'orgs', label:'Organizaciones' },
+      { id:'users', label:'Usuarios' },
+      { id:'settings', label:'Configuración' },
+    ];
+    const navItems = navDefs.map(n => ({
+      label: n.label,
+      style: 'display:block; width:calc(100% - 16px); margin:0 8px; text-align:left; padding:10px 16px; border-radius:10px; font-family:inherit; font-size:13.5px; cursor:pointer; border:none; ' +
+        (view === n.id
+          ? 'background:rgba(255,255,255,.1); color:#fff; font-weight:600;'
+          : 'background:transparent; color:rgba(255,255,255,.52); font-weight:500;'),
+      onClick: () => this.setState({ view: n.id })
+    }));
+
+    const badgeStyles = {
+      activa:   'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:color-mix(in srgb,#18794A 12%,transparent); color:#18794A;',
+      borrador: 'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#f3f4f6; color:#6b7280;',
+      cerrada:  'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#e8f0fe; color:#1a56db;',
+      pendiente:'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#fff7ed; color:#c2410c;',
+    };
+    const rowBase = 'display:flex; align-items:center; padding:13px 16px; border-bottom:1px solid color-mix(in srgb,var(--bbord,#DBE6D6) 55%,transparent);';
+
+    const rawCampaigns = [
+      { title:'Protejamos el páramo del Cajas de la minería metálica', org:'Colectivo Ríos Libres', count:191, goal:500, status:'activa', region:'Azuay · Cañar', closes:'31 ago 2026' },
+      { title:'No más vertidos en el río Tomebamba', org:'Acción Verde Cuenca', count:89, goal:300, status:'activa', region:'Azuay', closes:'15 sep 2026' },
+      { title:'Declaratoria área protegida: bosque Mindo', org:'SalvaMindo', count:1240, goal:1000, status:'cerrada', region:'Pichincha', closes:'01 jun 2026' },
+      { title:'Auditoría ambiental de la mina Mirador', org:'CEDHU', count:34, goal:1000, status:'borrador', region:'Zamora-Chinchipe', closes:'—' },
+      { title:'Protección del manglar Churute', org:'Mar Adentro', count:456, goal:500, status:'activa', region:'Guayas', closes:'20 jul 2026' },
+      { title:'Cierre de vertedero ilegal en Tumbaco', org:'Vecinos Tumbaco', count:0, goal:200, status:'pendiente', region:'Pichincha', closes:'—' },
+    ];
+    const campaigns = rawCampaigns.map(c => ({
+      ...c,
+      badgeStyle: badgeStyles[c.status] || badgeStyles.borrador,
+      barStyle: 'height:100%; width:' + Math.min(100, Math.round(c.count / c.goal * 100)) + '%; background:var(--bp,#18794A); border-radius:99px;',
+      rowStyle: rowBase,
+      onEdit: () => this.setState({ view: 'editor' }),
+      onSigs: () => this.setState({ view: 'signatures' }),
+      onArchive: () => {},
+    }));
+
+    const statsCards = [
+      { label:'Total firmas', value:'4,821', trend:'↑ 12% este mes',
+        cardStyle:'background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;',
+        trendStyle:'font-size:12px; color:#18794A; font-weight:600;' },
+      { label:'Campañas activas', value:'12', trend:'3 categorías',
+        cardStyle:'background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;',
+        trendStyle:'font-size:12px; color:var(--bmut,#5A6B60);' },
+      { label:'Pendientes revisión', value:'3', trend:'Requieren acción',
+        cardStyle:'background:var(--bsurf,#fff); border:1px solid color-mix(in srgb,#c2410c 30%,var(--bbord,#DBE6D6)); border-radius:14px; padding:20px;',
+        trendStyle:'font-size:12px; color:#c2410c; font-weight:600;' },
+      { label:'Tasa de conversión', value:'34%', trend:'↑ 2pp vs. mes anterior',
+        cardStyle:'background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:14px; padding:20px;',
+        trendStyle:'font-size:12px; color:#18794A; font-weight:600;' },
+    ];
+
+    const recentCampaigns = rawCampaigns.slice(0, 5).map(c => ({
+      ...c, badgeStyle: badgeStyles[c.status] || badgeStyles.borrador,
+    }));
+
+    const dotActive = 'flex:0 0 8px; width:8px; height:8px; border-radius:99px; background:var(--bp,#18794A); margin-top:4px;';
+    const dotMuted  = 'flex:0 0 8px; width:8px; height:8px; border-radius:99px; background:var(--bbord,#DBE6D6); margin-top:4px;';
+    const activityItems = [
+      { text:'Nueva firma en "Protejamos el Cajas"', time:'hace 2 min', dotStyle:dotActive },
+      { text:'"Manglar Churute" llegó al 80% de la meta', time:'hace 15 min', dotStyle:dotActive },
+      { text:'SalvaMindo subió 2 documentos a su campaña', time:'hace 1h', dotStyle:dotMuted },
+      { text:'Gestor @accion.verde inició sesión', time:'hace 2h', dotStyle:dotMuted },
+      { text:'Nueva organización registrada: Mar Adentro', time:'hace 3h', dotStyle:dotMuted },
+    ];
+
+    const editorDocs = [
+      { name:'Estudio de impacto hídrico del Cajas 2024', size:'3.2 MB' },
+      { name:'Resolución Ministerial No. 2019-045', size:'1.8 MB' },
+      { name:'Análisis técnico de concesiones', size:'5.1 MB' },
+    ];
+
+    const cardBase = 'background:var(--bsurf,#fff); border:1px solid var(--bbord,#DBE6D6); border-radius:12px; padding:16px 18px;';
+    const sigStats = [
+      { label:'Total registradas', value:'191', cardStyle:cardBase,
+        valueStyle:'font-family:Poppins,sans-serif; font-weight:800; font-size:26px; color:var(--bink,#15241B); line-height:1;' },
+      { label:'Verificadas', value:'178', cardStyle:cardBase,
+        valueStyle:'font-family:Poppins,sans-serif; font-weight:800; font-size:26px; color:#18794A; line-height:1;' },
+      { label:'Pendientes confirmación', value:'13',
+        cardStyle:'background:var(--bsurf,#fff); border:1px solid color-mix(in srgb,#c2410c 20%,var(--bbord,#DBE6D6)); border-radius:12px; padding:16px 18px;',
+        valueStyle:'font-family:Poppins,sans-serif; font-weight:800; font-size:26px; color:#c2410c; line-height:1;' },
+      { label:'Anónimas / secretas', value:'124', cardStyle:cardBase,
+        valueStyle:'font-family:Poppins,sans-serif; font-weight:800; font-size:26px; color:var(--bmut,#5A6B60); line-height:1;' },
+    ];
+
+    const visStyles = {
+      pub:  'display:inline-flex; padding:3px 8px; border-radius:99px; font-size:11px; font-weight:700; background:#e8f0fe; color:#1a56db;',
+      anon: 'display:inline-flex; padding:3px 8px; border-radius:99px; font-size:11px; font-weight:700; background:var(--bbg,#EEF4EC); color:var(--bmut,#5A6B60);',
+      sec:  'display:inline-flex; padding:3px 8px; border-radius:99px; font-size:11px; font-weight:700; background:#f3f4f6; color:#6b7280;',
+    };
+    const rawSigs = [
+      { n:192, name:'María Quintero', cedula:'010*****05', prov:'Azuay',    vis:'anon', verified:true,  date:'28 jun · 14:32' },
+      { n:191, name:'—',             cedula:'170*****12', prov:'Quito',    vis:'sec',  verified:true,  date:'28 jun · 14:28' },
+      { n:190, name:'Jorge Tandazo', cedula:'010*****89', prov:'Azogues',  vis:'pub',  verified:true,  date:'28 jun · 13:55' },
+      { n:189, name:'—',             cedula:'110*****44', prov:'Loja',     vis:'anon', verified:false, date:'28 jun · 13:40' },
+      { n:188, name:'Lucía Peralta', cedula:'010*****71', prov:'Gualaceo', vis:'pub',  verified:true,  date:'28 jun · 13:22' },
+      { n:187, name:'Andrés Mora',   cedula:'170*****33', prov:'Quito',    vis:'anon', verified:true,  date:'28 jun · 12:58' },
+      { n:186, name:'—',             cedula:'090*****21', prov:'Guayaquil',vis:'sec',  verified:false, date:'28 jun · 12:31' },
+      { n:185, name:'Patricia Jara', cedula:'010*****56', prov:'Cuenca',   vis:'pub',  verified:true,  date:'28 jun · 11:47' },
+    ];
+    const signatures = rawSigs.map(s => ({
+      ...s,
+      visBadgeStyle: visStyles[s.vis] || visStyles.anon,
+      verifiedLabel: s.verified ? 'Verificada' : 'Pendiente',
+      verifiedStyle: s.verified
+        ? 'display:inline-flex; padding:3px 8px; border-radius:99px; font-size:11px; font-weight:700; background:color-mix(in srgb,#18794A 12%,transparent); color:#18794A;'
+        : 'display:inline-flex; padding:3px 8px; border-radius:99px; font-size:11px; font-weight:700; background:#fff7ed; color:#c2410c;',
+      rowStyle: rowBase,
+    }));
+
+    // ── Orgs ──
+    const orgBadgeStyles = {
+      verificada: 'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:color-mix(in srgb,#18794A 12%,transparent); color:#18794A;',
+      pendiente:  'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#fff7ed; color:#c2410c;',
+      archivada:  'display:inline-flex; padding:4px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#f3f4f6; color:#6b7280;',
+    };
+    const orgs = [
+      { name:'Colectivo Ríos Libres', domain:'rioslibre.org', rep:'Ana Lucía Torres', campaigns:3, status:'verificada', date:'15 mar 2026' },
+      { name:'Acción Verde Cuenca',   domain:'accionverde.ec', rep:'Carlos Mejía',     campaigns:1, status:'verificada', date:'22 abr 2026' },
+      { name:'SalvaMindo',            domain:'salvamindo.org', rep:'Fernanda Ríos',    campaigns:2, status:'verificada', date:'08 ene 2026' },
+      { name:'CEDHU',                 domain:'cedhu.org',      rep:'Roberto Andrade',  campaigns:1, status:'pendiente', date:'01 jun 2026' },
+      { name:'Mar Adentro',           domain:'maradentro.ec',  rep:'Valeria Suárez',  campaigns:1, status:'verificada', date:'14 feb 2026' },
+      { name:'Vecinos Tumbaco',       domain:'—',              rep:'Diego Mora',       campaigns:0, status:'pendiente', date:'20 jun 2026' },
+    ].map(o => ({ ...o, badgeStyle: orgBadgeStyles[o.status] || orgBadgeStyles.archivada, rowStyle: rowBase, onArchive: () => {} }));
+
+    // ── Users ──
+    const users = [
+      { name:'Admin Sistema',    email:'admin@firma.ec',          role:'Admin',  org:'—',                    lastAccess:'hace 30 min', status:'activo'   },
+      { name:'Ana Lucía Torres', email:'ana@rioslibre.org',       role:'Gestor', org:'Colectivo Ríos Libres', lastAccess:'hace 2 min',  status:'activo'   },
+      { name:'Carlos Mejía',     email:'carlos@accionverde.ec',   role:'Gestor', org:'Acción Verde Cuenca',   lastAccess:'hace 1h',     status:'activo'   },
+      { name:'Fernanda Ríos',    email:'f.rios@salvamindo.org',   role:'Gestor', org:'SalvaMindo',            lastAccess:'hace 2 días', status:'activo'   },
+      { name:'Roberto Andrade',  email:'r.andrade@cedhu.org',     role:'Gestor', org:'CEDHU',                 lastAccess:'hace 1 sem',  status:'pendiente'},
+      { name:'Valeria Suárez',   email:'valeria@maradentro.ec',   role:'Gestor', org:'Mar Adentro',           lastAccess:'hace 3h',     status:'activo'   },
+    ].map(u => ({
+      ...u,
+      roleBadgeStyle:   u.role === 'Admin'
+        ? 'display:inline-flex; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#e8f0fe; color:#1a56db;'
+        : 'display:inline-flex; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; background:color-mix(in srgb,#18794A 12%,transparent); color:#18794A;',
+      statusBadgeStyle: u.status === 'activo'
+        ? 'display:inline-flex; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; background:color-mix(in srgb,#18794A 12%,transparent); color:#18794A;'
+        : 'display:inline-flex; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; background:#fff7ed; color:#c2410c;',
+      rowStyle: rowBase,
+      onArchive: () => {},
+    }));
+
+    // ── Settings ──
+    const navItemStyle = (active) => 'display:block; width:100%; text-align:left; padding:9px 12px; border-radius:9px; font-family:inherit; font-size:13px; cursor:pointer; border:none; ' +
+      (active ? 'background:color-mix(in srgb,var(--bp,#18794A) 10%,transparent); color:var(--bp,#18794A); font-weight:700;' : 'background:transparent; color:var(--bmut,#5A6B60); font-weight:500;');
+    const settingsNav = [
+      { label:'Plataforma',      style: navItemStyle(true)  },
+      { label:'Notificaciones',  style: navItemStyle(false) },
+      { label:'Seguridad',       style: navItemStyle(false) },
+      { label:'Exportación',     style: navItemStyle(false) },
+    ];
+    const toggleOn  = 'width:42px; height:24px; border-radius:99px; background:var(--bp,#18794A); position:relative; cursor:pointer; flex-shrink:0;';
+    const toggleOff = 'width:42px; height:24px; border-radius:99px; background:var(--bbord,#DBE6D6); position:relative; cursor:pointer; flex-shrink:0;';
+    const knobR = 'position:absolute; right:2px; top:2px; width:20px; height:20px; border-radius:99px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.18);';
+    const knobL = 'position:absolute; left:2px;  top:2px; width:20px; height:20px; border-radius:99px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.18);';
+    const nRow  = 'display:flex; align-items:center; gap:16px; padding:13px 0; border-bottom:1px solid color-mix(in srgb,var(--bbord,#DBE6D6) 60%,transparent);';
+    const nRowL = 'display:flex; align-items:center; gap:16px; padding:13px 0;';
+    const notifItems = [
+      { label:'Nueva firma recibida',            desc:'Notifica al gestor cada vez que su campaña recibe una firma verificada', rowStyle:nRow,  toggleStyle:toggleOn,  knobStyle:knobR },
+      { label:'Meta de firmas alcanzada',         desc:'Aviso inmediato cuando la campaña llega al 100% del objetivo',         rowStyle:nRow,  toggleStyle:toggleOn,  knobStyle:knobR },
+      { label:'Nueva organización registrada',    desc:'Alerta para administradores: revisar y verificar identidad',           rowStyle:nRow,  toggleStyle:toggleOn,  knobStyle:knobR },
+      { label:'Campañas próximas a vencer',       desc:'Recordatorio automático 7 días antes del cierre',                     rowStyle:nRowL, toggleStyle:toggleOff, knobStyle:knobL },
+    ];
+    const secItems = [
+      { label:'Autenticación de dos factores (2FA)', desc:'Obligatoria para todos los administradores del panel', rowStyle:nRow,  controlStyle:toggleOn,  knobStyle:knobR },
+      { label:'Cierre de sesión por inactividad',    desc:'La sesión expira tras 8 horas sin actividad',         rowStyle:nRow,  controlStyle:toggleOn,  knobStyle:knobR },
+      { label:'Notificación de inicio de sesión',    desc:'Aviso por correo en cada acceso al panel admin',      rowStyle:nRowL, controlStyle:toggleOff, knobStyle:knobL },
+    ];
+
+    return {
+      rootStyle, isLogin, isApp,
+      isDashboard, isCampaigns, isEditor, isSignatures,
+      tabAdminStyle, tabGestorStyle, userName, userEmail,
+      pickAdmin:  () => this.setState({ loginRole:'admin' }),
+      pickGestor: () => this.setState({ loginRole:'gestor' }),
+      doLogin:    () => this.setState({ view:'dashboard' }),
+      doLogout:   () => this.setState({ view:'login' }),
+      navItems, statsCards, recentCampaigns, activityItems,
+      campaigns, editorDocs, sigStats, signatures,
+      goToCampaigns:  () => this.setState({ view:'campaigns' }),
+      goToEditor:     () => this.setState({ view:'editor' }),
+      goToSignatures: () => this.setState({ view:'signatures' }),
+      isOrgs, isUsers, isSettings,
+      orgs, users, settingsNav, notifItems, secItems,
+    };
+  }
+}
+</script>
+</body>
+</html>
