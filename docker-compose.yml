@@ -1,0 +1,83 @@
+networks:
+  petition_cause_network:
+    name: petition_cause_network
+    driver: bridge
+
+services:
+
+  petition-api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.api
+    container_name: petition-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8011:8000"
+    networks:
+      - petition_cause_network
+    env_file:
+      - .env
+    depends_on:
+      petition-db:
+        condition: service_healthy
+      petition-redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  petition-web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.web
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    container_name: petition-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3000"
+    networks:
+      - petition_cause_network
+    env_file:
+      - .env
+    depends_on:
+      petition-api:
+        condition: service_healthy
+
+  petition-db:
+    image: postgres:16-alpine
+    container_name: petition-db
+    restart: unless-stopped
+    networks:
+      - petition_cause_network
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-petition_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: petition_cause
+    volumes:
+      - petition_db_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER:-petition_admin} -d petition_cause"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  petition-redis:
+    image: redis:7-alpine
+    container_name: petition-redis
+    restart: unless-stopped
+    networks:
+      - petition_cause_network
+    volumes:
+      - petition_redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  petition_db_data:
+  petition_redis_data:

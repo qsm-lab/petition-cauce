@@ -19,12 +19,12 @@ async def seed():
             db.add(org)
             await db.flush()
 
-        result = await db.execute(select(User).where(User.email == "admin@cauce.local"))
+        result = await db.execute(select(User).where(User.email == "admin@cauce.ec"))
         user = result.scalar_one_or_none()
         if not user:
             user = User(
                 org_id=org.id,
-                email="admin@cauce.local",
+                email="admin@cauce.ec",
                 password_hash=hash_password("admin123dev"),
                 full_name="Admin Cauce",
                 role="admin",
@@ -32,7 +32,7 @@ async def seed():
             db.add(user)
 
         await db.commit()
-        print("✓ Seed completado: org 'cauce' + admin@cauce.local (pass: admin123dev)")
+        print("✓ Seed completado: org 'cauce' + admin@cauce.ec (pass: admin123dev)")
 
 
 if __name__ == "__main__":

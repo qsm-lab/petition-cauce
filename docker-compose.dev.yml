@@ -1,0 +1,79 @@
+networks:
+  petition_cause_dev:
+    name: petition_cause_dev
+    driver: bridge
+
+services:
+
+  petition-db-dev:
+    image: postgres:16-alpine
+    container_name: petition-db-dev
+    restart: unless-stopped
+    ports:
+      # 5435 — no colisiona con postgres local (5432) ni con forms-qsm dev (5434)
+      - "127.0.0.1:5435:5432"
+    networks:
+      - petition_cause_dev
+    environment:
+      POSTGRES_USER: petition_admin
+      POSTGRES_PASSWORD: devpassword123
+      POSTGRES_DB: petition_cause
+    volumes:
+      - petition_db_dev_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petition_admin -d petition_cause"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  petition-redis-dev:
+    image: redis:7-alpine
+    container_name: petition-redis-dev
+    restart: unless-stopped
+    ports:
+      # 6381 — no colisiona con redis local (6379) ni con forms-qsm dev (6380)
+      - "127.0.0.1:6381:6379"
+    networks:
+      - petition_cause_dev
+
+  petition-api-dev:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.api.dev
+    container_name: petition-api-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8011:8000"
+    networks:
+      - petition_cause_dev
+    env_file:
+      - .env.dev
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      petition-db-dev:
+        condition: service_healthy
+      petition-redis-dev:
+        condition: service_started
+
+  petition-web-dev:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.web.dev
+    container_name: petition-web-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3000"
+    networks:
+      - petition_cause_dev
+    env_file:
+      - .env.dev
+    volumes:
+      - ./apps/web/src:/app/src
+      - ./apps/web/public:/app/public
+    depends_on:
+      - petition-api-dev
+
+volumes:
+  petition_db_dev_data:

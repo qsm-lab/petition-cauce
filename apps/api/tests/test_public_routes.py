@@ -1,0 +1,15 @@
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_health(client):
+    response = await client.get("/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+
+
+@pytest.mark.asyncio
+async def test_campaign_not_found(client):
+    response = await client.get("/v1/public/c/campaña-inexistente-xyz")
+    assert response.status_code == 404
