@@ -1,0 +1,134 @@
+REGISTRO DE ACTIVIDADES DE TRATAMIENTO (RAT)
+Conforme al Art. 37 de la Ley Orgánica de Protección de Datos Personales (LOPDP)
+
+Identificador del tratamiento: {{ campaign_slug }}
+Fecha de generación: {{ fecha_generacion }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. IDENTIFICACIÓN DEL RESPONSABLE DEL TRATAMIENTO
+
+{% if responsable_tipo == 'natural' %}
+Nombre: {{ responsable_nombre }}
+Cédula de identidad No.: {{ responsable_cedula_ruc }}
+Domicilio: {{ responsable_domicilio }}
+Correo electrónico: {{ responsable_email }}
+{% else %}
+Razón social: {{ responsable_nombre }}
+RUC: {{ responsable_cedula_ruc }}
+Domicilio fiscal: {{ responsable_domicilio }}
+Representante legal: {{ responsable_rep }}
+Correo electrónico: {{ responsable_email }}
+{% endif %}
+
+2. IDENTIFICACIÓN DEL ENCARGADO DEL TRATAMIENTO
+
+{% if encargado_tipo == 'natural' %}
+Nombre: {{ encargado_nombre }}
+Cédula de identidad No.: {{ encargado_cedula_ruc }}
+Domicilio: {{ encargado_domicilio }}
+Correo electrónico: {{ encargado_email }}
+{% else %}
+Razón social: {{ encargado_nombre }}
+RUC: {{ encargado_cedula_ruc }}
+Domicilio fiscal: {{ encargado_domicilio }}
+Representante legal: {{ encargado_rep_nombre }}
+Correo electrónico: {{ encargado_email }}
+{% endif %}
+Plataforma técnica: Cauce Petition
+
+3. FINALIDADES DEL TRATAMIENTO
+
+Finalidad principal: recolección y acreditación de firmas ciudadanas de apoyo a la campaña
+"{{ campaign_titulo }}" para su presentación ante {{ campaign_authority }}.
+
+Finalidades secundarias:
+  · Verificación de la identidad del firmante mediante doble confirmación por email.
+  · Prevención de fraude y deduplicación de firmas.
+  · Cumplimiento de obligaciones legales aplicables.
+
+4. DESCRIPCIÓN DE CATEGORÍAS DE TITULARES
+
+{% if signer_type in ('natural', 'both') %}
+  · Personas naturales: ciudadanos que expresan su apoyo a la campaña de forma voluntaria.
+{% endif %}
+{% if signer_type in ('org', 'both') %}
+  · Representantes de organizaciones: personas que firman en nombre de una entidad colectiva.
+{% endif %}
+Estimación del volumen: hasta {{ goal_count }} titulares (objetivo de la campaña).
+
+5. CATEGORÍAS DE DATOS PERSONALES
+
+{% if signer_type in ('natural', 'both') %}
+Datos de personas naturales:
+  · Nombre completo — identificación en el expediente (no sensible)
+  · Número de cédula de identidad — autenticidad del firmante (identificador único; almacenado cifrado)
+  · Dirección de correo electrónico — verificación double opt-in (almacenado cifrado)
+  · Provincia de residencia — análisis de distribución territorial (no sensible)
+  · Preferencia de visibilidad — ejercicio de derechos de privacidad del titular
+{% endif %}
+{% if signer_type in ('org', 'both') %}
+Datos de organizaciones:
+  · Nombre de la organización — identificación del firmante colectivo
+  · Correo electrónico institucional — verificación (almacenado cifrado)
+  · Provincia
+{% endif %}
+
+INDICACIÓN EXPRESA: No se tratan datos de categorías especiales (datos sensibles) conforme
+al Art. 26 bis LOPDP. Los datos de cédula y correo se almacenan cifrados (AES-256-GCM) y
+adicionalmente como hash HMAC-SHA256 para búsqueda, sin exponer el dato original en texto plano.
+
+6. DESTINATARIOS O CATEGORÍAS DE DESTINATARIOS
+
+Destinatario principal (finalidad): {{ campaign_authority }} — autoridad pública receptora
+  del expediente de firmas, en calidad de destinatario de la petición ciudadana.
+
+Acceso operativo:
+  · El Responsable (organización/persona que crea la campaña) accede a los datos de
+    sus firmantes a través del panel de administración con aislamiento RLS.
+  · Personal técnico del Encargado, bajo deber de confidencialidad, para soporte y mantenimiento.
+
+No hay destinatarios comerciales ni terceros no autorizados.
+
+7. TRANSFERENCIAS INTERNACIONALES
+
+No se realizan transferencias de datos personales a terceros países ni a organizaciones
+internacionales. Todos los datos se almacenan en infraestructura ubicada en territorio
+cubierto por la normativa aplicable.
+
+8. PLAZOS DE CONSERVACIÓN
+
+{{ retention_days }} días ({{ retention_label }}) contados desde la confirmación de la firma
+de cada titular. Transcurrido el plazo, los datos serán anonimizados o eliminados de forma
+segura conforme a la política de retención de la campaña.
+
+9. MEDIDAS DE SEGURIDAD TÉCNICAS Y ORGANIZATIVAS
+
+Técnicas:
+  · Cifrado en tránsito: TLS 1.2+ en todas las comunicaciones externas.
+  · Cifrado en reposo: AES-256-GCM para columnas PII (cédula, correo).
+  · Seudonimización: hash HMAC-SHA256 para deduplicación sin exposición de datos en claro.
+  · Control de acceso: Row-Level Security (RLS) en PostgreSQL — aislamiento multi-tenant.
+  · Roles con mínimo privilegio (admin, gestor, editor).
+  · Rate limiting y protección anti-bot (Cloudflare Turnstile).
+  · Registro de auditoría de accesos y operaciones sobre datos personales.
+
+Organizativas:
+  · Contrato de encargo de tratamiento firmado con cada organización Responsable.
+  · Personal con acceso a datos bajo deber contractual de confidencialidad.
+  · Política de actualización de seguridad: parches en máximo 30 días tras publicación.
+  · Runbook de respuesta a brechas con plazo de notificación a SPDP de 72 horas.
+
+10. VERSIONES ACTIVAS DEL AVISO DE PRIVACIDAD
+
+Campaña: {{ campaign_titulo }}
+
+{% for v in aviso_versiones %}
+  · Versión {{ v.version }} — vigente desde {{ v.desde }}
+{% endfor %}
+
+Los firmantes quedan vinculados a la versión del aviso vigente en el momento de su firma,
+registrada en la tabla de consentimientos con campo text_snapshot (Art. 7 LOPDP).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RAT generado el {{ fecha_generacion }} · Tratamiento: {{ campaign_slug }}

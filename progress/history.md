@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-06-30 — Sesión 8: lopdp-base implementado completo
+
+**Completado:**
+- Feature `lopdp-base` completa (T1–T18): migración 007 aplicada, templates Jinja2, render functions, runbook brechas
+- `privacy_config.version` (SmallInteger) añadido vía migración 007
+- 3 templates Jinja2: aviso de privacidad (9 secciones), contrato encargo (12 cláusulas), RAT (10 secciones + versiones activas)
+- Render functions: `render_aviso_privacidad()` + `build_aviso_context()`, `render_contrato_encargo()` + `build_contrato_context()` + `get_contrato_dev()`, `render_rat()` + `build_rat_context()`
+- Runbook brechas `docs/legal/runbook_brechas.md`: cronograma T+0→T+72h, árbol decisión, contenido SPDP, registro interno
+- `seed_dev.py` usa `get_contrato_dev()` y `render_aviso_privacidad(build_aviso_context(...))` — texto real completo en BD
+- `.env.example` + `config.py`: vars `ENCARGADO_*` y `RESEND_API_KEY`
+- Todos los templates son condicionales natural/juridica para Responsable y Encargado (Cauce Petition opera como persona natural hasta SAS)
+- `make migrate` → 007 aplicada ✓ | `make seed` → exitoso ✓
+
+**Pendiente:** commit de ~15 archivos (modelo-base) + ~14 archivos (lopdp-base) + progress
+
+---
+
+## 2026-06-30 — Sesión 7: modelo-base implementado + configuración Mac 2
+
+**Completado:**
+- Configuración Mac 2: SSH alias `githubqsmlab`, clave `github_mac_ae` (ed25519, sin passphrase), Docker + Node instalados
+- Push de archivos pendientes desde Mac 2, clone limpio en `~/Dev/proy_petition-cauce/`
+- Feature `modelo-base` completa (T1–T18): migración 006 aplicada y verificada en dev
+
+**Detalle migración 006:**
+- 6 tablas nuevas: `processing_contracts`, `signatures`, `consents`, `privacy_config`, `lifecycle_events`, `domains`
+- 3 tablas extendidas: `users` (status, archived_*), `organizations` (domain, rep_name, status, archived_*), `campaigns` (processing_contract_id, signer_type, campos petición, lifecycle_stage, archived_*)
+- Trigger inmutabilidad contratos firmados (`signed_at IS NOT NULL`)
+- RLS en `signatures` y `consents` (política admin por org_id + política pública)
+- 4 índices únicos parciales en `signatures` para deduplicación por tipo de firmante
+- `crypto.py`: `hmac_sha256(value, key)` + `verify_cedula()` módulo-10 Ecuador
+- `seed_dev.py`: CONTRATO-DEV-001 (firmado) + campana-dev-001 (signer_type=both, lifecycle_stage=1) + privacy_config + 2 lifecycle_events
+
+**Bugs resueltos:**
+- Índice `idx_consents_campaign` duplicado con migración 001 → renombrado
+- `AmbiguousForeignKeysError` en `Organization.users` por múltiples FK → `foreign_keys="User.org_id"`
+- Seed bloqueado por RLS en campaigns → `SET LOCAL app.current_org_id` antes del INSERT
+
+**Pendiente:** commit de 13 archivos + progress (el usuario lo ejecuta manualmente)
+
+---
+
 ## 2026-06-29 — Sesión 6: Admin shell + spec modelo-base aprobado
 
 **Completado:**

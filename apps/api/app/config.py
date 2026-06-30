@@ -42,5 +42,19 @@ class Settings(BaseSettings):
 
     default_org_slug: str = "cauce"
 
+    # ── Encargado del tratamiento (Cauce Petition) ─────────────────────────
+    # Cambiar a 'juridica' cuando se constituya la entidad legal.
+    # 'natural': usar cédula en encargado_cedula_ruc y nombre completo en encargado_nombre.
+    # 'juridica': usar RUC, razón social y representante legal.
+    encargado_tipo: str = "natural"
+    encargado_nombre: str = ""
+    encargado_cedula_ruc: str = ""
+    encargado_rep_nombre: str = ""       # solo si encargado_tipo = 'juridica'
+    encargado_domicilio: str = ""
+    encargado_email: str = ""
+
+    # ── Email (Resend) ─────────────────────────────────────────────────────
+    resend_api_key: str = ""
+
 
 settings = Settings()

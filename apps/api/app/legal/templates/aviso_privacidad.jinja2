@@ -1,0 +1,102 @@
+AVISO DE PRIVACIDAD — {{ campaign_titulo }}
+Versión {{ aviso_version }} · Vigente desde {{ fecha_vigencia }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. IDENTIDAD DEL RESPONSABLE DEL TRATAMIENTO
+
+{% if responsable_tipo == 'natural' %}
+{{ responsable_nombre }}, portador/a de cédula de identidad No. {{ responsable_cedula_ruc }},
+domiciliado/a en {{ responsable_domicilio }}.
+Correo electrónico: {{ responsable_email }}
+{% else %}
+{{ responsable_nombre }}, RUC No. {{ responsable_cedula_ruc }},
+domicilio fiscal: {{ responsable_domicilio }},
+representada por {{ responsable_rep }}.
+Correo electrónico: {{ responsable_email }}
+{% endif %}
+
+2. IDENTIDAD DEL ENCARGADO DEL TRATAMIENTO
+
+{% if encargado_tipo == 'natural' %}
+{{ encargado_nombre }}, portador/a de cédula de identidad No. {{ encargado_cedula_ruc }},
+domiciliado/a en {{ encargado_domicilio }}.
+Correo electrónico: {{ encargado_email }}
+{% else %}
+{{ encargado_nombre }}, RUC No. {{ encargado_cedula_ruc }},
+domicilio fiscal: {{ encargado_domicilio }},
+representado/a por {{ encargado_rep_nombre }}.
+Correo electrónico: {{ encargado_email }}
+{% endif %}
+Plataforma: Cauce Petition (https://cauce.ecuadornotlc.org)
+
+3. FINALIDAD DEL TRATAMIENTO
+
+Sus datos personales son recopilados con el único fin de registrar su apoyo a la campaña
+"{{ campaign_titulo }}" y de compilar el expediente ciudadano que será presentado ante:
+{{ campaign_authority }}.
+
+Sus datos no serán utilizados para ninguna otra finalidad sin su consentimiento expreso
+adicional.
+
+4. BASE DE LEGITIMACIÓN
+
+El tratamiento se fundamenta en su consentimiento expreso, conforme al Art. 7 numeral 1
+de la Ley Orgánica de Protección de Datos Personales (LOPDP) del Ecuador.
+Su participación es totalmente voluntaria y puede retirar su consentimiento en cualquier
+momento solicitando la eliminación de su firma.
+
+5. CATEGORÍAS DE DATOS PERSONALES TRATADOS
+
+{% if signer_type in ('natural', 'both') %}
+Para firmantes personas naturales:
+  · Nombre completo
+  · Número de cédula de identidad (almacenado en forma cifrada — no se accede en texto plano)
+  · Correo electrónico (almacenado en forma cifrada)
+  · Provincia de residencia
+  · Preferencia de visibilidad: pública (nombre visible), anónima (solo conteo) o secreta
+
+{% endif %}
+{% if signer_type in ('org', 'both') %}
+Para firmantes organizaciones:
+  · Nombre de la organización
+  · Correo electrónico institucional (almacenado en forma cifrada)
+  · Provincia
+  · Preferencia de visibilidad
+
+{% endif %}
+No se tratan datos de categorías especiales (datos sensibles) conforme al Art. 26 bis LOPDP.
+
+6. PLAZO DE CONSERVACIÓN
+
+Sus datos serán conservados durante {{ retention_days }} días ({{ retention_label }}) contados
+desde la confirmación de su firma, o hasta que ejerza su derecho de supresión. Transcurrido
+este plazo, los datos serán anonimizados o eliminados de forma segura.
+
+7. DERECHOS DEL TITULAR
+
+Conforme a los Arts. 18 a 23 de la LOPDP, usted tiene derecho a:
+  · Acceso: conocer qué datos suyos conservamos y cómo los tratamos
+  · Rectificación: corregir datos inexactos o incompletos
+  · Cancelación/Supresión: solicitar la eliminación de sus datos
+  · Oposición: oponerse al tratamiento en cualquier momento
+  · Portabilidad: recibir sus datos en formato estructurado y legible por máquina
+
+Para ejercer cualquiera de estos derechos, contacte a:
+{{ data_contact_nombre }} — {{ data_contact_email }}
+
+Su solicitud será atendida en un plazo máximo de 15 días hábiles.
+
+8. TRANSFERENCIAS INTERNACIONALES DE DATOS
+
+No realizamos transferencias de sus datos personales a terceros países ni a organizaciones
+internacionales.
+
+9. DECISIONES AUTOMATIZADAS
+
+No se toman decisiones automatizadas con efectos jurídicos o significativos sobre los
+titulares.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Aviso de Privacidad · Versión {{ aviso_version }} · Vigente desde {{ fecha_vigencia }}
+Campaña: {{ campaign_titulo }}

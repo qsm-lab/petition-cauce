@@ -1,11 +1,15 @@
-# Estado actual — cierre sesión 2026-06-29 (sesión 6)
+# Estado actual — cierre sesión 2026-06-30 (sesión 8)
 
 ## Resumen de sesión
 
-- Incorporado handoff Claude Design del admin al proyecto (shell + 6 rutas + RBAC)
-- Spec `modelo-base` generado, revisado con 5 decisiones clave y **aprobado**
-- Commits realizados: harness, infra, ui-design-system, admin shell
-- Migración `006_modelo_base.py` pendiente para próxima sesión
+- Feature `lopdp-base` implementada completa (T1–T18)
+- Migración 007 aplicada: columna `version` en `privacy_config`
+- Templates Jinja2: aviso_privacidad, contrato_encargo, RAT
+- Funciones Python: render + build_context para los 3 documentos + `get_contrato_dev()`
+- Runbook de brechas: `docs/legal/runbook_brechas.md` (protocolo 72h SPDP)
+- `seed_dev.py` actualizado: contrato usa `get_contrato_dev()`, privacy_config usa `render_aviso_privacidad()`
+- `.env.example` actualizado con vars `ENCARGADO_*` y `RESEND_API_KEY`
+- Seed verificado: exitoso en Mac 2 (~/Dev/proy_petition-cauce)
 
 ---
 
@@ -16,80 +20,102 @@
 | `harness-setup` | **done** | Completo |
 | `infra-fork` | **in_progress** | Local completo; pendiente Cloudflare/VPS/Secrets |
 | `ui-design-system` | **in_progress** | Shell admin incorporado; V1/V3/V4 pendientes |
-| `modelo-base` | **spec_ready** | Spec aprobado — implementar en próxima sesión |
-| `lopdp-base` | pending | Después de modelo-base |
+| `modelo-base` | **in_progress** | Migración 006 aplicada y verificada; commit pendiente |
+| `lopdp-base` | **in_progress** | Implementación completa; commit pendiente |
 | Fase 1–5 (27 features) | pending | Después de Fase 0 |
-
----
-
-## Commits realizados esta sesión
-
-| # | Mensaje | Contenido |
-|---|---------|-----------|
-| 1 | `harness: andamiaje SDD` | CLAUDE.md, .gitignore, feature_list, plan/, specs/infra-fork/, progress/ |
-| 2 | `infra: API, Docker, nginx, CI/CD` | apps/api/, docker-compose, database/, infra/, .github/ |
-| 3 | `feat: ui-design-system tokens, fuentes y componentes base` | Tokens CSS, Poppins/Inter, componentes ui/, design-tokens, globals.css |
-| 4 | `feat: admin shell RBAC, 6 rutas y spec modelo-base` | layout, AdminSidebarClient, 6 rutas, login fix, types, middleware, specs/modelo-base/ |
 
 ---
 
 ## Lo completado esta sesión
 
-### Admin shell (sesión 6)
+### Feature `lopdp-base` (T1–T18)
 
 | Archivo | Descripción |
 |---------|-------------|
-| `apps/web/src/app/admin/AdminSidebarClient.tsx` | Sidebar client: usePathname, logout, iconos SVG, tokens |
-| `apps/web/src/app/admin/layout.tsx` | Layout server: fetch user → filtra nav por rol |
-| `apps/web/src/app/admin/resumen/page.tsx` | Dashboard: 4 KPIs + campañas recientes + feed (stubs) |
-| `apps/web/src/app/admin/campanas/page.tsx` | Lista: filter bar + tabla con columnas del spec |
-| `apps/web/src/app/admin/firmas/page.tsx` | Página de selección de campaña |
-| `apps/web/src/app/admin/organizaciones/page.tsx` | Tabla + filter bar (admin only) |
-| `apps/web/src/app/admin/usuarios/page.tsx` | Tabla + fila usuario actual (admin only) |
-| `apps/web/src/app/admin/configuracion/page.tsx` | Toggles interactivos CSS, 3 secciones (admin only) |
+| `migrations/versions/007_lopdp_base.py` | Columna `version` en `privacy_config` |
+| `app/legal/retention.py` | Constantes de retención + `retention_label()` |
+| `app/legal/templates/aviso_privacidad.jinja2` | Aviso de privacidad 9 secciones, condicional natural/juridica y signer_type |
+| `app/legal/templates/contrato_encargo.jinja2` | Contrato encargo 12 cláusulas + bloque firmas con validation_token |
+| `app/legal/templates/rat.jinja2` | RAT 10 secciones + loop versiones activas del aviso |
+| `app/legal/aviso_privacidad.py` | `render_aviso_privacidad()` + `build_aviso_context()` |
+| `app/legal/contrato_encargo.py` | `render_contrato_encargo()` + `build_contrato_context()` + `get_contrato_dev()` |
+| `app/legal/rat.py` | `render_rat()` + `build_rat_context()` |
+| `app/legal/__init__.py` | Exports de todos los módulos |
+| `docs/legal/runbook_brechas.md` | Runbook brechas: cronograma T+0 a T+72h, contenido SPDP, registro interno |
+| `app/scripts/seed_dev.py` | Usa `get_contrato_dev()` y `render_aviso_privacidad()` |
+| `app/config.py` | Vars encargado (`encargado_tipo/nombre/cedula_ruc/rep_nombre/domicilio/email`) + `resend_api_key` |
+| `requirements.txt` | `jinja2==3.1.4` |
+| `.env.example` | Sección `ENCARGADO_*` y `RESEND_API_KEY` |
+| `app/models/privacy_config.py` | Campo `version: Mapped[int]` |
 
-### Spec `modelo-base` — aprobado
+### Verificaciones
 
-Decisiones clave resueltas:
-
-| # | Decisión |
-|---|----------|
-| 1 | `processing_contracts` tabla estructurada con ciclo de vida + trigger inmutabilidad |
-| 2 | Cédula: validación módulo-10 en router antes del HMAC-SHA256 |
-| 3 | `campaigns.signer_type` (natural/org/both) + índices parciales en signatures |
-| 4 | `lifecycle_stage` denormalizado en campaigns (transacción atómica con lifecycle_events) |
-| 5 | Una sola migración `006` atómica |
+- `make migrate` → migración 007 aplicada ✓
+- `make seed` → exitoso, aviso real generado por Jinja2, contrato completo ✓
 
 ---
 
-## Próxima sesión — implementar modelo-base
+## Archivos pendientes de commit
 
-Tarea principal: **implementar `006_modelo_base.py`** y los modelos SQLAlchemy.
+### modelo-base
+```
+apps/api/migrations/versions/006_modelo_base.py
+apps/api/app/models/processing_contract.py
+apps/api/app/models/signature.py
+apps/api/app/models/consent.py
+apps/api/app/models/privacy_config.py
+apps/api/app/models/lifecycle_event.py
+apps/api/app/models/domain.py
+apps/api/app/models/__init__.py
+apps/api/app/models/campaign.py
+apps/api/app/models/organization.py
+apps/api/app/models/user.py
+apps/api/app/crypto.py
+```
 
-Checklist de inicio de sesión (T1–T18 en `specs/modelo-base/tasks.md`):
+### lopdp-base
+```
+apps/api/migrations/versions/007_lopdp_base.py
+apps/api/requirements.txt
+apps/api/app/config.py
+apps/api/app/scripts/seed_dev.py
+apps/api/app/legal/__init__.py
+apps/api/app/legal/retention.py
+apps/api/app/legal/aviso_privacidad.py
+apps/api/app/legal/contrato_encargo.py
+apps/api/app/legal/rat.py
+apps/api/app/legal/templates/aviso_privacidad.jinja2
+apps/api/app/legal/templates/contrato_encargo.jinja2
+apps/api/app/legal/templates/rat.jinja2
+docs/legal/runbook_brechas.md
+.env.example
+progress/current.md
+progress/history.md
+```
 
-1. Migración `006_modelo_base.py` (T1.1–T1.14)
-2. Modelos SQLAlchemy nuevos: ProcessingContract, Signature, Consent, PrivacyConfig, LifecycleEvent, Domain (T2–T7)
-3. Actualizar modelos existentes: Campaign, User, Organization (T8–T11)
-4. Verificar/crear `crypto.py` con `hmac_sha256()` y `verify_cedula()` (T12)
-5. Actualizar `seed_dev.py` con datos de prueba (T13)
-6. Aplicar migración en dev y verificar (T14–T18)
+---
 
-### Credenciales de desarrollo (activas)
+## Credenciales de desarrollo (activas)
 
 | Campo | Valor |
 |-------|-------|
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
+| Campaña dev | `campana-dev-001` (signer_type=both, lifecycle_stage=1) |
+| Contrato dev | `CONTRATO-DEV-001` (firmado, texto completo Jinja2) |
+
+## Directorio de trabajo (Mac 2)
+
+```
+~/Dev/proy_petition-cauce/
+```
 
 ---
 
-## Archivos pendientes de commit
+## Próxima sesión — Fase 1 MVP
 
-Solo los archivos de progreso actualizados al cierre de esta sesión:
-
-```
-progress/current.md
-progress/history.md
-```
+1. **`landing-campana`** — página pública de campaña (requiere diseño Claude Design)
+2. **`formulario-firma`** — formulario de firma (PII, requiere privacy_config aprobada)
+3. **`multidominio`** — routing por dominio para campañas
+4. **`infra-fork`** — Cloudflare DNS + GitHub Secrets + VPS deploy (cuando toque)

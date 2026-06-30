@@ -1,0 +1,188 @@
+CONTRATO DE ENCARGO DE TRATAMIENTO DE DATOS PERSONALES
+Conforme al Art. 26 de la Ley Orgánica de Protección de Datos Personales (LOPDP)
+
+Referencia de validación: {{ validation_token }}
+Fecha: {{ fecha }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IDENTIFICACIÓN DE LAS PARTES
+
+RESPONSABLE DEL TRATAMIENTO:
+{% if responsable_tipo == 'natural' %}
+{{ responsable_nombre }}, portador/a de cédula de identidad No. {{ responsable_cedula_ruc }},
+domiciliado/a en {{ responsable_domicilio }}.
+Correo electrónico: {{ responsable_email }}
+{% else %}
+{{ responsable_nombre }}, RUC No. {{ responsable_cedula_ruc }},
+domicilio fiscal: {{ responsable_domicilio }},
+representada por {{ responsable_rep }}.
+Correo electrónico: {{ responsable_email }}
+{% endif %}
+En adelante, "el Responsable".
+
+ENCARGADO DEL TRATAMIENTO (Cauce Petition):
+{% if encargado_tipo == 'natural' %}
+{{ encargado_nombre }}, portador/a de cédula de identidad No. {{ encargado_cedula_ruc }},
+domiciliado/a en {{ encargado_domicilio }}.
+Correo electrónico: {{ encargado_email }}
+{% else %}
+{{ encargado_nombre }}, RUC No. {{ encargado_cedula_ruc }},
+domicilio fiscal: {{ encargado_domicilio }},
+representado/a por {{ encargado_rep_nombre }}.
+Correo electrónico: {{ encargado_email }}
+{% endif %}
+En adelante, "el Encargado".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLÁUSULA PRIMERA — OBJETO
+
+El Encargado prestará al Responsable el servicio de tratamiento de datos personales de
+ciudadanos que participen en campañas de recolección de firmas y apoyos organizadas por
+el Responsable a través de la plataforma digital Cauce Petition, exclusivamente bajo las
+instrucciones del Responsable y conforme a la LOPDP.
+
+CLÁUSULA SEGUNDA — NATURALEZA, FINALIDAD Y ALCANCE DEL TRATAMIENTO
+
+Naturaleza del tratamiento: recopilación, almacenamiento, organización, verificación
+  y presentación de firmas digitales ciudadanas.
+Finalidad: compilar un expediente de apoyo ciudadano para su presentación ante:
+  {{ campaign_scope.authority }}.
+Tipos de firmantes: {{ campaign_scope.signer_types_label }}.
+Categorías de datos tratados: {{ campaign_scope.data_categories_label }}.
+No se tratan datos de categorías especiales conforme al Art. 26 bis LOPDP.
+
+CLÁUSULA TERCERA — DURACIÓN
+
+Este contrato tendrá vigencia desde la fecha de firma hasta la conclusión de la campaña
+y el vencimiento del plazo de retención de datos (máximo {{ retention_days }} días desde
+la última firma confirmada), o hasta su terminación anticipada conforme a la Cláusula
+Décima.
+
+CLÁUSULA CUARTA — INSTRUCCIONES DEL RESPONSABLE
+
+El Encargado tratará los datos personales únicamente para:
+  a) Registrar firmas ciudadanas en las campañas autorizadas por el Responsable.
+  b) Verificar la identidad del firmante mediante doble confirmación por correo electrónico.
+  c) Aplicar las preferencias de visibilidad elegidas por cada firmante (pública/anónima/secreta).
+  d) Compilar el expediente de firmas destinado a la autoridad indicada por el Responsable.
+  e) Cumplir obligaciones legales aplicables al Encargado.
+Queda expresamente prohibido cualquier tratamiento no comprendido en las instrucciones
+anteriores, en particular el uso de datos con fines comerciales, publicitarios o de perfilado.
+
+CLÁUSULA QUINTA — OBLIGACIONES DEL ENCARGADO (Art. 26 LOPDP)
+
+El Encargado se compromete a:
+  a) Tratar los datos personales únicamente conforme a las instrucciones documentadas
+     del Responsable, sin destinarlos a fines propios ni distintos a los convenidos.
+  b) Garantizar la confidencialidad de los datos tratados y exigir igual compromiso
+     a todo el personal con acceso a los mismos.
+  c) Adoptar las medidas técnicas y organizativas de seguridad descritas en la Cláusula Sexta.
+  d) No transferir los datos a terceros ni subcontratar el tratamiento sin autorización
+     previa y por escrito del Responsable (Cláusula Séptima).
+  e) Asistir al Responsable en el cumplimiento de las solicitudes de derechos ARCO
+     (acceso, rectificación, cancelación, oposición y portabilidad) presentadas por titulares.
+  f) Asistir al Responsable en el cumplimiento de las obligaciones de seguridad,
+     notificación de brechas y evaluaciones de impacto sobre protección de datos.
+  g) Devolver o destruir todos los datos personales al término del contrato, según
+     elección del Responsable, salvo obligación legal de conservación.
+  h) Poner a disposición del Responsable la información necesaria para demostrar el
+     cumplimiento de las obligaciones del presente contrato.
+  i) Notificar al Responsable sin demora indebida cualquier brecha de seguridad que
+     afecte a los datos personales objeto de este encargo.
+  j) Mantener un Registro de Actividades de Tratamiento (RAT) actualizado para las
+     operaciones realizadas en nombre del Responsable.
+  k) Cooperar con la Superintendencia de Protección de Datos Personales (SPDP) cuando
+     sea requerido en el marco de sus funciones de supervisión.
+
+CLÁUSULA SEXTA — MEDIDAS DE SEGURIDAD TÉCNICAS Y ORGANIZATIVAS
+
+El Encargado aplica las siguientes medidas:
+  · Cifrado en tránsito: TLS 1.2 o superior en todas las comunicaciones.
+  · Seudonimización de PII: cédulas y correos electrónicos almacenados cifrados;
+    adicionalmente se conserva un hash HMAC-SHA256 para deduplicación sin exponer el dato.
+  · Aislamiento multi-tenant: Row-Level Security (RLS) en la base de datos garantiza
+    que cada organización accede únicamente a sus propios datos.
+  · Control de acceso: roles con mínimo privilegio (admin, gestor, editor).
+  · Protección anti-bot: Cloudflare Turnstile en formularios públicos.
+  · Limitación de velocidad: rate limiting por IP con HMAC.
+  · Registros de auditoría: logs de acceso y operaciones sobre datos personales.
+  · Actualizaciones de seguridad: parches aplicados en máximo 30 días tras publicación.
+
+CLÁUSULA SÉPTIMA — SUBENCARGADOS
+
+Queda prohibida la subcontratación del tratamiento de datos personales sin autorización
+previa, expresa y por escrito del Responsable. En caso de autorización, el subencargado
+quedará sujeto a obligaciones equivalentes a las del presente contrato, y el Encargado
+responderá solidariamente por el incumplimiento del subencargado.
+
+CLÁUSULA OCTAVA — ASISTENCIA AL RESPONSABLE
+
+El Encargado asistirá al Responsable en:
+  a) Atención de solicitudes de derechos ARCO de los titulares.
+  b) Elaboración y actualización del Registro de Actividades de Tratamiento (RAT).
+  c) Notificación de brechas de seguridad a la SPDP dentro del plazo de 72 horas.
+  d) Evaluaciones de impacto relativas a la protección de datos cuando corresponda.
+
+CLÁUSULA NOVENA — DESTINO DE LOS DATOS A LA TERMINACIÓN
+
+Al término del contrato, el Encargado, a elección del Responsable:
+  a) Devolverá todos los datos en formato estructurado (CSV o JSON), o
+  b) Procederá a su destrucción segura y documentada.
+Los datos serán eliminados de todos los sistemas del Encargado en un plazo máximo de
+30 días desde la terminación, salvo obligación legal de conservación.
+
+CLÁUSULA DÉCIMA — TERMINACIÓN
+
+El contrato podrá darse por terminado:
+  a) Por mutuo acuerdo de las partes.
+  b) Por incumplimiento grave de cualquiera de las partes, previa notificación
+     con 15 días de antelación.
+  c) Por vencimiento del plazo establecido en la Cláusula Tercera.
+La revocación unilateral deberá ser comunicada por escrito al Encargado.
+
+CLÁUSULA UNDÉCIMA — AUDITORÍA
+
+El Responsable podrá realizar o encargar auditorías del cumplimiento de este contrato,
+previa notificación al Encargado con al menos 15 días de antelación. El Encargado
+facilitará el acceso razonable a la información y sistemas necesarios para la auditoría.
+
+CLÁUSULA DUODÉCIMA — LEY APLICABLE Y JURISDICCIÓN
+
+Este contrato se rige por la Ley Orgánica de Protección de Datos Personales del Ecuador
+y demás normativa aplicable. Para cualquier controversia, las partes se someten a los
+tribunales competentes del Ecuador.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FIRMAS
+
+EL RESPONSABLE:
+
+Nombre completo: ___________________________________________________
+{% if responsable_tipo == 'natural' %}
+Cédula de identidad No.: ___________________________________________
+{% else %}
+Cargo / Representación: ____________________________________________
+RUC: ______________________________________________________________
+{% endif %}
+Firma: ____________________________________________________________
+Lugar y fecha: _____________________________________________________
+
+
+EL ENCARGADO (Cauce Petition):
+
+Nombre completo: ___________________________________________________
+{% if encargado_tipo == 'natural' %}
+Cédula de identidad No.: ___________________________________________
+{% else %}
+Cargo / Representación: ____________________________________________
+RUC: ______________________________________________________________
+{% endif %}
+Firma: ____________________________________________________________
+Lugar y fecha: _____________________________________________________
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Token de validación: {{ validation_token }}
+Verificación: /contratos/validar/{{ validation_token }}
