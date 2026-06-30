@@ -2,7 +2,7 @@
 
 ---
 
-## 2026-06-29 — Sesión 6: Admin shell desde handoff Claude Design
+## 2026-06-29 — Sesión 6: Admin shell + spec modelo-base aprobado
 
 **Completado:**
 - Incorporado handoff `design_handoff_cauce_back-admin/README.md` al proyecto
@@ -15,10 +15,12 @@
 - `User.role` extendido con `"gestor"`
 - TypeScript: 0 errores
 
-**Pendiente:**
-- Verificación visual V1/V3/V4 del admin shell
-- Commit de todo lo pendiente de sesiones 5+6
-- `modelo-base` para datos reales en el admin
+**También completado:**
+- Spec `modelo-base` generado, revisado con 5 decisiones clave y aprobado (spec_ready)
+- 4 commits realizados: harness, infra, ui-design-system, admin shell
+
+**Pendiente próxima sesión:**
+- Implementar `006_modelo_base.py` + modelos SQLAlchemy (T1–T18 en specs/modelo-base/tasks.md)
 
 ---
 
