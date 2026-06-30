@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</helmet>
+
+<!-- ===== TÍTULO ===== -->
+<div style="position:absolute; left:80px; top:36px; width:1400px;">
+  <div style="font:800 26px/1.1 'Poppins',system-ui; color:#1c241e;">Plataforma de firmas ambientales · front estándar themeable</div>
+  <div style="font:400 14px/1.5 'Inter',system-ui; color:#6a6f6b; margin-top:6px; max-width:80ch;">Un solo sistema de componentes que leen <strong style="color:#1c241e;">tokens semánticos</strong> (ningún hex literal). La misma página se reskinea cambiando el set de tokens: aquí en preset <strong>Bosque</strong> (claro y oscuro) y <strong>Océano</strong>. Contraste WCAG 2.1 AA garantizado en los tres.</div>
+</div>
+
+<!-- ===== SECCIÓN BOSQUE CLARO ===== -->
+<div style="position:absolute; left:80px; top:130px; font:700 13px/1 'Poppins',system-ui; color:#18794A; letter-spacing:.02em;">● TEMA BOSQUE · CLARO</div>
+
+<!-- Móvil interactivo -->
+<div style="position:absolute; left:80px; top:172px; width:418px;">
+  <div data-drags-parent="1" style="position:absolute; top:-26px; left:2px; font:600 12px system-ui; color:#3a3a3a;">📱 Página de campaña · móvil <span style="font-weight:400;color:#8a8a8a;">— toca “Firmar”</span></div>
+  <div style="padding:12px; background:#15151a; border-radius:46px; box-shadow:0 20px 54px rgba(0,0,0,.22);">
+    <div style="position:relative; width:390px; height:780px; border-radius:34px; overflow:hidden; --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#EEF4EC;">
+      <dc-import name="CampaignPage" layout="mobile" hint-size="390px,780px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- Desktop -->
+<div style="position:absolute; left:580px; top:172px; width:1244px;">
+  <div data-drags-parent="1" style="position:absolute; top:-26px; left:2px; font:600 12px system-ui; color:#3a3a3a;">🖥️ Página de campaña · desktop <span style="font-weight:400;color:#8a8a8a;">— bloque de acción sticky</span></div>
+  <div style="background:#dfe2e6; border-radius:16px; box-shadow:0 20px 54px rgba(0,0,0,.18); overflow:hidden;">
+    <div style="height:42px; display:flex; align-items:center; gap:8px; padding:0 16px; background:#eceef1; border-bottom:1px solid #d6d9dd;">
+      <span style="width:11px; height:11px; border-radius:99px; background:#f4655a;"></span>
+      <span style="width:11px; height:11px; border-radius:99px; background:#f5bd4f;"></span>
+      <span style="width:11px; height:11px; border-radius:99px; background:#61c554;"></span>
+      <div style="flex:1; margin:0 14px; height:24px; border-radius:99px; background:#fff; border:1px solid #d6d9dd; display:flex; align-items:center; padding:0 12px; font:500 11.5px 'Inter',monospace; color:#7a7f84;">🔒 firma.ec/cajas</div>
+    </div>
+    <div style="position:relative; width:1200px; height:820px; overflow:hidden; --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#EEF4EC; margin:0 auto;">
+      <dc-import name="CampaignPage" layout="desktop" hint-size="1200px,820px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- Leyenda de tokens -->
+<div style="position:absolute; left:1860px; top:172px; width:360px;">
+  <div data-drags-parent="1" style="position:absolute; top:-26px; left:2px; font:600 12px system-ui; color:#3a3a3a;">🎨 Nota de tokens</div>
+  <div style="background:#fff; border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,.10); padding:20px; font-family:'Inter',system-ui;">
+    <div style="font:700 15px 'Poppins',sans-serif; color:#1c241e; margin-bottom:4px;">Tokens semánticos</div>
+    <div style="font-size:12px; color:#6a6f6b; line-height:1.5; margin-bottom:16px;">Cada componente consume estos tokens; una campaña solo cambia sus valores.</div>
+    <div style="display:grid; grid-template-columns:1fr auto auto; gap:9px 12px; align-items:center; font-size:12px;">
+      <div style="font-weight:700; color:#9a9f9b;">token</div>
+      <div style="font-weight:700; color:#18794A; text-align:center;">Bosque</div>
+      <div style="font-weight:700; color:#0C6FB0; text-align:center;">Océano</div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--brand-primary</div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#18794A; justify-self:center;"></div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#0C6FB0; justify-self:center;"></div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--brand-secondary</div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#2F855A; justify-self:center;"></div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#0E8C86; justify-self:center;"></div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--brand-ink</div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#15241B; justify-self:center;"></div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#0F2433; justify-self:center;"></div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--brand-surface</div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#ffffff; border:1px solid #e0e0e0; justify-self:center;"></div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#ffffff; border:1px solid #e0e0e0; justify-self:center;"></div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--brand-bg</div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#EEF4EC; border:1px solid #e0e0e0; justify-self:center;"></div>
+      <div style="width:34px; height:18px; border-radius:5px; background:#EAF3F9; border:1px solid #e0e0e0; justify-self:center;"></div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--font-display</div>
+      <div style="grid-column:span 2; text-align:right; font:700 12px 'Poppins',sans-serif; color:#3a3f3b;">Poppins</div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--font-body</div>
+      <div style="grid-column:span 2; text-align:right; font:500 12px 'Inter',sans-serif; color:#3a3f3b;">Inter</div>
+
+      <div style="font-family:'Inter',monospace; color:#3a3f3b;">--radius</div>
+      <div style="grid-column:span 2; text-align:right; font-weight:600; color:#3a3f3b;">24px / full</div>
+    </div>
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid #eee; font-size:11.5px; color:#6a6f6b; line-height:1.55;">También: <span style="font-family:monospace;">--brand-on-primary</span>, <span style="font-family:monospace;">logo</span>, <span style="font-family:monospace;">hero_image</span>, <span style="font-family:monospace;">favicon</span>. Resueltos en servidor por <span style="font-family:monospace;">Host</span> → sin FOUC.</div>
+  </div>
+</div>
+
+<!-- ===== SECCIÓN FLUJO DE FIRMA ===== -->
+<div style="position:absolute; left:80px; top:1080px; font:700 13px/1 'Poppins',system-ui; color:#18794A; letter-spacing:.02em;">● FLUJO DE FIRMA · ESTADOS COMPLETOS <span style="font-weight:400; color:#8a8a8a; font-family:'Inter';">(panel inline, no página nueva)</span></div>
+
+<div style="position:absolute; left:80px; top:1124px; width:392px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">1 · Formulario + visibilidad</div>
+  <div style="position:relative; width:360px; height:660px; border-radius:30px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.16); --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#cdd6c9; display:flex; align-items:flex-end;">
+    <div aria-hidden="true" style="position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, #b9c6b4 0 12px, #c6d1c1 12px 24px);"></div>
+    <div style="position:relative; width:100%; max-height:96%; display:flex;"><dc-import name="SignFlow" forceStep="0" hint-size="360px,560px" style="display:block; width:100%; max-height:100%;"></dc-import></div>
+  </div>
+</div>
+
+<div style="position:absolute; left:512px; top:1124px; width:392px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">2 · Enviando</div>
+  <div style="position:relative; width:360px; height:660px; border-radius:30px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.16); --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#cdd6c9; display:flex; align-items:flex-end;">
+    <div aria-hidden="true" style="position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, #b9c6b4 0 12px, #c6d1c1 12px 24px);"></div>
+    <div style="position:relative; width:100%; display:flex;"><dc-import name="SignFlow" forceStep="1" hint-size="360px,300px" style="display:block; width:100%;"></dc-import></div>
+  </div>
+</div>
+
+<div style="position:absolute; left:944px; top:1124px; width:392px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">3 · Éxito · doble opt-in</div>
+  <div style="position:relative; width:360px; height:660px; border-radius:30px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.16); --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#cdd6c9; display:flex; align-items:flex-end;">
+    <div aria-hidden="true" style="position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, #b9c6b4 0 12px, #c6d1c1 12px 24px);"></div>
+    <div style="position:relative; width:100%; display:flex;"><dc-import name="SignFlow" forceStep="2" hint-size="360px,420px" style="display:block; width:100%;"></dc-import></div>
+  </div>
+</div>
+
+<div style="position:absolute; left:1376px; top:1124px; width:392px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">4 · Error con reintento</div>
+  <div style="position:relative; width:360px; height:660px; border-radius:30px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.16); --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#cdd6c9; display:flex; align-items:flex-end;">
+    <div aria-hidden="true" style="position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, #b9c6b4 0 12px, #c6d1c1 12px 24px);"></div>
+    <div style="position:relative; width:100%; display:flex;"><dc-import name="SignFlow" forceStep="3" hint-size="360px,420px" style="display:block; width:100%;"></dc-import></div>
+  </div>
+</div>
+
+<div style="position:absolute; left:1808px; top:1124px; width:392px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">5 · Gracias · embudo post-firma</div>
+  <div style="position:relative; width:360px; height:660px; border-radius:30px; overflow:hidden; box-shadow:0 16px 44px rgba(0,0,0,.16); --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#cdd6c9; display:flex; align-items:flex-end;">
+    <div aria-hidden="true" style="position:absolute; inset:0; background-image:repeating-linear-gradient(135deg, #b9c6b4 0 12px, #c6d1c1 12px 24px);"></div>
+    <div style="position:relative; width:100%; max-height:96%; display:flex;"><dc-import name="SignFlow" forceStep="4" hint-size="360px,520px" style="display:block; width:100%; max-height:100%;"></dc-import></div>
+  </div>
+</div>
+
+<!-- ===== SECCIÓN THEMING ===== -->
+<div style="position:absolute; left:80px; top:1900px; font:700 13px/1 'Poppins',system-ui; color:#0C6FB0; letter-spacing:.02em;">● MISMO LAYOUT · OTRA MARCA — TEMA OCÉANO</div>
+
+<div style="position:absolute; left:80px; top:1944px; width:418px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">🌊 Preset Océano · claro</div>
+  <div style="padding:12px; background:#15151a; border-radius:46px; box-shadow:0 20px 54px rgba(0,0,0,.22);">
+    <div style="position:relative; width:390px; height:780px; border-radius:34px; overflow:hidden; --bp:#0C6FB0;--bop:#ffffff;--bsec:#0E8C86;--bink:#0F2433;--bmut:#4F6675;--bsurf:#ffffff;--bbg:#EAF3F9;--bbord:#D2E2EE;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#EAF3F9;">
+      <dc-import name="CampaignPage" layout="mobile" hint-size="390px,780px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECCIÓN MODO OSCURO ===== -->
+<div style="position:absolute; left:580px; top:1900px; font:700 13px/1 'Poppins',system-ui; color:#35C97B; letter-spacing:.02em;">● MODO OSCURO — TEMA BOSQUE</div>
+
+<div style="position:absolute; left:580px; top:1944px; width:418px;">
+  <div data-drags-parent="1" style="position:absolute; top:-24px; left:2px; font:600 12px system-ui; color:#3a3a3a;">🌙 Bosque · oscuro</div>
+  <div style="padding:12px; background:#000; border-radius:46px; box-shadow:0 20px 54px rgba(0,0,0,.3);">
+    <div style="position:relative; width:390px; height:780px; border-radius:34px; overflow:hidden; --bp:#35C97B;--bop:#08130C;--bsec:#35C97B;--bink:#E7F1E9;--bmut:#9CB2A2;--bsurf:#17241B;--bbg:#0E1712;--bbord:#2B3B30;--br:24px;--fd:'Poppins',sans-serif;--fb:'Inter',sans-serif; background:#0E1712;">
+      <dc-import name="CampaignPage" layout="mobile" hint-size="390px,780px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- ===== POST-ITS ===== -->
+<div style="position:absolute; left:1100px; top:1990px; width:280px; background:#fef4a8; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(-1.2deg); font:13px/1.5 'Inter',system-ui; color:#4a431f;">
+  <strong>Theming sin tocar componentes.</strong> Ningún hex literal: todo lee <span style="font-family:monospace; background:#f4e88a; padding:0 3px; border-radius:3px;">--brand-*</span>. Bosque → Océano = otro set de tokens en <span style="font-family:monospace;">meta</span> JSONB.
+</div>
+
+<div style="position:absolute; left:1100px; top:2170px; width:280px; background:#bfe3ff; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(1deg); font:13px/1.5 'Inter',system-ui; color:#163a52;">
+  <strong>Privacidad por defecto.</strong> Visibilidad inicial = <strong>Anónima</strong>. Consentimiento <strong>sin pre-marcar</strong>, separado, con enlace al aviso y mención de revocación.
+</div>
+
+<div style="position:absolute; left:1100px; top:2350px; width:280px; background:#c9f3d4; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(-.8deg); font:13px/1.5 'Inter',system-ui; color:#1c4329;">
+  <strong>WCAG 2.1 AA.</strong> Contraste AA en los 3 presets, foco visible, targets ≥44px, navegación por teclado, modal con Esc, y <span style="font-family:monospace;">prefers-reduced-motion</span> respetado.
+</div>
+
+<div style="position:absolute; left:1100px; top:2530px; width:280px; background:#ffd9c2; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(1.4deg); font:13px/1.5 'Inter',system-ui; color:#5a2e16;">
+  <strong>Sin CLS.</strong> Hero y contador reservan su espacio; la barra de % anima el ancho sin empujar contenido al actualizar.
+</div>
+
+<!-- ===== SECCIÓN DETALLE: DESCRIPCIÓN + DOCUMENTOS + BOTÓN FLOTANTE ===== -->
+<div style="position:absolute; left:80px; top:2900px; font:700 13px/1 'Poppins',system-ui; color:#18794A; letter-spacing:.02em;">● DETALLE DE CAMPAÑA · SCROLL Y DOCUMENTOS</div>
+
+<!-- Frame 1: descripción de campaña + botón flotante -->
+<div style="position:absolute; left:80px; top:2946px; width:418px;">
+  <div data-drags-parent="1" style="position:absolute; top:-26px; left:2px; font:600 12px system-ui; color:#3a3a3a;">📜 Descripción de la campaña <span style="font-weight:400;color:#8a8a8a;">— botón flotante activo</span></div>
+  <div style="padding:12px; background:#15151a; border-radius:46px; box-shadow:0 20px 54px rgba(0,0,0,.22);">
+    <div style="position:relative; width:390px; height:780px; border-radius:34px; overflow:hidden; --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px; background:#EEF4EC;">
+      <dc-import name="CampaignPage" layout="mobile" scroll-to="500" hint-size="390px,780px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- Frame 2: documentos adjuntos -->
+<div style="position:absolute; left:580px; top:2946px; width:418px;">
+  <div data-drags-parent="1" style="position:absolute; top:-26px; left:2px; font:600 12px system-ui; color:#3a3a3a;">📎 Documentos adjuntos <span style="font-weight:400;color:#8a8a8a;">— descarga de archivos</span></div>
+  <div style="padding:12px; background:#15151a; border-radius:46px; box-shadow:0 20px 54px rgba(0,0,0,.22);">
+    <div style="position:relative; width:390px; height:780px; border-radius:34px; overflow:hidden; --bp:#18794A;--bop:#ffffff;--bsec:#2F855A;--bink:#15241B;--bmut:#5A6B60;--bsurf:#ffffff;--bbg:#EEF4EC;--bbord:#DBE6D6;--br:24px; background:#EEF4EC;">
+      <dc-import name="CampaignPage" layout="mobile" scroll-to="1500" hint-size="390px,780px" style="display:block; width:100%; height:100%;"></dc-import>
+    </div>
+  </div>
+</div>
+
+<!-- Anotación botón flotante -->
+<div style="position:absolute; left:1080px; top:2990px; width:288px; background:#c9f3d4; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(-.9deg); font:13px/1.5 'Inter',system-ui; color:#1c4329;">
+  <strong>Botón flotante · solo móvil.</strong> Al pasar el bloque de acción fuera del viewport, el CTA aparece anclado en la parte inferior con fade+slide. En desktop el aside ya es sticky — no aplica.
+</div>
+
+<!-- Anotación documentos -->
+<div style="position:absolute; left:1080px; top:3200px; width:288px; background:#bfe3ff; padding:15px 16px; border-radius:4px; box-shadow:0 3px 10px rgba(0,0,0,.12); transform:rotate(.8deg); font:13px/1.5 'Inter',system-ui; color:#163a52;">
+  <strong>Documentos públicos.</strong> PDFs adjuntos a la campaña, descargables con un tap. Cada archivo muestra nombre, peso y tipo. La organización sube hasta 5 documentos al crear la campaña.
+</div>
+</x-dc>
+</body>
+</html>
