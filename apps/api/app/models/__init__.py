@@ -7,6 +7,12 @@ from app.models.campaign import Campaign, CampaignAllowlist
 from app.models.response import Response, ResponseAnswer, PrivacyConsent, ExportLog
 from app.models.form_version import FormVersion
 from app.models.login_audit import LoginAudit
+from app.models.processing_contract import ProcessingContract
+from app.models.signature import Signature
+from app.models.consent import Consent
+from app.models.privacy_config import PrivacyConfig
+from app.models.lifecycle_event import LifecycleEvent
+from app.models.domain import Domain
 
 __all__ = [
     "Base",
@@ -23,4 +29,10 @@ __all__ = [
     "ExportLog",
     "FormVersion",
     "LoginAudit",
+    "ProcessingContract",
+    "Signature",
+    "Consent",
+    "PrivacyConfig",
+    "LifecycleEvent",
+    "Domain",
 ]

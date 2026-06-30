@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Integer, SmallInteger, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -12,10 +12,19 @@ class Campaign(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
     form_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("forms.id"), nullable=True, index=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    processing_contract_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("processing_contracts.id"), nullable=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
     access_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="public")
+    signer_type: Mapped[str] = mapped_column(String(10), nullable=False, default="natural")
+    category: Mapped[str | None] = mapped_column(String(50))
+    goal_count: Mapped[int | None] = mapped_column(Integer)
+    authority: Mapped[str | None] = mapped_column(Text)
+    asks: Mapped[list] = mapped_column(JSONB, default=list)
+    petition_body: Mapped[dict] = mapped_column(JSONB, default=dict)
+    hero_image_url: Mapped[str | None] = mapped_column(Text)
+    lifecycle_stage: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     starts_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     max_responses: Mapped[int | None] = mapped_column(Integer)
@@ -23,6 +32,8 @@ class Campaign(Base):
     qr_code_data: Mapped[str | None] = mapped_column(Text)
     quota_config: Mapped[dict] = mapped_column(JSONB, default=dict)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    archived_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    archived_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -92,9 +103,15 @@ class Campaign(Base):
 
     form = relationship("Form", foreign_keys="Campaign.form_id", back_populates="campaigns", viewonly=True)
     forms = relationship("Form", foreign_keys="Form.campaign_id", back_populates="campaign")
-    creator = relationship("User", back_populates="campaigns")
+    creator = relationship("User", foreign_keys="Campaign.created_by", back_populates="campaigns")
     responses = relationship("Response", back_populates="campaign")
     allowlist = relationship("CampaignAllowlist", back_populates="campaign", cascade="all, delete-orphan")
+    processing_contract = relationship("ProcessingContract", back_populates="campaigns")
+    signatures = relationship("Signature", back_populates="campaign", cascade="all, delete-orphan")
+    consents = relationship("Consent", back_populates="campaign", cascade="all, delete-orphan")
+    privacy_config = relationship("PrivacyConfig", back_populates="campaign", uselist=False, cascade="all, delete-orphan")
+    lifecycle_events = relationship("LifecycleEvent", back_populates="campaign", cascade="all, delete-orphan")
+    domains = relationship("Domain", back_populates="campaign", cascade="all, delete-orphan")
 
 
 class CampaignAllowlist(Base):
