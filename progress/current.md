@@ -1,8 +1,8 @@
-# Estado actual — cierre sesión 2026-07-01 (sesión 10)
+# Estado actual — cierre sesión 2026-07-01 (sesión 11)
 
 ## Resumen de sesión
 
-Sesión de contingencia y orientación. Se resolvió la divergencia de historias git entre Mac casa y Mac oficina, se sincronizó el repo local con el remoto, y se verificó el funcionamiento del MVP Fase 1 en browser.
+Iteraciones del formulario de firma + integración Resend para notificaciones por email.
 
 ---
 
@@ -11,43 +11,60 @@ Sesión de contingencia y orientación. Se resolvió la divergencia de historias
 | Feature | Estado | Notas |
 |---------|--------|-------|
 | `harness-setup` | **done** | Completo |
-| `infra-fork` | **in_progress** | Local completo; pendiente Cloudflare/VPS/Secrets |
+| `infra-fork` | **in_progress** | Local completo; pendiente Cloudflare/VPS/Secrets + `RESEND_API_KEY` |
 | `ui-design-system` | **in_progress** | Shell admin incorporado; V1/V3/V4 pendientes |
 | `modelo-base` | **done** | Migración 006 aplicada y verificada ✓ |
 | `lopdp-base` | **done** | Implementación completa y verificada ✓ |
 | `multidominio` | **done** | Implementado y funcionando ✓ |
 | `anti-fraude-basico` | **done** | Implementado (RLS, dedup, rate-limit) ✓ |
 | `landing-campana` | **done** | Next.js renderiza correctamente ✓ |
-| `formulario-firma` | **done** | Submit/confirm/dedup OK ✓ |
-| `dashboard-firmas` | **pending** | Siguiente feature a implementar |
+| `formulario-firma` | **done** | Submit/confirm/dedup + iteraciones UI + Resend ✓ |
+| `dashboard-firmas` | **pending** | Specs generados (T1-T28); implementación pendiente |
 
 ---
 
 ## Lo completado esta sesión
 
-### Contingencia git — sincronización Mac casa con Mac oficina
+### Iteraciones formulario de firma (UI)
 
-| Acción | Resultado |
-|--------|-----------|
-| Diagnóstico: remote URL con alias SSH erróneo (`githubqsmlab` vs `github-qsmlab`) | Identificado |
-| `git remote set-url origin git@github-qsmlab:qsm-lab/petition-cauce.git` | Remote corregido |
-| `git fetch origin` + análisis de historial divergido | Local: 1 commit extra; remoto: 10 commits adelante (Fase 1 completa) |
-| `git reset --hard origin/dev` | Local sincronizado con remoto — Fase 1 completa presente |
+| Cambio | Archivo |
+|--------|---------|
+| Toggle "Persona natural / Organización" (controlado por `form_config.signer_types`) | `StepForm.tsx` |
+| Toggle "¿Firmas desde?" Ecuador / Internacional | `StepForm.tsx` |
+| Campo `org_name` condicional | `StepForm.tsx` |
+| Cédula movida DESPUÉS de provincia/país | `StepForm.tsx` |
+| Internacional → "Número de identificación (opcional)", sin módulo-10, acepta cualquier formato | `StepForm.tsx` |
+| Visibilidad filtrada por `form_config.visibility_options`; Secreta oculta por defecto | `StepForm.tsx` |
+| Migración 010: columna `country` en `signatures` | `010_add_country_to_signatures.py` |
+| Schema backend actualizado (`signer_type`, `org_name`, `country`, `location_mode`) | `schemas/signature.py` |
+| Validación cédula solo cuando `location_mode == "nacional"` | `signature_service.py` |
+| `form_config` expuesto en `GET /v1/public-campaign/{id}` | `public_campaign.py` |
+| Seed dev con `form_config` completo (signer_types, location_modes, visibility_options, secreta) | `seed_dev.py` |
+| `FormConfig` interface + `DEFAULT_FORM_CONFIG` en web | `campaign-api.ts` |
+| `SignaturePayload` actualizado con todos los campos nuevos | `signatures-api.ts` |
+| `CampaignPage` pasa `form_config` a `SignFlow` | `CampaignPage.tsx` |
 
-### Setup DB en Mac casa (después del reset)
+### Integración Resend (email double opt-in)
 
-| Acción | Resultado |
-|--------|-----------|
-| `docker compose up -d --build petition-api-dev` | Reconstruido con `jinja2` (faltaba en imagen anterior) |
-| `alembic upgrade head` | Migraciones 006→009 aplicadas |
-| `python -m app.scripts.seed_dev` | Org, admin, contrato, campaña, privacy_config, lifecycle_events creados |
+| Cambio | Archivo |
+|--------|---------|
+| `email_service.py` — envía via Resend si `RESEND_API_KEY` configurado; log en consola en dev | NUEVO |
+| `send_confirmation_email()` llamado en `create_signature()` después de commit | `signature_service.py` |
+| `POST /{campaign_id}/signatures/resend-confirmation` — rate limit 3/min, siempre 204 | `public_campaign.py` |
+| `resend_from_email` + `api_public_url` en config | `config.py` |
+| `resendConfirmation()` en `signatures-api.ts` | `signatures-api.ts` |
+| `StepSuccess` con estados idle/sending/sent en botón "Reenviar" | `StepSuccess.tsx`, `SignFlow.tsx` |
 
-### Verificación en browser
+### Corrección Step 4 — contador real
 
-- Landing `http://localhost:3002/?slug=campana-dev-001` — ✓ funcional
-- Sign Flow (modal de firma) — ✓ funcional
-- Admin `http://localhost:3002/admin/resumen` — ✓ funcional (login admin@cauce.ec / admin123dev)
-- Aviso de privacidad — ✓ funcional
+- `getCampaignCount()` en `signatures-api.ts`
+- `handleContinue()` en `SignFlow.tsx` fetchea el contador antes de ir a Step 4
+
+### Specs generados
+
+- `specs/dashboard-firmas/requirements.md` — R1-R28
+- `specs/dashboard-firmas/design.md` — API + arquitectura frontend
+- `specs/dashboard-firmas/tasks.md` — T1-T28
 
 ---
 
@@ -59,16 +76,31 @@ Sesión de contingencia y orientación. Se resolvió la divergencia de historias
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
 | URL landing campaña | `http://localhost:3002/?slug=campana-dev-001` |
-| Campaña dev | `campana-dev-001` (status=active, lifecycle_stage=1) |
-| Contrato dev | `CONTRATO-DEV-001` (firmado) |
+| Campaña dev ID | `16431490-7875-4ce1-8e70-56eb6bba3dd8` |
 
 ---
 
-## Archivos pendientes de commit
-
-Solo los archivos de progreso de esta sesión:
+## Pendiente de commit
 
 ```
+apps/api/app/config.py
+apps/api/app/main.py
+apps/api/app/models/signature.py
+apps/api/app/routers/public_campaign.py
+apps/api/app/schemas/signature.py
+apps/api/app/services/email_service.py  (nuevo)
+apps/api/app/services/signature_service.py
+apps/api/app/scripts/seed_dev.py
+apps/api/migrations/versions/010_add_country_to_signatures.py  (nuevo)
+apps/web/src/lib/campaign-api.ts
+apps/web/src/lib/signatures-api.ts
+apps/web/src/components/sign-flow/SignFlow.tsx
+apps/web/src/components/sign-flow/StepForm.tsx
+apps/web/src/components/sign-flow/StepSuccess.tsx
+apps/web/src/app/(campaign)/CampaignPage.tsx
+specs/dashboard-firmas/requirements.md
+specs/dashboard-firmas/design.md
+specs/dashboard-firmas/tasks.md
 progress/current.md
 progress/history.md
 ```
@@ -77,22 +109,21 @@ progress/history.md
 
 ## Próxima sesión
 
-### Regla de inicio obligatoria (dos Macs)
-```bash
-git pull --rebase origin dev   # SIEMPRE antes de tocar archivos
+### Activación Resend en producción
+
+En VPS agregar a `.env`:
+```
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=noreply@tudominio.ec
+API_PUBLIC_URL=https://api.tudominio.ec
 ```
 
-### Tareas disponibles (en orden de prioridad sugerida)
+### Tareas disponibles (orden sugerido)
 
-1. **`dashboard-firmas`** — spec y/o implementación del panel admin de firmas
-   - Lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad)
-   - Export CSV protegido por org_id (RLS)
-   - Acceso JWT + RBAC
+1. **`dashboard-firmas`** — implementar panel admin (specs T1-T28 aprobados)
+   - API: `GET /v1/admin/campaigns/{id}/signatures` + `/export.csv`
+   - Frontend: tabla + paginación + filtros + export
 
 2. **`infra-fork`** — Cloudflare DNS + GitHub Secrets + deploy VPS
-   - Requiere acceso a cuenta Cloudflare y VPS
-   - Bloque final antes del primer deploy real
 
-3. **Commits de Fase 1** — cuando el usuario lo indique
-   - Los commits ya están en el remoto (hecho desde Mac oficina)
-   - No hay nada pendiente de commit excepto este cierre de sesión
+3. **`ui-design-system`** — vistas V1/V3/V4 pendientes

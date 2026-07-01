@@ -1,10 +1,18 @@
 interface Props {
   email: string;
+  resendState: "idle" | "sending" | "sent";
   onContinue: () => void;
   onResend: () => void;
 }
 
-export default function StepSuccess({ email, onContinue, onResend }: Props) {
+export default function StepSuccess({ email, resendState, onContinue, onResend }: Props) {
+  const resendLabel =
+    resendState === "sending"
+      ? "Enviando…"
+      : resendState === "sent"
+      ? "Correo reenviado ✓"
+      : "Reenviar correo de confirmación";
+
   return (
     <div
       className="flex flex-col items-center gap-5 py-8 px-2"
@@ -54,14 +62,17 @@ export default function StepSuccess({ email, onContinue, onResend }: Props) {
 
       <button
         onClick={onResend}
-        className="w-full rounded-full font-semibold text-[14px] transition-opacity hover:opacity-75"
+        disabled={resendState !== "idle"}
+        className="w-full rounded-full font-semibold text-[14px] transition-opacity"
         style={{
           minHeight: 46,
           border: "1.5px solid var(--bbord)",
-          color: "var(--bink)",
+          color: resendState === "sent" ? "var(--bsec)" : "var(--bink)",
+          opacity: resendState === "sending" ? 0.6 : 1,
+          cursor: resendState !== "idle" ? "default" : "pointer",
         }}
       >
-        Reenviar correo de confirmación
+        {resendLabel}
       </button>
 
       <p style={{ fontSize: 12, color: "var(--bmut)" }}>

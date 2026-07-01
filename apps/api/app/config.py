@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
     # ── Email (Resend) ─────────────────────────────────────────────────────
     resend_api_key: str = ""
+    resend_from_email: str = "noreply@cauce.ec"
+    api_public_url: str = "http://localhost:8011"
 
 
 settings = Settings()

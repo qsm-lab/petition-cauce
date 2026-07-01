@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-07-01 — Sesión 11: iteraciones formulario-firma + integración Resend
+
+**Completado:**
+- `form_config` en `campaigns.meta`: controla `signer_types`, `location_modes`, `required_fields`, `visibility_options` por campaña
+- Migración 010: columna `country` en `signatures`
+- Toggle persona natural/organización + campo `org_name`
+- Toggle "¿Firmas desde?" Ecuador/Internacional: cédula con módulo-10 solo para nacional; internacional acepta cualquier identificación (opcional)
+- Cédula movida al final del formulario (después de provincia/país)
+- Visibilidad "Secreta" oculta por defecto; habilitada explícitamente en `form_config` de la campaña dev
+- `email_service.py`: Resend (si `RESEND_API_KEY` configurado) o log en consola (dev)
+- `POST /{campaign_id}/signatures/resend-confirmation` rate-limit 3/min, 204 siempre
+- `StepSuccess` con estados idle/sending/sent en botón reenvío
+- Step 4 obtiene contador real via `getCampaignCount()` antes de mostrar
+- Specs `dashboard-firmas` generados: requirements.md + design.md + tasks.md (T1-T28)
+- Flujo completo verificado: submit ✓ | email log ✓ | resend 204 ✓ | confirm ✓ | Step 4 con contador real ✓
+
+**Pendiente:** `dashboard-firmas` implementación + `infra-fork` VPS + activar `RESEND_API_KEY` en producción
+
+---
+
 ## 2026-07-01 — Sesión 10: contingencia git + verificación MVP en Mac casa
 
 **Completado:**
