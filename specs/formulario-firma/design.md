@@ -83,3 +83,50 @@ confirmar manualmente con `GET /api/v1/signatures/confirm/{token}`.
 - **Visibilidad por defecto:** anónima. La opción "pública" requiere acción explícita del usuario.
 - **Newsletter:** consentimiento separado e independiente (Art. 7 — no empaquetado).
 - **Enlace al aviso:** obligatorio en el checkbox (Art. 13 LOPDP — aviso de privacidad).
+
+---
+
+## Addendum — Iteración 2026-07-01
+
+### Archivos modificados (adicionales a los ya implementados)
+
+**API:**
+- `apps/api/migrations/versions/010_add_country_to_signatures.py` — nueva columna `country`
+- `apps/api/app/schemas/signature.py` — agregar `signer_type`, `org_name`, `country`, `location_mode`
+- `apps/api/app/services/signature_service.py` — persistir los nuevos campos; validar `required_fields`
+- `apps/api/app/routers/public_campaign.py` — `_serialize()`: extraer `form_config` de `meta` y exponerlo explícitamente
+- `apps/api/app/scripts/seed_dev.py` — agregar `meta.form_config` a la campaña dev
+
+**Next.js:**
+- `apps/web/src/lib/campaign-api.ts` — agregar `form_config` a `PublicCampaign`
+- `apps/web/src/app/(campaign)/components/ActionBlock.tsx` — pasar `form_config` al SignFlow
+- `apps/web/src/components/sign-flow/SignFlow.tsx` — extender `SignFlowState` con nuevos campos
+- `apps/web/src/components/sign-flow/StepForm.tsx` — nueva sección signer_type + ubicación + visibilidad filtrada
+- `apps/web/src/lib/signatures-api.ts` — incluir nuevos campos en el payload POST
+
+### Decisiones nuevas
+
+**D8 — `form_config` en `campaign.meta` JSONB, sin migración.**
+El modelo ya tiene `meta JSONB`. Los defaults se calculan en `_serialize()` si la clave no existe.
+La campaña dev en el seed se actualiza para incluir `meta["form_config"]` de ejemplo con todos los modos habilitados (`signer_types: ["natural", "org"]`, `location_modes: ["nacional", "internacional"]`, `visibility_options: ["publica", "anonima", "secreta"]`).
+
+**D9 — Migration 010: columna `country` (nullable) en `signatures`.**
+Separar `provincia` y `country` evita mezclar semánticas en el mismo campo.
+Inferencia: `country IS NOT NULL → internacional`, `provincia IS NOT NULL → nacional`.
+
+**D10 — `signer_type` en `Signature` deja de estar hardcodeado a "natural".**
+`signature_service.create_signature()` usa el valor del payload (`data.signer_type`).
+`org_name` se persiste solo si `signer_type = "org"` (y se hashea en `org_name_hash` como el email).
+
+**D11 — `cedula` obligatoria condicionalmente.**
+El validator de Pydantic solo exige cédula si el campo está en `required_fields` del `form_config`.
+Para no romper el flujo actual (donde `cedula` siempre se valida), se lee `form_config` del campaign en el endpoint antes de pasar a `create_signature()`. Si `"cedula"` no está en `required_fields`, se omite la validación del dígito verificador.
+
+**D12 — Visibilidad: `form_config.visibility_options` como lista de strings DB.**
+Valores permitidos: `"publica"`, `"anonima"`, `"secreta"`. El frontend normaliza los shortcuts (`pub`→`publica`) igual que hoy. La validación Pydantic solo acepta los valores en la lista del `form_config`.
+
+### LOPDP — Addendum
+
+- **Firmantes internacionales sin cédula:** la base legal sigue siendo consentimiento expreso. Sin cédula, la deduplicación opera solo por `email_hash`. Se acepta como limitación de Fase 1.
+- **Nombre de organización:** se trata como dato del firmante (persona que representa a la org), no dato de la org. Se hashea en `org_name_hash` para deduplicación futura. No se cifra en Fase 1 (igual que `name`).
+- **Visibilidad restringida por defecto:** quitar "Secreta" del default protege la reputación del resultado visible de la campaña (menos incentivo para firmas secretas no contables).

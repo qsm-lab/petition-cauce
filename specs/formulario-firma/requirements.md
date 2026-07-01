@@ -99,12 +99,100 @@ Todos los valores del README (sección "Screen 2 — Sign Flow") son normativos.
 ```ts
 interface SignFlowState {
   step: 0 | 1 | 2 | 3 | 4;
+  signer_type: 'natural' | 'org';  // default: 'natural'
+  org_name: string;                // solo si signer_type = 'org'
   name: string;
   email: string;
   cedula: string;
-  provincia: string;
-  vis: 'pub' | 'anon' | 'sec'; // default: 'anon'
-  consent: boolean;              // default: false — NUNCA pre-marcado
-  subscribe: boolean;            // default: false
+  location_mode: 'nacional' | 'internacional'; // default: 'nacional'
+  provincia: string;               // solo si location_mode = 'nacional'
+  country: string;                 // solo si location_mode = 'internacional'
+  vis: 'pub' | 'anon' | 'sec';    // default: 'anon'; opciones filtradas por form_config
+  consent: boolean;                // default: false — NUNCA pre-marcado
+  subscribe: boolean;              // default: false
 }
 ```
+
+---
+
+## Addendum — Iteración 2026-07-01
+
+> Requisitos nuevos derivados de revisión de la UI del Sign Flow.
+> Sujetos a ajuste fino después de verificación en browser.
+
+---
+
+## form_config — configuración por campaña desde el backend
+
+**R26** — El endpoint público de campaña (`GET /v1/public-campaign/by-slug/{slug}`)
+SHALL incluir un objeto `form_config` construido desde `campaign.meta["form_config"]`
+con los siguientes campos y defaults:
+
+```json
+{
+  "signer_types":      ["natural"],              // qué tipos de firmante están habilitados
+  "location_modes":    ["nacional"],             // qué modos de ubicación están habilitados
+  "required_fields":   ["nombre", "email", "cedula", "location"],
+  "visibility_options": ["publica", "anonima"]   // "secreta" NO por defecto
+}
+```
+
+**R27** — El backend SHALL validar el payload de firma contra el `form_config` de la campaña:
+si un campo está en `required_fields` y viene vacío o nulo, SHALL retornar 422.
+
+---
+
+## Tipo de firmante (signer_type toggle)
+
+**R28** — WHEN `form_config.signer_types` contiene solo `"natural"`, THEN el toggle
+de tipo de firmante SHALL NOT mostrarse en el formulario.
+
+**R29** — WHEN `form_config.signer_types` contiene `["natural", "org"]`, THEN SHALL
+aparecer un selector de tipo al inicio del formulario (antes de Nombre completo) con
+dos opciones: **"Persona natural"** y **"Organización"**. Default SHALL ser `"natural"`.
+
+**R30** — WHEN el firmante selecciona **"Organización"**, THEN SHALL aparecer un campo
+de texto **"Nombre de la organización"** inmediatamente después del selector de tipo.
+El campo SHALL ser requerido si `"org_name"` está en `required_fields`.
+
+**R31** — El tipo de firmante elegido SHALL enviarse al backend en el campo `signer_type`
+(`"natural"` o `"org"`).
+
+---
+
+## Ubicación (nacional / internacional)
+
+**R32** — WHEN `form_config.location_modes` contiene solo `"nacional"`, THEN el toggle
+nacional/internacional SHALL NOT mostrarse y el formulario SHALL mostrar directamente
+el select de provincia (comportamiento actual).
+
+**R33** — WHEN `form_config.location_modes` contiene `["nacional", "internacional"]`,
+THEN SHALL aparecer un toggle **"Nacional / Internacional"** (radio-style con
+checkmark activo) antes del campo de ubicación. Default SHALL ser `"nacional"`.
+
+**R34** — WHEN el modo activo es **"Nacional"**, THEN SHALL mostrarse el select de
+provincia (comportamiento actual).
+
+**R35** — WHEN el modo activo es **"Internacional"**, THEN SHALL mostrarse un campo
+de texto libre **"País"** en lugar del select de provincia.
+
+**R36** — La cédula SHALL mantenerse visible con `required` si `"cedula"` está en
+`required_fields` del `form_config`. Para firmantes internacionales la campaña
+PUEDE quitar `"cedula"` de `required_fields` desde el backend.
+
+---
+
+## Visibilidad configurable desde el backend
+
+**R37** — El radio group "¿Cómo quieres aparecer?" SHALL renderizar SOLO las opciones
+listadas en `form_config.visibility_options`.
+
+**R38** — Por defecto `visibility_options = ["publica", "anonima"]`. La opción
+**"Secreta"** SHALL NOT aparecer en el frontend a menos que el backend la incluya
+explícitamente en `visibility_options`.
+
+**R39** — WHEN `visibility_options` contiene solo una opción, THEN el radio group
+SHALL NOT mostrarse y esa opción SHALL aplicarse automáticamente al formulario.
+
+**R40** — El default del radio group SHALL ser la primera opción que sea `"anonima"`
+en la lista; si no hay `"anonima"`, SHALL ser la primera opción disponible.

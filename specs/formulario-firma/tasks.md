@@ -47,3 +47,44 @@
 - [ ] T25 — Submit duplicado (mismo email, misma campaña) → Estado 3 con mensaje claro
 - [ ] T26 — Cédula inválida → error 422 → Estado 3
 - [ ] T27 — Esc cierra el modal; foco vuelve al botón CTA de la landing
+
+---
+
+## Addendum — Iteración 2026-07-01 (R26–R40, D8–D12)
+
+### API — migración y schema
+
+- [ ] T28 — `migrations/versions/010_add_country_to_signatures.py`: ADD COLUMN `country VARCHAR(100)` nullable en `signatures` (D9)
+- [ ] T29 — `schemas/signature.py`: agregar campos opcionales `signer_type: Literal['natural','org'] = 'natural'`, `org_name: str | None = None`, `location_mode: Literal['nacional','internacional'] = 'nacional'`, `country: str | None = None` (R31, R35)
+
+### API — servicio y router
+
+- [ ] T30 — `services/signature_service.py`: usar `data.signer_type` en lugar de hardcode `"natural"`; persistir `org_name` (y calcular `org_name_hash` con HMAC); persistir `country` si `location_mode = 'internacional'` (D10)
+- [ ] T31 — `services/signature_service.py`: validar campos requeridos contra `required_fields` del `form_config` de la campaña antes de insertar; omitir validación de cédula si `"cedula"` no está en `required_fields` (R27, D11)
+- [ ] T32 — `routers/public_campaign.py` → `_serialize()`: extraer `form_config` de `campaign.meta` y añadirlo como clave de primer nivel en el response; aplicar defaults si falta alguna clave (R26)
+- [ ] T33 — `scripts/seed_dev.py`: agregar `meta={"form_config": {"signer_types": ["natural","org"], "location_modes": ["nacional","internacional"], "required_fields": ["nombre","email","cedula","location"], "visibility_options": ["publica","anonima","secreta"]}}` a la campaña dev (D8)
+
+### Frontend — types y state
+
+- [ ] T34 — `lib/campaign-api.ts`: agregar `form_config: FormConfig` a `PublicCampaign` con la interfaz `FormConfig { signer_types, location_modes, required_fields, visibility_options }` (R26)
+- [ ] T35 — `components/sign-flow/SignFlow.tsx`: extender `SignFlowState` con `signer_type`, `org_name`, `location_mode`, `country`; actualizar state inicial y el payload enviado en Estado 1 (R31, R35)
+
+### Frontend — StepForm
+
+- [ ] T36 — `StepForm.tsx`: agregar sección toggle **Persona natural / Organización** antes del campo Nombre; mostrar solo si `form_config.signer_types.length > 1` (R28–R29)
+- [ ] T37 — `StepForm.tsx`: campo **Nombre de la organización** condicional bajo el toggle; `required` si `"org_name"` en `required_fields` (R30)
+- [ ] T38 — `StepForm.tsx`: agregar toggle **Nacional / Internacional** (radio-style con checkmark) antes del campo de ubicación; mostrar solo si `form_config.location_modes.length > 1` (R32–R33)
+- [ ] T39 — `StepForm.tsx`: renderizar select de provincia si `location_mode = 'nacional'` (actual); renderizar campo texto País si `location_mode = 'internacional'` (R34–R35)
+- [ ] T40 — `StepForm.tsx`: campo cédula — `required` condicionalmente según `"cedula"` en `required_fields` del `form_config` (R36)
+- [ ] T41 — `StepForm.tsx`: radio group visibilidad — filtrar `VIS_OPTIONS` a solo las incluidas en `form_config.visibility_options`; ocultar grupo si solo hay una opción y aplicarla automáticamente (R37–R40)
+- [ ] T42 — `lib/signatures-api.ts`: incluir `signer_type`, `org_name`, `location_mode`, `country` en el payload del POST (R31, R35)
+
+### Verificación addendum
+
+- [ ] T43 — Con `signer_types: ["natural"]` → toggle tipo invisible; formulario igual que hoy
+- [ ] T44 — Con `signer_types: ["natural","org"]` → toggle visible; elegir "Organización" → campo org_name aparece; submit guarda `signer_type="org"` y `org_name` en DB
+- [ ] T45 — Con `location_modes: ["nacional","internacional"]` → toggle ubicación visible; elegir "Internacional" → campo País aparece, provincia desaparece
+- [ ] T46 — Con `visibility_options: ["publica","anonima"]` → botón "Secreta" no aparece
+- [ ] T47 — Con `visibility_options: ["publica","anonima","secreta"]` → los tres botones aparecen
+- [ ] T48 — Campaña con `"cedula"` fuera de `required_fields` → cédula no es requerida; firmante internacional puede enviar sin cédula
+- [ ] T49 — Migration 010 aplica sin errores (`alembic upgrade head`)
