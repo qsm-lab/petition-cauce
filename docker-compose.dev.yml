@@ -46,7 +46,9 @@ services:
     ports:
       - "127.0.0.1:8011:8000"
     networks:
-      - petition_cause_dev
+      petition_cause_dev:
+        aliases:
+          - petition-api
     env_file:
       - .env.dev
     volumes:
