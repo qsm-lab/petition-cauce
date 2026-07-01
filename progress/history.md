@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-07-01 — Sesión 10: contingencia git + verificación MVP en Mac casa
+
+**Completado:**
+- Diagnóstico y resolución de historias git divergidas entre Mac casa y Mac oficina
+- Alias SSH corregido en remote URL (`githubqsmlab` → `github-qsmlab`)
+- `git reset --hard origin/dev` — Mac casa sincronizada con Fase 1 completa del remoto
+- Contenedor API reconstruido (`jinja2` faltaba en imagen anterior)
+- Migraciones 006–009 aplicadas en DB local de Mac casa
+- Seed ejecutado: org, admin, contrato, campaña, privacy_config, lifecycle_events
+- MVP Fase 1 verificado en browser: landing ✓ | Sign Flow ✓ | admin ✓
+
+**Aprendizaje registrado:** Siempre `git pull --rebase origin dev` al iniciar sesión. Nunca usar disco externo para transferir código — usar `git bundle` sin internet. En Mac nueva: `make migrate` + `make seed` + reconstruir contenedor si cambiaron dependencias.
+
+**Pendiente:** `dashboard-firmas` (siguiente feature) + `infra-fork` VPS
+
+---
+
 ## 2026-06-30 — Sesión 9: Fase 1 MVP funcionando end-to-end
 
 **Completado:**
