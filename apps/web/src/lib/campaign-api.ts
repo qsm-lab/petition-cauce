@@ -7,6 +7,20 @@ export interface CampaignOrg {
   initial: string;
 }
 
+export interface FormConfig {
+  signer_types: ("natural" | "org")[];
+  location_modes: ("nacional" | "internacional")[];
+  required_fields: string[];
+  visibility_options: ("publica" | "anonima" | "secreta")[];
+}
+
+export const DEFAULT_FORM_CONFIG: FormConfig = {
+  signer_types: ["natural"],
+  location_modes: ["nacional"],
+  required_fields: ["nombre", "email", "cedula", "location"],
+  visibility_options: ["publica", "anonima"],
+};
+
 export interface PublicCampaign {
   id: string;
   slug: string;
@@ -21,6 +35,7 @@ export interface PublicCampaign {
   goal_count: number | null;
   signature_count: number;
   signer_type: string;
+  form_config: FormConfig;
   meta: Record<string, unknown>;
   org: CampaignOrg;
 }

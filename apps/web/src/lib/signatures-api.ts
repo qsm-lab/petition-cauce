@@ -2,10 +2,14 @@ const PUBLIC_API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8011";
 
 export interface SignaturePayload {
+  signer_type: "natural" | "org";
+  org_name?: string;
   name: string;
   email: string;
-  cedula: string;
-  provincia: string;
+  cedula?: string;
+  location_mode: "nacional" | "internacional";
+  provincia?: string;
+  country?: string;
   visibility: "pub" | "anon" | "sec";
   consent: boolean;
   subscribe_newsletter: boolean;
@@ -26,6 +30,7 @@ export type SignatureError =
   | { type: "turnstile_failed" }
   | { type: "ya_firmaste" }
   | { type: "cedula_invalida" }
+  | { type: "cedula_requerida" }
   | { type: "rate_limit" }
   | { type: "network" }
   | { type: "unknown"; status: number };
@@ -60,6 +65,8 @@ export async function submitSignature(
       return { ok: false, error: { type: "ya_firmaste" } };
     if (errCode === "cedula_invalida")
       return { ok: false, error: { type: "cedula_invalida" } };
+    if (errCode === "cedula_requerida")
+      return { ok: false, error: { type: "cedula_requerida" } };
 
     return { ok: false, error: { type: "unknown", status: res.status } };
   } catch {
@@ -77,6 +84,38 @@ export async function confirmSignature(
     );
     if (!res.ok) return null;
     return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function resendConfirmation(
+  campaignId: string,
+  email: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/v1/public-campaign/${campaignId}/signatures/resend-confirmation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      }
+    );
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
+export async function getCampaignCount(
+  campaignId: string
+): Promise<ConfirmResult | null> {
+  try {
+    const res = await fetch(`${PUBLIC_API}/v1/public-campaign/${campaignId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { count: data.signature_count ?? 0, goal: data.goal_count ?? null };
   } catch {
     return null;
   }

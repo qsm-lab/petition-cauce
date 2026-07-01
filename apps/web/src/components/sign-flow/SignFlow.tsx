@@ -6,7 +6,8 @@ import StepSending from "./StepSending";
 import StepSuccess from "./StepSuccess";
 import StepError from "./StepError";
 import StepThanks from "./StepThanks";
-import { submitSignature, type SignatureError } from "@/lib/signatures-api";
+import { submitSignature, getCampaignCount, resendConfirmation, type SignatureError } from "@/lib/signatures-api";
+import type { FormConfig } from "@/lib/campaign-api";
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -14,18 +15,31 @@ interface Props {
   campaignId: string;
   campaignTitle: string;
   campaignUrl: string;
+  formConfig: FormConfig;
   onClose: () => void;
 }
 
-const INIT_FORM: FormValues = {
-  name: "",
-  email: "",
-  cedula: "",
-  provincia: "",
-  visibility: "anon",
-  consent: false,
-  cf_turnstile_token: "",
-};
+function buildInitForm(formConfig: FormConfig): FormValues {
+  const defaultVis = formConfig.visibility_options.includes("anonima")
+    ? "anon"
+    : formConfig.visibility_options[0] === "publica"
+    ? "pub"
+    : "sec";
+
+  return {
+    signer_type: "natural",
+    org_name: "",
+    name: "",
+    email: "",
+    cedula: "",
+    location_mode: "nacional",
+    provincia: "",
+    country: "",
+    visibility: defaultVis,
+    consent: false,
+    cf_turnstile_token: "",
+  };
+}
 
 function errorMessage(err: SignatureError): string {
   switch (err.type) {
@@ -33,6 +47,8 @@ function errorMessage(err: SignatureError): string {
       return "Ya firmaste esta campaña con este correo. Si crees que es un error, contacta al administrador.";
     case "cedula_invalida":
       return "La cédula ingresada no es válida. Por favor verifica el número.";
+    case "cedula_requerida":
+      return "La cédula es obligatoria para esta campaña.";
     case "turnstile_failed":
       return "La verificación anti-bot no pasó. Actualiza la página e intenta de nuevo.";
     case "rate_limit":
@@ -48,15 +64,17 @@ export default function SignFlow({
   campaignId,
   campaignTitle,
   campaignUrl,
+  formConfig,
   onClose,
 }: Props) {
   const [step, setStep] = useState<Step>(0);
-  const [form, setForm] = useState<FormValues>(INIT_FORM);
+  const [form, setForm] = useState<FormValues>(() => buildInitForm(formConfig));
   const [errorMsg, setErrorMsg] = useState("");
   const [confirmData, setConfirmData] = useState<{
     count: number;
     goal: number | null;
   } | null>(null);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -103,10 +121,14 @@ export default function SignFlow({
     setStep(1);
 
     const result = await submitSignature(campaignId, {
+      signer_type: values.signer_type,
+      org_name: values.signer_type === "org" ? values.org_name : undefined,
       name: values.name,
       email: values.email,
-      cedula: values.cedula,
-      provincia: values.provincia,
+      cedula: values.cedula || undefined,
+      location_mode: values.location_mode,
+      provincia: values.location_mode === "nacional" ? values.provincia : undefined,
+      country: values.location_mode === "internacional" ? values.country : undefined,
       visibility: values.visibility,
       consent: values.consent,
       subscribe_newsletter: false,
@@ -121,13 +143,16 @@ export default function SignFlow({
     }
   }
 
-  function handleContinue() {
-    // Ideally: poll for confirmation. For now, proceed to thanks with last known count.
+  async function handleContinue() {
+    const data = await getCampaignCount(campaignId);
+    if (data) setConfirmData(data);
     setStep(4);
   }
 
   const stepTitle =
     step === 4 ? "Tu apoyo quedó registrado" : "Firmar esta petición";
+
+  const requiredCount = formConfig.required_fields.length;
 
   return (
     /* Backdrop */
@@ -181,7 +206,7 @@ export default function SignFlow({
             </p>
             {step === 0 && (
               <p style={{ fontSize: 12.5, color: "var(--bmut)" }}>
-                {campaignTitle} · 4 datos obligatorios
+                {campaignTitle} · {requiredCount} datos obligatorios
               </p>
             )}
           </div>
@@ -202,6 +227,7 @@ export default function SignFlow({
             <StepForm
               initial={form}
               campaignTitle={campaignTitle}
+              formConfig={formConfig}
               onSubmit={handleSubmit}
             />
           )}
@@ -209,9 +235,12 @@ export default function SignFlow({
           {step === 2 && (
             <StepSuccess
               email={form.email}
+              resendState={resendState}
               onContinue={handleContinue}
-              onResend={() => {
-                /* TODO: call resend endpoint */
+              onResend={async () => {
+                setResendState("sending");
+                await resendConfirmation(campaignId, form.email);
+                setResendState("sent");
               }}
             />
           )}

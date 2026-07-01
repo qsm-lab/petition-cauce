@@ -12,10 +12,24 @@ from app.models.privacy_config import PrivacyConfig
 from app.models.signature import Signature
 from app.crypto import compute_hmac, verify_cedula
 from app.schemas.signature import SignatureCreate
+from app.services.email_service import send_confirmation_email
 
 logger = logging.getLogger(__name__)
 
 _TOKEN_TTL_HOURS = 24
+
+_DEFAULT_FORM_CONFIG = {
+    "signer_types": ["natural"],
+    "location_modes": ["nacional"],
+    "required_fields": ["nombre", "email", "cedula", "location"],
+    "visibility_options": ["publica", "anonima"],
+}
+
+
+def _get_form_config(campaign: Campaign) -> dict:
+    meta = campaign.meta or {}
+    cfg = meta.get("form_config", {})
+    return {**_DEFAULT_FORM_CONFIG, **cfg}
 
 
 async def create_signature(
@@ -26,12 +40,26 @@ async def create_signature(
 ) -> Signature:
     """Persiste Signature + Consent. Lanza ValueError con código en caso de error lógico."""
 
-    if not verify_cedula(data.cedula):
-        raise ValueError("cedula_invalida")
+    form_config = _get_form_config(campaign)
+    required = set(form_config.get("required_fields", _DEFAULT_FORM_CONFIG["required_fields"]))
+
+    # Cédula: el algoritmo de verificación solo aplica para firmantes nacionales (Ecuador).
+    # Para internacionales el campo es siempre opcional y acepta cualquier formato.
+    if data.location_mode == "nacional":
+        if "cedula" in required:
+            if not data.cedula:
+                raise ValueError("cedula_requerida")
+            if not verify_cedula(data.cedula):
+                raise ValueError("cedula_invalida")
+        elif data.cedula:
+            if not verify_cedula(data.cedula):
+                raise ValueError("cedula_invalida")
+    # location_mode == "internacional": cualquier identificación es aceptada sin validar formato
 
     email_normalized = data.email.strip().lower()
     email_hash = compute_hmac(email_normalized)
-    cedula_hash = compute_hmac(data.cedula)
+    cedula_hash = compute_hmac(data.cedula) if data.cedula else None
+    org_name_hash = compute_hmac(data.org_name.strip()) if data.org_name else None
 
     token = uuid.uuid4().hex
     expires_at = datetime.now(timezone.utc) + timedelta(hours=_TOKEN_TTL_HOURS)
@@ -43,7 +71,7 @@ async def create_signature(
     text_snapshot = pc.aviso_privacidad if pc else ""
     aviso_version = str(pc.version) if pc else "1"
 
-    # Fase 1: email/cedula stored as-is in _encrypted fields; AES-256-GCM added in Fase 3 (cifrado-reposo)
+    # Fase 1: email/cedula stored as-is in _encrypted fields; AES-256-GCM added in Fase 3
     sig = Signature(
         campaign_id=campaign.id,
         org_id=campaign.org_id,
@@ -52,8 +80,11 @@ async def create_signature(
         email_hash=email_hash,
         cedula_encrypted=data.cedula,
         cedula_hash=cedula_hash,
-        provincia=data.provincia,
-        signer_type="natural",
+        provincia=data.provincia if data.location_mode == "nacional" else None,
+        country=data.country if data.location_mode == "internacional" else None,
+        signer_type=data.signer_type,
+        org_name=data.org_name.strip() if data.org_name else None,
+        org_name_hash=org_name_hash,
         visibility=data.visibility,
         status="pending_confirmation",
         confirmation_token=token,
@@ -81,10 +112,18 @@ async def create_signature(
     db.add(consent)
     await db.flush()
 
-    logger.info("[dev] confirmation_token=%s campaign=%s", token, campaign.id)
-
     await db.commit()
     await db.refresh(sig)
+
+    try:
+        await send_confirmation_email(
+            to_email=email_normalized,
+            token=sig.confirmation_token,
+            campaign_title=campaign.title,
+        )
+    except Exception:
+        logger.warning("[email] failed to send confirmation for sig %s", sig.id)
+
     return sig
 
 
@@ -168,7 +207,7 @@ async def get_recent_signatures(
 
         items.append({
             "name_display": sig.name or "Anónimo",
-            "provincia": sig.provincia or "",
+            "provincia": sig.provincia or sig.country or "",
             "time_ago": time_ago,
             "is_anon": sig.name is None,
         })

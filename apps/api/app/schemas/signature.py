@@ -1,13 +1,18 @@
 import uuid
+from typing import Literal
 from pydantic import BaseModel, field_validator
 
 
 class SignatureCreate(BaseModel):
+    signer_type: Literal["natural", "org"] = "natural"
+    org_name: str | None = None
     name: str
     email: str
-    cedula: str
-    provincia: str
-    visibility: str = "anonima"  # frontend: pub|anon|sec → DB: publica|anonima|secreta
+    cedula: str | None = None
+    location_mode: Literal["nacional", "internacional"] = "nacional"
+    provincia: str | None = None
+    country: str | None = None
+    visibility: str = "anonima"
     consent: bool
     subscribe_newsletter: bool = False
     cf_turnstile_token: str = ""
@@ -47,3 +52,7 @@ class RecentSignatureItem(BaseModel):
 class ConfirmResponse(BaseModel):
     count: int
     goal: int | None = None
+
+
+class ResendConfirmationRequest(BaseModel):
+    email: str

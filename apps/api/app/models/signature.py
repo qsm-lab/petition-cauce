@@ -17,6 +17,7 @@ class Signature(Base):
     cedula_encrypted: Mapped[str | None] = mapped_column(Text)
     cedula_hash: Mapped[str | None] = mapped_column(String(128))
     provincia: Mapped[str | None] = mapped_column(String(100))
+    country: Mapped[str | None] = mapped_column(String(100))
     signer_type: Mapped[str] = mapped_column(String(10), nullable=False, default="natural")
     org_name: Mapped[str | None] = mapped_column(String(500))
     org_name_hash: Mapped[str | None] = mapped_column(String(128))

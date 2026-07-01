@@ -23,7 +23,7 @@
       "id": "modelo-base",
       "title": "Fase 0 — Modelo de datos: migraciones Alembic base",
       "description": "Migraciones para tablas nuevas: domains (host, campaign_id, tls_status), signatures (PII cifrable: cedula_encrypted, email_encrypted; region, visibility, source), consents (text_snapshot, version, legal_basis, timestamp, ip_hmac), privacy_config (por campaña: aviso, base legal, retención), lifecycle_events (estados: lanzada→recolección→entrega→diálogo→decisión). RLS desde el inicio en signatures y consents.",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "backend",
       "phase": 0
@@ -32,7 +32,7 @@
       "id": "lopdp-base",
       "title": "Fase 0 — LOPDP: plantillas legales y contratos de encargo",
       "description": "Plantilla de aviso de privacidad por campaña. Política de retención base. Modelo de contrato de encargo de tratamiento (Encargado↔Responsable). Registro de Actividades de Tratamiento (RAT) plantilla inicial. Runbook de notificación de brechas (SPDP/ARCOTEL/CSIRT).",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "legal",
       "phase": 0
@@ -50,7 +50,7 @@
       "id": "multidominio",
       "title": "Fase 1 — Multi-dominio: ruteo por Host header (base desde MVP)",
       "description": "Arquitectura multi-dominio desde el primer deploy, no como extensión posterior. Tabla domains (host, campaign_id, tls_status, verified_at). Nginx enruta por Host header hacia Next.js. Next.js resuelve campaña y branding en server-side desde el Host sin flash de contenido. Para MVP el único dominio activo es cauce.ecuadornotlc.org; la arquitectura ya soporta N dominios. TLS por Cloudflare (proxy naranja). Middleware Next.js extrae Host → consulta DB domains → inyecta campaign_id y branding en el request.",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "infra",
       "phase": 1
@@ -59,7 +59,7 @@
       "id": "landing-campana",
       "title": "Fase 1 — MVP: página pública de campaña",
       "description": "Página pública resuelta por Host header (multidominio): título, descripción, imagen de campaña, CTA principal. Meta + barra de % de avance hacia objetivo. Contador de firmas (caché ligero). Open Graph/SEO por campaña.",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "frontend",
       "phase": 1
@@ -77,7 +77,7 @@
       "id": "formulario-firma",
       "title": "Fase 1 — MVP: formulario de firma con consentimiento LOPDP",
       "description": "Formulario mínimo de firma: nombre, cédula, correo, región, visibilidad preferida. Consentimiento LOPDP con checkbox NO pre-marcado, texto específico del fin, enlace a aviso de privacidad. Doble opt-in por email (verificación antes de confirmar firma). Persistencia en tabla signatures + tabla consents con versión.",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "fullstack",
       "phase": 1
@@ -113,7 +113,7 @@
       "id": "anti-fraude-basico",
       "title": "Fase 1 — MVP: anti-fraude básico",
       "description": "Turnstile Cloudflare (Non-interactive, heredado de forms-qsm). Rate limiting por IP con HMAC (slowapi + Redis). Deduplicación básica por email normalizado (rechaza duplicado en misma campaña). Validación formato cédula ecuatoriana (dígito verificador, solo formato — validación completa en Fase 4).",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "backend",
       "phase": 1

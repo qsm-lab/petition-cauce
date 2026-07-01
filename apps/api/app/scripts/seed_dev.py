@@ -10,6 +10,13 @@ sys.path.insert(0, "/app")
 from app.legal import get_contrato_dev, render_aviso_privacidad, build_aviso_context
 from app.legal.retention import RETENTION_CAMPANA_ESTANDAR
 
+_FORM_CONFIG_DEV = {
+    "signer_types": ["natural", "org"],
+    "location_modes": ["nacional", "internacional"],
+    "required_fields": ["nombre", "email", "cedula", "location"],
+    "visibility_options": ["publica", "anonima", "secreta"],
+}
+
 
 async def seed():
     from app.database import AsyncSessionLocal
@@ -87,6 +94,7 @@ async def seed():
                 asks=["Suspender concesión minera X", "Declarar zona protegida"],
                 petition_body={"texto": "Petición de prueba para desarrollo."},
                 lifecycle_stage=1,
+                meta={"form_config": _FORM_CONFIG_DEV},
             )
             db.add(campana)
             await db.flush()
@@ -126,6 +134,12 @@ async def seed():
                 notes="Inicio de recolección de firmas.",
                 registered_by=user.id,
             ))
+        else:
+            # Campaña ya existe: actualizar form_config si falta (idempotente)
+            existing_meta = dict(campana.meta) if campana.meta else {}
+            if "form_config" not in existing_meta:
+                campana.meta = {**existing_meta, "form_config": _FORM_CONFIG_DEV}
+                await db.flush()
 
         await db.commit()
         print("✓ Seed completado:")
@@ -133,6 +147,7 @@ async def seed():
         print("  - admin@cauce.ec / admin123dev")
         print("  - CONTRATO-DEV-001 (firmado)")
         print("  - campana-dev-001 (signer_type=both, lifecycle_stage=1)")
+        print("  - form_config: signer_types=[natural,org], location_modes=[nacional,internacional]")
 
 
 if __name__ == "__main__":

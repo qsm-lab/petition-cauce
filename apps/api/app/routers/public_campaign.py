@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,9 @@ from app.limiter import limiter
 from app.models.campaign import Campaign
 from app.models.organization import Organization
 from app.models.privacy_config import PrivacyConfig
-from app.schemas.signature import SignatureCreate
+from app.models.signature import Signature
+from app.schemas.signature import ResendConfirmationRequest, SignatureCreate
+from app.services.email_service import send_confirmation_email
 from app.services.signature_service import (
     confirm_signature,
     create_signature,
@@ -34,7 +36,19 @@ async def _get_active_campaign(db: AsyncSession, campaign_id: str) -> Campaign:
     return campaign
 
 
+_DEFAULT_FORM_CONFIG = {
+    "signer_types": ["natural"],
+    "location_modes": ["nacional"],
+    "required_fields": ["nombre", "email", "cedula", "location"],
+    "visibility_options": ["publica", "anonima"],
+}
+
+
 def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict:
+    meta = campaign.meta or {}
+    raw_fc = meta.get("form_config", {})
+    form_config = {**_DEFAULT_FORM_CONFIG, **raw_fc}
+
     return {
         "id": str(campaign.id),
         "slug": campaign.slug,
@@ -49,7 +63,8 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict
         "goal_count": campaign.goal_count,
         "signature_count": count,
         "signer_type": campaign.signer_type,
-        "meta": campaign.meta or {},
+        "form_config": form_config,
+        "meta": meta,
         "org": {
             "id": str(campaign.org_id),
             "name": org.name if org else "",
@@ -139,6 +154,41 @@ async def submit_signature(
         raise HTTPException(status_code=422, detail={"error": code})
 
     return {"id": str(sig.id), "status": sig.status}
+
+
+@router.post("/{campaign_id}/signatures/resend-confirmation", status_code=204)
+@limiter.limit("3/minute")
+async def resend_confirmation_email(
+    campaign_id: str,
+    request: Request,
+    data: ResendConfirmationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    campaign = await _get_active_campaign(db, campaign_id)
+    email_normalized = data.email.strip().lower()
+    email_hash = compute_hmac(email_normalized)
+
+    result = await db.execute(
+        select(Signature).where(
+            Signature.campaign_id == campaign.id,
+            Signature.email_hash == email_hash,
+            Signature.status == "pending_confirmation",
+        )
+    )
+    sig = result.scalar_one_or_none()
+
+    # Always 204 — never reveal whether the email exists
+    if sig and sig.confirmation_token:
+        try:
+            await send_confirmation_email(
+                to_email=email_normalized,
+                token=sig.confirmation_token,
+                campaign_title=campaign.title,
+            )
+        except Exception:
+            pass
+
+    return Response(status_code=204)
 
 
 @router.get("/confirm/{token}")

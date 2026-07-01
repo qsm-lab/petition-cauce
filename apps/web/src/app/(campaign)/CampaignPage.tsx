@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PublicCampaign, RecentSignature } from "@/lib/campaign-api";
+import { DEFAULT_FORM_CONFIG, type PublicCampaign, type RecentSignature } from "@/lib/campaign-api";
 import Hero from "./components/Hero";
 import ActionBlock from "./components/ActionBlock";
 import LifecycleSteps from "./components/LifecycleSteps";
@@ -169,6 +169,7 @@ export default function CampaignPage({
           campaignId={campaign.id}
           campaignTitle={campaign.title}
           campaignUrl={campaignUrl}
+          formConfig={campaign.form_config ?? DEFAULT_FORM_CONFIG}
           onClose={() => setSignOpen(false)}
         />
       )}
