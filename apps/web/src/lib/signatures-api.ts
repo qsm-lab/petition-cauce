@@ -1,0 +1,83 @@
+const PUBLIC_API =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8011";
+
+export interface SignaturePayload {
+  name: string;
+  email: string;
+  cedula: string;
+  provincia: string;
+  visibility: "pub" | "anon" | "sec";
+  consent: boolean;
+  subscribe_newsletter: boolean;
+  cf_turnstile_token: string;
+}
+
+export interface SignatureResult {
+  id: string;
+  status: string;
+}
+
+export interface ConfirmResult {
+  count: number;
+  goal: number | null;
+}
+
+export type SignatureError =
+  | { type: "turnstile_failed" }
+  | { type: "ya_firmaste" }
+  | { type: "cedula_invalida" }
+  | { type: "rate_limit" }
+  | { type: "network" }
+  | { type: "unknown"; status: number };
+
+export async function submitSignature(
+  campaignId: string,
+  payload: SignaturePayload
+): Promise<{ ok: true; data: SignatureResult } | { ok: false; error: SignatureError }> {
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/v1/public-campaign/${campaignId}/signatures`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (res.ok) {
+      return { ok: true, data: await res.json() };
+    }
+
+    if (res.status === 429) return { ok: false, error: { type: "rate_limit" } };
+
+    const body = await res.json().catch(() => ({}));
+    const detail = body?.detail ?? {};
+    const errCode = typeof detail === "object" ? detail?.error : detail;
+
+    if (errCode === "turnstile_failed")
+      return { ok: false, error: { type: "turnstile_failed" } };
+    if (errCode === "ya_firmaste")
+      return { ok: false, error: { type: "ya_firmaste" } };
+    if (errCode === "cedula_invalida")
+      return { ok: false, error: { type: "cedula_invalida" } };
+
+    return { ok: false, error: { type: "unknown", status: res.status } };
+  } catch {
+    return { ok: false, error: { type: "network" } };
+  }
+}
+
+export async function confirmSignature(
+  campaignId: string,
+  token: string
+): Promise<ConfirmResult | null> {
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/v1/public-campaign/confirm/${token}`
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
