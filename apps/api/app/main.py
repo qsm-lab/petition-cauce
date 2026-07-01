@@ -8,7 +8,8 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.limiter import limiter
 from app.redis_client import init_redis, close_redis
-from app.routers import auth, forms, campaigns, public, dashboard, exports
+from app.routers import auth, forms, campaigns, public, dashboard, exports, domains
+from app.routers import public_campaign
 
 
 @asynccontextmanager
@@ -43,6 +44,8 @@ app.include_router(campaigns.router, prefix="/v1/campaigns", tags=["campaigns"])
 app.include_router(public.router, prefix="/v1/public", tags=["public"])
 app.include_router(dashboard.router, prefix="/v1/dashboard", tags=["dashboard"])
 app.include_router(exports.router, prefix="/v1/exports", tags=["exports"])
+app.include_router(domains.router, prefix="/v1/domains", tags=["domains"])
+app.include_router(public_campaign.router, prefix="/v1/public-campaign", tags=["public-campaign"])
 
 
 @app.get("/health", tags=["health"])

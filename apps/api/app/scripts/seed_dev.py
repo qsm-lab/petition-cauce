@@ -79,7 +79,7 @@ async def seed():
                 processing_contract_id=contrato.id,
                 title="Campaña de Prueba — Cauce Dev",
                 slug="campana-dev-001",
-                status="draft",
+                status="active",
                 signer_type="both",
                 category="mineria",
                 goal_count=10000,
