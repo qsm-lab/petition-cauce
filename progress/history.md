@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-06-30 — Sesión 9: Fase 1 MVP funcionando end-to-end
+
+**Completado:**
+- Specs generados y aprobados: `multidominio`, `anti-fraude-basico`, `landing-campana`, `formulario-firma`
+- API Fase 1: `domains.py` (resolve-domain), `public_campaign.py` (by-slug, GET/POST signatures, confirm), schemas, domain_service, signature_service
+- Next.js Fase 1: `page.tsx` Server Component con resolución slug/dominio, `aviso-de-privacidad/page.tsx`, middleware actualizado, CampaignPage (layout 1col/2col), 8 subcomponentes, SignFlow (5 estados, bottom sheet/modal)
+- 5 bugs corregidos: campaign status draft→active en seed; alias red `petition-api` en docker-compose; turnstile bypass usa prefijo; migración 008 RLS `sig_org_admin` con NULLIF; migración 009 UPDATE policy para confirm flow; `confirmada`→`confirmed` en signature_service
+- Flujo completo verificado: GET landing ✓ | POST signature 201 ✓ | GET confirm 200 `{count:1,goal:10000}` ✓ | dedup 409 ✓ | cédula inválida 422 ✓
+
+**Pendiente:** commit de Fase 1 (~30 archivos) + commits modelo-base + lopdp-base; dashboard-firmas; infra-fork VPS
+
+---
+
 ## 2026-06-30 — Sesión 8: lopdp-base implementado completo
 
 **Completado:**

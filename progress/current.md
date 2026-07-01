@@ -1,15 +1,8 @@
-# Estado actual — cierre sesión 2026-06-30 (sesión 8)
+# Estado actual — cierre sesión 2026-06-30 (sesión 9)
 
 ## Resumen de sesión
 
-- Feature `lopdp-base` implementada completa (T1–T18)
-- Migración 007 aplicada: columna `version` en `privacy_config`
-- Templates Jinja2: aviso_privacidad, contrato_encargo, RAT
-- Funciones Python: render + build_context para los 3 documentos + `get_contrato_dev()`
-- Runbook de brechas: `docs/legal/runbook_brechas.md` (protocolo 72h SPDP)
-- `seed_dev.py` actualizado: contrato usa `get_contrato_dev()`, privacy_config usa `render_aviso_privacidad()`
-- `.env.example` actualizado con vars `ENCARGADO_*` y `RESEND_API_KEY`
-- Seed verificado: exitoso en Mac 2 (~/Dev/proy_petition-cauce)
+Fase 1 MVP implementada y funcionando end-to-end. Se resolvieron 5 bugs bloqueantes tras la implementación de la sesión anterior.
 
 ---
 
@@ -22,36 +15,59 @@
 | `ui-design-system` | **in_progress** | Shell admin incorporado; V1/V3/V4 pendientes |
 | `modelo-base` | **in_progress** | Migración 006 aplicada y verificada; commit pendiente |
 | `lopdp-base` | **in_progress** | Implementación completa; commit pendiente |
-| Fase 1–5 (27 features) | pending | Después de Fase 0 |
+| `multidominio` | **in_progress** | Implementado y funcionando; commit pendiente |
+| `anti-fraude-basico` | **in_progress** | Implementado (RLS, dedup, rate-limit); commit pendiente |
+| `landing-campana` | **in_progress** | Next.js renderiza correctamente; commit pendiente |
+| `formulario-firma` | **in_progress** | Submit/confirm/dedup OK; commit pendiente |
 
 ---
 
 ## Lo completado esta sesión
 
-### Feature `lopdp-base` (T1–T18)
+### Bugs corregidos
 
-| Archivo | Descripción |
-|---------|-------------|
-| `migrations/versions/007_lopdp_base.py` | Columna `version` en `privacy_config` |
-| `app/legal/retention.py` | Constantes de retención + `retention_label()` |
-| `app/legal/templates/aviso_privacidad.jinja2` | Aviso de privacidad 9 secciones, condicional natural/juridica y signer_type |
-| `app/legal/templates/contrato_encargo.jinja2` | Contrato encargo 12 cláusulas + bloque firmas con validation_token |
-| `app/legal/templates/rat.jinja2` | RAT 10 secciones + loop versiones activas del aviso |
-| `app/legal/aviso_privacidad.py` | `render_aviso_privacidad()` + `build_aviso_context()` |
-| `app/legal/contrato_encargo.py` | `render_contrato_encargo()` + `build_contrato_context()` + `get_contrato_dev()` |
-| `app/legal/rat.py` | `render_rat()` + `build_rat_context()` |
-| `app/legal/__init__.py` | Exports de todos los módulos |
-| `docs/legal/runbook_brechas.md` | Runbook brechas: cronograma T+0 a T+72h, contenido SPDP, registro interno |
-| `app/scripts/seed_dev.py` | Usa `get_contrato_dev()` y `render_aviso_privacidad()` |
-| `app/config.py` | Vars encargado (`encargado_tipo/nombre/cedula_ruc/rep_nombre/domicilio/email`) + `resend_api_key` |
-| `requirements.txt` | `jinja2==3.1.4` |
-| `.env.example` | Sección `ENCARGADO_*` y `RESEND_API_KEY` |
-| `app/models/privacy_config.py` | Campo `version: Mapped[int]` |
+| Bug | Solución |
+|-----|----------|
+| Campaign status `draft` bloqueada por RLS `campaigns_public_read` | Seed actualizado a `status='active'`; DB actualizada |
+| `API_INTERNAL_URL=http://petition-api:8000` no resolvía (contenedor se llama `petition-api-dev`) | Alias de red `petition-api` añadido en `docker-compose.dev.yml` |
+| Turnstile bypass no funcionaba (`.env.dev` tiene key con un `A` menos que el `TEST_SECRET`) | `turnstile_service.py` usa `startswith(_TEST_PREFIX)` en vez de `==` |
+| `sig_org_admin` RLS fallaba con `invalid input syntax for type uuid: ""` | Migración 008: `NULLIF` en ambas políticas; `sig_public` usa `confirmed` (English) y limitada a SELECT |
+| `confirm_signature` fallaba por `status='confirmada'` (constraint dice `confirmed`) | Migración 009: política UPDATE para confirm flow; `signature_service.py` usa `confirmed` |
+
+### Archivos nuevos / modificados (Fase 1)
+
+**API:**
+- `apps/api/app/schemas/signature.py` — SignatureCreate, validación visibilidad, cedula
+- `apps/api/app/services/domain_service.py` — resuelve dominio → campaign_id, caché Redis
+- `apps/api/app/services/signature_service.py` — create/confirm/recent/count; status `confirmed`
+- `apps/api/app/services/turnstile_service.py` — bypass dev con prefijo de key
+- `apps/api/app/routers/domains.py` — GET /v1/domains/resolve-domain
+- `apps/api/app/routers/public_campaign.py` — GET by-slug, GET/POST signatures, confirm
+- `apps/api/app/main.py` — registra los 2 nuevos routers
+- `apps/api/app/scripts/seed_dev.py` — campaña en status `active`
+- `apps/api/migrations/versions/008_fix_signatures_rls.py` — fix RLS sig_org_admin + sig_public
+- `apps/api/migrations/versions/009_signatures_confirm_update_policy.py` — UPDATE policy para confirm
+
+**Next.js:**
+- `apps/web/src/lib/campaign-api.ts` — server-side API helpers
+- `apps/web/src/lib/signatures-api.ts` — client-side submit/confirm
+- `apps/web/src/app/page.tsx` — Server Component, resuelve campaña por slug/dominio
+- `apps/web/src/app/aviso-de-privacidad/page.tsx` — muestra aviso de privacidad
+- `apps/web/src/middleware.ts` — pasa x-original-host, sin redirect en "/"
+- `apps/web/src/app/(campaign)/CampaignPage.tsx` — layout 1 col mobile / 2 col desktop
+- `apps/web/src/app/(campaign)/components/` — Hero, ActionBlock, LifecycleSteps, PetitionBody, RecentSignatures, ShareSection, RegionBars, OrgCard
+- `apps/web/src/components/sign-flow/` — SignFlow, StepForm, StepSending, StepSuccess, StepError, StepThanks
+
+**Infra:**
+- `docker-compose.dev.yml` — alias de red `petition-api` para el servicio `petition-api-dev`
 
 ### Verificaciones
 
-- `make migrate` → migración 007 aplicada ✓
-- `make seed` → exitoso, aviso real generado por Jinja2, contrato completo ✓
+- `GET /v1/public-campaign/by-slug/campana-dev-001` → 200 con datos completos ✓
+- `POST /v1/public-campaign/{id}/signatures` → 201 primera vez, 409 duplicado, 422 cédula inválida ✓
+- `GET /v1/public-campaign/confirm/{token}` → `{"count":1,"goal":10000}` ✓
+- `GET /v1/public-campaign/{id}/signatures/recent` → `[{"name_display":"Juan Pérez",...}]` ✓
+- `GET http://localhost:3002/?slug=campana-dev-001` → 200, título "Campaña de Prueba — Cauce Dev" ✓
 
 ---
 
@@ -89,8 +105,34 @@ apps/api/app/legal/templates/contrato_encargo.jinja2
 apps/api/app/legal/templates/rat.jinja2
 docs/legal/runbook_brechas.md
 .env.example
-progress/current.md
-progress/history.md
+```
+
+### Fase 1 — multidominio, anti-fraude-basico, landing-campana, formulario-firma
+```
+docker-compose.dev.yml
+apps/api/app/schemas/signature.py
+apps/api/app/services/domain_service.py
+apps/api/app/services/signature_service.py
+apps/api/app/services/turnstile_service.py
+apps/api/app/routers/domains.py
+apps/api/app/routers/public_campaign.py
+apps/api/app/main.py
+apps/api/app/scripts/seed_dev.py
+apps/api/migrations/versions/008_fix_signatures_rls.py
+apps/api/migrations/versions/009_signatures_confirm_update_policy.py
+apps/web/src/lib/campaign-api.ts
+apps/web/src/lib/signatures-api.ts
+apps/web/src/lib/design-tokens.ts
+apps/web/src/app/page.tsx
+apps/web/src/app/aviso-de-privacidad/page.tsx
+apps/web/src/middleware.ts
+apps/web/src/app/(campaign)/CampaignPage.tsx
+apps/web/src/app/(campaign)/components/
+apps/web/src/components/sign-flow/
+specs/multidominio/
+specs/anti-fraude-basico/
+specs/landing-campana/
+specs/formulario-firma/
 ```
 
 ---
@@ -102,7 +144,8 @@ progress/history.md
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Campaña dev | `campana-dev-001` (signer_type=both, lifecycle_stage=1) |
+| URL landing campaña | `http://localhost:3002/?slug=campana-dev-001` |
+| Campaña dev | `campana-dev-001` (status=active, lifecycle_stage=1) |
 | Contrato dev | `CONTRATO-DEV-001` (firmado, texto completo Jinja2) |
 
 ## Directorio de trabajo (Mac 2)
@@ -113,9 +156,10 @@ progress/history.md
 
 ---
 
-## Próxima sesión — Fase 1 MVP
+## Próxima sesión
 
-1. **`landing-campana`** — página pública de campaña (requiere diseño Claude Design)
-2. **`formulario-firma`** — formulario de firma (PII, requiere privacy_config aprobada)
-3. **`multidominio`** — routing por dominio para campañas
-4. **`infra-fork`** — Cloudflare DNS + GitHub Secrets + VPS deploy (cuando toque)
+- Revisar visualmente la landing en browser (http://localhost:3002/?slug=campana-dev-001)
+- Testear el Sign Flow completo en browser (abrir modal, llenar form, enviar)
+- `dashboard-firmas` — spec y/o implementación (si el usuario lo aprueba)
+- `infra-fork` — Cloudflare DNS + GitHub Secrets + deploy VPS
+- Commits de Fase 1 cuando el usuario lo indique
