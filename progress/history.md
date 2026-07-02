@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-07-02 — Sesión 12: dashboard-firmas implementado + ui-design-system verificado
+
+**Completado:**
+- `dashboard-firmas` — API + frontend completo (T1-T28):
+  - `GET /v1/admin/campaigns/{id}/signatures` — lista paginada con filtros provincia/visibility/status
+  - `GET /v1/admin/campaigns/{id}/signatures/export.csv` — export con filtros activos
+  - Stats (confirmed/pending/anulada) siempre sobre totales de campaña, independientes de filtros
+  - Frontend: FiltrosBar (form GET auto-submit), ExportCsvButton (window.open), tabla semántica, paginación URL-based
+  - Verificado con Playwright: T19-T28 (tabla, badges, opacidad anuladas, filtros, export, breadcrumb, paginación)
+- `ui-design-system` verificaciones V1/V3/V4:
+  - V1: fidelidad visual — sidebar `#15241B`, tokens activos, layout fiel al handoff AdminPanel.dc.html
+  - V3: 0 requests CDN; 86 @font-face via next/font (Poppins, Inter, Montserrat, Nunito, Fredoka)
+  - V4: inyección tokens campaña — preset Océano propagado a toda la UI sin rebuild
+- UUID de campaña dev corregido: `90160ea0-8f05-4605-9fb5-e1af8cc5bf52`
+- Migración 010 (`country` en signatures) aplicada en Mac local
+
+**Diagnóstico:** Los cambios del otro Mac no se reflejaban porque la migración 010 estaba en código pero no aplicada en la DB de este Mac. Solución: `docker exec petition-api-dev alembic upgrade head`.
+
+**Pendiente:** `dashboard-firmas` pendiente validación final del usuario + `infra-fork` VPS + `resumen-admin` KPIs reales
+
+---
+
 ## 2026-07-01 — Sesión 11: iteraciones formulario-firma + integración Resend
 
 **Completado:**
