@@ -48,8 +48,8 @@ Fase: 0 | Área: frontend
 
 ## Bloque V — Verificación
 
-- [ ] **V1** Revisar fidelidad visual de cada componente vs. design-export (R13, R15)
+- [x] **V1** Revisar fidelidad visual de cada componente vs. design-export (R13, R15) — VERIFICADO sesión 12: sidebar #15241B, tokens activos, layout fiel al handoff
 - [x] **V2** No hay `style` inline en ningún componente — todo Tailwind (R15)
-- [ ] **V3** Verificar en browser que las fuentes cargan sin requests a CDN externo (R4)
-- [ ] **V4** Probar inyección de tokens de campaña: sobreescribir `--bp` y confirmar que Button/Badge lo aplican (R2, R7)
+- [x] **V3** Verificar en browser que las fuentes cargan sin requests a CDN externo (R4) — VERIFICADO sesión 12: 0 requests CDN; 86 @font-face via next/font (Poppins, Inter, Montserrat, Nunito, Fredoka)
+- [x] **V4** Probar inyección de tokens de campaña: sobreescribir `--bp` y confirmar que Button/Badge lo aplican (R2, R7) — VERIFICADO sesión 12: inyección Océano (#0C6FB0) propagada a toda la UI sin rebuild
 - [x] **V5** `make dev` levanta sin errores + TypeScript sin errores + frontend responde 307 (R1)

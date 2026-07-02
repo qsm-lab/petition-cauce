@@ -1,8 +1,18 @@
-# Estado actual — cierre sesión 2026-07-01 (sesión 11)
+# Estado actual — sesión en curso 2026-07-02 (sesión 12)
 
 ## Resumen de sesión
 
-Iteraciones del formulario de firma + integración Resend para notificaciones por email.
+Dashboard de firmas implementado (T1-T28). Migración 010 aplicada.
+ui-design-system verificado: V1/V3/V4 PASS (fidelidad visual, fuentes locales, inyección tokens).
+
+---
+
+## Corrección de datos dev
+
+| Campo | Valor correcto |
+|-------|----------------|
+| Campaña dev ID | `90160ea0-8f05-4605-9fb5-e1af8cc5bf52` (el de progress/current.md anterior era obsoleto) |
+| URL firmas admin | `http://localhost:3002/admin/campanas/90160ea0-8f05-4605-9fb5-e1af8cc5bf52/firmas` |
 
 ---
 
@@ -12,14 +22,14 @@ Iteraciones del formulario de firma + integración Resend para notificaciones po
 |---------|--------|-------|
 | `harness-setup` | **done** | Completo |
 | `infra-fork` | **in_progress** | Local completo; pendiente Cloudflare/VPS/Secrets + `RESEND_API_KEY` |
-| `ui-design-system` | **in_progress** | Shell admin incorporado; V1/V3/V4 pendientes |
+| `ui-design-system` | **verificado** | V1/V3/V4 PASS — fidelidad visual, fuentes locales, tokens inyectables |
 | `modelo-base` | **done** | Migración 006 aplicada y verificada ✓ |
 | `lopdp-base` | **done** | Implementación completa y verificada ✓ |
 | `multidominio` | **done** | Implementado y funcionando ✓ |
 | `anti-fraude-basico` | **done** | Implementado (RLS, dedup, rate-limit) ✓ |
 | `landing-campana` | **done** | Next.js renderiza correctamente ✓ |
 | `formulario-firma` | **done** | Submit/confirm/dedup + iteraciones UI + Resend ✓ |
-| `dashboard-firmas` | **pending** | Specs generados (T1-T28); implementación pendiente |
+| `dashboard-firmas` | **in_progress** | Implementado y verificado T19-T28 ✓ (usuario valida) |
 
 ---
 
