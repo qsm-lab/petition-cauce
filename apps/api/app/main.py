@@ -13,6 +13,7 @@ from app.limiter import limiter
 from app.redis_client import init_redis, close_redis
 from app.routers import auth, forms, campaigns, public, dashboard, exports, domains
 from app.routers import public_campaign
+from app.routers import admin_signatures
 
 
 @asynccontextmanager
@@ -49,6 +50,7 @@ app.include_router(dashboard.router, prefix="/v1/dashboard", tags=["dashboard"])
 app.include_router(exports.router, prefix="/v1/exports", tags=["exports"])
 app.include_router(domains.router, prefix="/v1/domains", tags=["domains"])
 app.include_router(public_campaign.router, prefix="/v1/public-campaign", tags=["public-campaign"])
+app.include_router(admin_signatures.router, prefix="/v1/admin", tags=["admin"])
 
 
 @app.get("/health", tags=["health"])
