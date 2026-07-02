@@ -41,3 +41,4 @@ node_modules/
 .idea/
 *.swp
 *.swo
+memory/
