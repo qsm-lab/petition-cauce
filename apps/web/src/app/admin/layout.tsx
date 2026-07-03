@@ -60,13 +60,31 @@ const IconConfiguracion = () => (
   </svg>
 );
 
+const IconCategorias = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="1" y="1" width="5.5" height="5.5" rx="1" />
+    <rect x="8.5" y="1" width="5.5" height="5.5" rx="1" />
+    <rect x="1" y="8.5" width="5.5" height="5.5" rx="1" />
+    <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" />
+  </svg>
+);
+
+const IconPrivacidad = () => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M7.5 1L2 3.5V7c0 3.3 2.4 5.8 5.5 6.5C10.6 12.8 13 10.3 13 7V3.5L7.5 1Z" />
+    <path d="M5 7.5l2 2 3.5-3.5" />
+  </svg>
+);
+
 const ALL_NAV: (NavItem & { roles: string[] })[] = [
-  { href: "/admin/resumen",        label: "Resumen",        icon: <IconResumen />,        roles: ["admin"] },
-  { href: "/admin/campanas",       label: "Campañas",       icon: <IconCampanas />,       roles: ["admin", "gestor"] },
-  { href: "/admin/firmas",         label: "Firmas",         icon: <IconFirmas />,         roles: ["admin", "gestor"] },
-  { href: "/admin/organizaciones", label: "Organizaciones", icon: <IconOrganizaciones />, roles: ["admin"] },
-  { href: "/admin/usuarios",       label: "Usuarios",       icon: <IconUsuarios />,       roles: ["admin"] },
-  { href: "/admin/configuracion",  label: "Configuración",  icon: <IconConfiguracion />,  roles: ["admin"] },
+  { href: "/admin/resumen",              label: "Resumen",         icon: <IconResumen />,       roles: ["admin"] },
+  { href: "/admin/campanas",             label: "Campañas",        icon: <IconCampanas />,      roles: ["admin", "gestor"] },
+  { href: "/admin/firmas",               label: "Firmas",          icon: <IconFirmas />,        roles: ["admin", "gestor"] },
+  { href: "/admin/organizaciones",       label: "Organizaciones",  icon: <IconOrganizaciones />,roles: ["admin"] },
+  { href: "/admin/categorias",           label: "Categorías",      icon: <IconCategorias />,    roles: ["admin"] },
+  { href: "/admin/politicas-privacidad", label: "Privacidad",      icon: <IconPrivacidad />,    roles: ["admin"] },
+  { href: "/admin/usuarios",             label: "Usuarios",        icon: <IconUsuarios />,      roles: ["admin"] },
+  { href: "/admin/configuracion",        label: "Configuración",   icon: <IconConfiguracion />, roles: ["admin"] },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { apiServer } from "@/lib/api-server";
 import type { User } from "@/lib/types";
-import type { AdminOrg } from "@/lib/admin-orgs-api";
-import OrganizacionesClient from "./OrganizacionesClient";
+import type { Category } from "@/lib/admin-categories-api";
+import CategoriasList from "./CategoriasList";
 
-export default async function OrganizacionesPage() {
+export default async function CategoriasPage() {
   const user = await apiServer<User>("/v1/auth/me");
   if (!user || user.role !== "admin") redirect("/admin/campanas");
 
-  const orgs = await apiServer<AdminOrg[]>("/v1/admin/organizaciones") ?? [];
+  const categories = await apiServer<Category[]>("/v1/admin/categories") ?? [];
 
   return (
     <div>
@@ -18,16 +18,16 @@ export default async function OrganizacionesPage() {
       >
         <div>
           <h1 className="font-display font-bold text-[18px]" style={{ color: "var(--bink)" }}>
-            Organizaciones
+            Categorías
           </h1>
           <p className="text-[12.5px] mt-0.5" style={{ color: "var(--bmut)" }}>
-            Organizaciones responsables de las campañas
+            Etiquetas para clasificar campañas
           </p>
         </div>
       </header>
 
       <div className="p-6 animate-pc-rise">
-        <OrganizacionesClient initialOrgs={orgs} />
+        <CategoriasList initialCategories={categories} />
       </div>
     </div>
   );
