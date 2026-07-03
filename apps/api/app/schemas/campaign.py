@@ -6,8 +6,14 @@ from datetime import datetime
 class CampaignCreate(BaseModel):
     form_id: uuid.UUID | None = None
     title: str
+    petition_title: str | None = None
     slug: str
     access_mode: str = "public"
+    category: str | None = None
+    goal_count: int | None = None
+    authority: str | None = None
+    petition_body: dict | None = None
+    hero_image_url: str | None = None
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     max_responses: int | None = None
@@ -15,15 +21,35 @@ class CampaignCreate(BaseModel):
     quota_config: dict = {}
 
 
+_META_FIELDS = {"show_authority", "show_goal", "form_config", "hero_image_mobile_url", "attachments", "show_qr"}
+
+
 class CampaignUpdate(BaseModel):
     title: str | None = None
+    petition_title: str | None = None
     form_id: uuid.UUID | None = None
+    org_id: uuid.UUID | None = None
     access_mode: str | None = None
+    category: str | None = None
+    goal_count: int | None = None
+    authority: str | None = None
+    asks: list | None = None
+    petition_body: dict | None = None
+    hero_image_url: str | None = None
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     max_responses: int | None = None
     source_platform: str | None = None
     quota_config: dict | None = None
+    privacy_policy_id: uuid.UUID | None = None
+    # Campos que van a meta (no son columnas directas)
+    show_authority: bool | None = None
+    show_goal: bool | None = None
+    form_config: dict | None = None
+    hero_image_mobile_url: str | None = None
+    attachments: list | None = None
+    show_qr: bool | None = None
+    qr_code_data: str | None = None
 
 
 class CampaignStatusUpdate(BaseModel):
@@ -68,9 +94,15 @@ class CampaignResponse(BaseModel):
     form_id: uuid.UUID | None = None
     created_by: uuid.UUID
     title: str
+    petition_title: str | None = None
     slug: str
     status: str
     access_mode: str
+    category: str | None = None
+    goal_count: int | None = None
+    authority: str | None = None
+    petition_body: dict = {}
+    hero_image_url: str | None = None
     starts_at: datetime | None
     ends_at: datetime | None
     max_responses: int | None
@@ -90,6 +122,7 @@ class CampaignResponse(BaseModel):
     welcome_slogan_size: str | None = None
     welcome_title_color: str = "#FFFFFF"
     welcome_slogan_color: str = "#FFFFFF"
+    meta: dict = {}
     created_at: datetime
     updated_at: datetime
 

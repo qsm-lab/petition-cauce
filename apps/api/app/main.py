@@ -14,6 +14,7 @@ from app.redis_client import init_redis, close_redis
 from app.routers import auth, forms, campaigns, public, dashboard, exports, domains
 from app.routers import public_campaign
 from app.routers import admin_signatures
+from app.routers import categories, privacy_policies, organizaciones
 
 
 @asynccontextmanager
@@ -51,6 +52,9 @@ app.include_router(exports.router, prefix="/v1/exports", tags=["exports"])
 app.include_router(domains.router, prefix="/v1/domains", tags=["domains"])
 app.include_router(public_campaign.router, prefix="/v1/public-campaign", tags=["public-campaign"])
 app.include_router(admin_signatures.router, prefix="/v1/admin", tags=["admin"])
+app.include_router(categories.router, prefix="/v1/admin", tags=["categories"])
+app.include_router(privacy_policies.router, prefix="/v1/admin", tags=["privacy-policies"])
+app.include_router(organizaciones.router, prefix="/v1/admin", tags=["organizaciones"])
 
 
 @app.get("/health", tags=["health"])

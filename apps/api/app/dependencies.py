@@ -51,7 +51,7 @@ async def get_db_with_org(
     db: AsyncSession = Depends(get_db),
 ) -> AsyncSession:
     await db.execute(
-        text("SELECT set_config('app.current_org_id', :org_id, true)"),
+        text("SELECT set_config('app.current_org_id', :org_id, false)"),
         {"org_id": str(current_user.org_id)},
     )
     return db

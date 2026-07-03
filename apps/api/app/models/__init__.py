@@ -13,6 +13,8 @@ from app.models.consent import Consent
 from app.models.privacy_config import PrivacyConfig
 from app.models.lifecycle_event import LifecycleEvent
 from app.models.domain import Domain
+from app.models.category import Category
+from app.models.privacy_policy import PrivacyPolicy
 
 __all__ = [
     "Base",
@@ -35,4 +37,6 @@ __all__ = [
     "PrivacyConfig",
     "LifecycleEvent",
     "Domain",
+    "Category",
+    "PrivacyPolicy",
 ]

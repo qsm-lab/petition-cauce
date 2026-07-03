@@ -24,6 +24,7 @@ class Signature(Base):
     visibility: Mapped[str] = mapped_column(String(10), nullable=False, default="anonima")
     status: Mapped[str] = mapped_column(String(25), nullable=False, default="pending_confirmation")
     source: Mapped[str | None] = mapped_column(String(50))
+    is_test: Mapped[bool] = mapped_column(default=False, nullable=False)
     confirmation_token: Mapped[str | None] = mapped_column(String(128), unique=True)
     confirmation_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
