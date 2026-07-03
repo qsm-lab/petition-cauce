@@ -1,14 +1,15 @@
 import uuid
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 
 from app.models.campaign import Campaign
-from app.models.response import Response
+from app.models.signature import Signature
 from app.models.form import Form
 from app.models.question import Question
 from app.models.user import User
-from app.schemas.campaign import CampaignCreate, CampaignUpdate, SocialLinksUpdate, ThankYouUpdate, WelcomeConfigUpdate, CampaignInfoUpdate
+from app.schemas.campaign import CampaignCreate, CampaignUpdate, SocialLinksUpdate, ThankYouUpdate, WelcomeConfigUpdate, CampaignInfoUpdate, _META_FIELDS
 from app.schemas.form import FormResponse
 
 
@@ -17,8 +18,7 @@ class CampaignService:
     async def list_campaigns(db: AsyncSession, org_id: uuid.UUID) -> list[Campaign]:
         result = await db.execute(
             select(Campaign)
-            .outerjoin(Form, Campaign.form_id == Form.id)
-            .where(Form.org_id == org_id)
+            .where(Campaign.org_id == org_id)
             .order_by(Campaign.created_at.desc())
         )
         return result.scalars().all()
@@ -28,8 +28,7 @@ class CampaignService:
         if org_id is not None:
             result = await db.execute(
                 select(Campaign)
-                .join(Form, Campaign.form_id == Form.id)
-                .where(Campaign.id == campaign_id, Form.org_id == org_id)
+                .where(Campaign.id == campaign_id, Campaign.org_id == org_id)
             )
         else:
             result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
@@ -91,7 +90,10 @@ class CampaignService:
 
     @staticmethod
     async def create_campaign(db: AsyncSession, data: CampaignCreate, user: User) -> Campaign:
-        campaign = Campaign(created_by=user.id, **data.model_dump())
+        payload = data.model_dump()
+        if payload.get("petition_body") is None:
+            payload["petition_body"] = {}
+        campaign = Campaign(created_by=user.id, org_id=user.org_id, **payload)
         db.add(campaign)
         await db.commit()
         await db.refresh(campaign)
@@ -103,8 +105,39 @@ class CampaignService:
         campaign = result.scalar_one_or_none()
         if not campaign:
             return None
-        for k, v in data.model_dump(exclude_none=True).items():
+        dumped = data.model_dump(exclude_none=True)
+        meta_updates = {k: dumped.pop(k) for k in list(dumped) if k in _META_FIELDS}
+        for k, v in dumped.items():
             setattr(campaign, k, v)
+        if meta_updates:
+            current_meta = dict(campaign.meta or {})
+            if "form_config" in meta_updates:
+                current_fc = dict(current_meta.get("form_config", {}))
+                current_fc.update(meta_updates.pop("form_config"))
+                current_meta["form_config"] = current_fc
+            current_meta.update(meta_updates)
+            campaign.meta = current_meta
+        await db.commit()
+        await db.refresh(campaign)
+        return campaign
+
+    @staticmethod
+    async def archive_campaign(
+        db: AsyncSession,
+        campaign_id: str,
+        org_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Campaign | None:
+        result = await db.execute(
+            select(Campaign).where(Campaign.id == campaign_id, Campaign.org_id == org_id)
+        )
+        campaign = result.scalar_one_or_none()
+        if not campaign:
+            return None
+        if campaign.status in ("active", "online"):
+            raise ValueError("campaign_activa")
+        campaign.archived_at = datetime.now(timezone.utc)
+        campaign.archived_by = user_id
         await db.commit()
         await db.refresh(campaign)
         return campaign
@@ -198,10 +231,12 @@ class CampaignService:
     @staticmethod
     async def list_with_counts(db: AsyncSession, org_id: uuid.UUID) -> list[dict]:
         result = await db.execute(
-            select(Campaign, func.count(Response.id).label("total_responses"))
-            .join(Form, Campaign.form_id == Form.id)
-            .outerjoin(Response, Response.campaign_id == Campaign.id)
-            .where(Form.org_id == org_id)
+            select(Campaign, func.count(Signature.id).label("confirmed_signatures"))
+            .outerjoin(Signature, and_(
+                Signature.campaign_id == Campaign.id,
+                Signature.status == "confirmed",
+            ))
+            .where(Campaign.org_id == org_id)
             .group_by(Campaign.id)
             .order_by(Campaign.created_at.desc())
         )
@@ -211,11 +246,66 @@ class CampaignService:
                 "title": campaign.title,
                 "slug": campaign.slug,
                 "status": campaign.status,
-                "total_responses": total_responses,
+                "confirmed_signatures": confirmed_signatures,
+                "goal_count": campaign.goal_count,
+                "ends_at": campaign.ends_at.isoformat() if campaign.ends_at else None,
                 "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
             }
-            for campaign, total_responses in result.all()
+            for campaign, confirmed_signatures in result.all()
         ]
+
+    @staticmethod
+    async def get_dashboard_summary(db: AsyncSession, org_id: uuid.UUID) -> dict:
+        sig_result = await db.execute(
+            select(func.count(Signature.id))
+            .where(Signature.org_id == org_id, Signature.status == "confirmed")
+        )
+        total_confirmed = sig_result.scalar_one()
+
+        status_result = await db.execute(
+            select(Campaign.status, func.count(Campaign.id))
+            .where(Campaign.org_id == org_id, Campaign.archived_at.is_(None))
+            .group_by(Campaign.status)
+        )
+        by_status = {row[0]: row[1] for row in status_result.all()}
+
+        goal_result = await db.execute(
+            select(func.sum(Campaign.goal_count))
+            .where(Campaign.org_id == org_id, Campaign.status == "active")
+        )
+        total_goal = goal_result.scalar_one()
+
+        recent_result = await db.execute(
+            select(Campaign, func.count(Signature.id).label("confirmed_signatures"))
+            .outerjoin(Signature, and_(
+                Signature.campaign_id == Campaign.id,
+                Signature.status == "confirmed",
+            ))
+            .where(Campaign.org_id == org_id)
+            .group_by(Campaign.id)
+            .order_by(Campaign.created_at.desc())
+            .limit(5)
+        )
+        recent_campaigns = [
+            {
+                "id": str(campaign.id),
+                "title": campaign.title,
+                "slug": campaign.slug,
+                "status": campaign.status,
+                "confirmed_signatures": confirmed_signatures,
+                "goal_count": campaign.goal_count,
+                "ends_at": campaign.ends_at.isoformat() if campaign.ends_at else None,
+            }
+            for campaign, confirmed_signatures in recent_result.all()
+        ]
+
+        return {
+            "total_confirmed_signatures": total_confirmed,
+            "active_campaigns": by_status.get("active", 0),
+            "draft_campaigns": by_status.get("draft", 0),
+            "total_goal": int(total_goal) if total_goal else None,
+            "recent_campaigns": recent_campaigns,
+        }
 
     @staticmethod
     async def get_stats(db: AsyncSession, campaign_id: str) -> dict:

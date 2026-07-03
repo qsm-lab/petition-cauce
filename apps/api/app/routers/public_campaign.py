@@ -24,7 +24,11 @@ from app.services.turnstile_service import verify_turnstile
 router = APIRouter()
 
 
+_SIGNABLE_STATUSES = {"draft", "active", "online"}
+
+
 async def _get_active_campaign(db: AsyncSession, campaign_id: str) -> Campaign:
+    """Campaña pública (no archivada). No valida si acepta firmas — usar _get_signable_campaign para submit."""
     try:
         cid = uuid.UUID(campaign_id)
     except ValueError:
@@ -33,6 +37,14 @@ async def _get_active_campaign(db: AsyncSession, campaign_id: str) -> Campaign:
     campaign = result.scalar_one_or_none()
     if not campaign or campaign.archived_at is not None:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    return campaign
+
+
+async def _get_signable_campaign(db: AsyncSession, campaign_id: str) -> Campaign:
+    """Campañas que aceptan firmas (draft=prueba, active/online=real, closed→409)."""
+    campaign = await _get_active_campaign(db, campaign_id)
+    if campaign.status not in _SIGNABLE_STATUSES:
+        raise HTTPException(status_code=409, detail={"error": "campana_cerrada"})
     return campaign
 
 
@@ -49,18 +61,31 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict
     raw_fc = meta.get("form_config", {})
     form_config = {**_DEFAULT_FORM_CONFIG, **raw_fc}
 
+    show_authority = meta.get("show_authority", True)
+    show_goal = meta.get("show_goal", True)
+    is_draft = campaign.status == "draft"
+
+    show_qr = bool(meta.get("show_qr", False))
     return {
         "id": str(campaign.id),
         "slug": campaign.slug,
         "title": campaign.title,
+        "petition_title": campaign.petition_title or campaign.title,
         "status": campaign.status,
+        "is_draft": is_draft,
         "category": campaign.category,
         "authority": campaign.authority,
+        "show_authority": show_authority,
+        "show_goal": show_goal,
         "asks": campaign.asks or [],
         "petition_body": campaign.petition_body or {},
         "hero_image_url": campaign.hero_image_url,
+        "hero_image_mobile_url": meta.get("hero_image_mobile_url"),
+        "attachments": meta.get("attachments", []),
+        "show_qr": show_qr,
+        "qr_code_data": campaign.qr_code_data if show_qr else None,
         "lifecycle_stage": campaign.lifecycle_stage,
-        "goal_count": campaign.goal_count,
+        "goal_count": campaign.goal_count if show_goal else None,
         "signature_count": count,
         "signer_type": campaign.signer_type,
         "form_config": form_config,
@@ -69,6 +94,7 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict
             "id": str(campaign.org_id),
             "name": org.name if org else "",
             "initial": (org.name or "?")[0].upper() if org else "?",
+            "logo_url": org.logo_url if org else None,
         },
     }
 
@@ -120,7 +146,7 @@ async def submit_signature(
     data: SignatureCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    campaign = await _get_active_campaign(db, campaign_id)
+    campaign = await _get_signable_campaign(db, campaign_id)
 
     if not await verify_turnstile(data.cf_turnstile_token):
         raise HTTPException(status_code=422, detail={"error": "turnstile_failed"})
@@ -137,8 +163,10 @@ async def submit_signature(
         {"org_id": str(campaign.org_id)},
     )
 
+    is_test = campaign.status == "draft"
+
     try:
-        sig = await create_signature(db, campaign, data, ip_hmac)
+        sig = await create_signature(db, campaign, data, ip_hmac, is_test=is_test)
     except ValueError as e:
         code = str(e)
         if code == "ya_firmaste":
@@ -164,7 +192,7 @@ async def resend_confirmation_email(
     data: ResendConfirmationRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    campaign = await _get_active_campaign(db, campaign_id)
+    campaign = await _get_signable_campaign(db, campaign_id)
     email_normalized = data.email.strip().lower()
     email_hash = compute_hmac(email_normalized)
 

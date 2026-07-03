@@ -10,8 +10,7 @@ router = APIRouter()
 
 @router.get("/summary")
 async def dashboard_summary(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    campaigns = await CampaignService.list_with_counts(db, current_user.org_id)
-    return {"campaigns": campaigns}
+    return await CampaignService.get_dashboard_summary(db, current_user.org_id)
 
 
 @router.get("/campaigns/{campaign_id}/stats")

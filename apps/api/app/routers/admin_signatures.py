@@ -8,7 +8,19 @@ from app.models.user import User
 from app.models.campaign import Campaign
 from app.services.admin_signature_service import AdminSignatureService
 
+from app.services.campaign_service import CampaignService
+
 router = APIRouter()
+
+
+@router.get("/campaigns")
+async def list_campaigns_with_counts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    if current_user.role not in ("admin", "gestor"):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    return await CampaignService.list_with_counts(db, current_user.org_id)
 
 
 async def _get_campaign(campaign_id: str, org_id: uuid.UUID, db: AsyncSession) -> Campaign:

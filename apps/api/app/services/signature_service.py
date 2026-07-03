@@ -37,6 +37,7 @@ async def create_signature(
     campaign: Campaign,
     data: SignatureCreate,
     ip_hmac: str,
+    is_test: bool = False,
 ) -> Signature:
     """Persiste Signature + Consent. Lanza ValueError con código en caso de error lógico."""
 
@@ -90,6 +91,7 @@ async def create_signature(
         confirmation_token=token,
         confirmation_token_expires_at=expires_at,
         ip_hmac=ip_hmac,
+        is_test=is_test,
     )
     db.add(sig)
 

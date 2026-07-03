@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_db_with_org, get_current_user
 from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse, SocialLinksUpdate, ThankYouUpdate, WelcomeConfigUpdate, CampaignInfoUpdate
@@ -39,7 +40,11 @@ async def get_campaign_by_form(form_id: str, current_user: User = Depends(get_cu
 
 @router.post("", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(data: CampaignCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    return await CampaignService.create_campaign(db, data, current_user)
+    try:
+        return await CampaignService.create_campaign(db, data, current_user)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="El slug ya está en uso")
 
 
 @router.get("/{campaign_id}", response_model=CampaignResponse)
@@ -50,7 +55,11 @@ async def get_campaign(campaign_id: str, current_user: User = Depends(get_curren
 @router.put("/{campaign_id}", response_model=CampaignResponse)
 async def update_campaign(campaign_id: str, data: CampaignUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
     await _get_owned_campaign(campaign_id, current_user, db)
-    campaign = await CampaignService.update_campaign(db, campaign_id, data)
+    try:
+        campaign = await CampaignService.update_campaign(db, campaign_id, data)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="El slug ya está en uso")
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     return campaign
@@ -58,7 +67,20 @@ async def update_campaign(campaign_id: str, data: CampaignUpdate, current_user: 
 
 @router.patch("/{campaign_id}/status", response_model=CampaignResponse)
 async def update_campaign_status(campaign_id: str, data: CampaignStatusUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    await _get_owned_campaign(campaign_id, current_user, db)
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    if data.status == "active":
+        missing = []
+        if not campaign.category:
+            missing.append("category")
+        if not campaign.privacy_policy_id:
+            missing.append("privacy_policy_id")
+        if not campaign.ends_at:
+            missing.append("ends_at")
+        if missing:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "missing_required_for_active", "missing": missing},
+            )
     return await CampaignService.update_status(db, campaign_id, data.status)
 
 
@@ -96,6 +118,17 @@ async def update_welcome_config(campaign_id: str, data: WelcomeConfigUpdate, cur
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     return campaign
+
+
+@router.patch("/{campaign_id}/archive")
+async def archive_campaign(campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
+    try:
+        campaign = await CampaignService.archive_campaign(db, campaign_id, current_user.org_id, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=409, detail={"error": "campaign_activa", "msg": "Desactiva la campaña antes de archivarla"})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    return {"ok": True}
 
 
 @router.get("/{campaign_id}/qr")
