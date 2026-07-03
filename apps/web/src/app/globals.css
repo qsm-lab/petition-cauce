@@ -84,3 +84,14 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ── Rich text body (petition landing) ── */
+.petition-body-html h2 { font-size: 17px; font-weight: 700; margin: 14px 0 6px; }
+.petition-body-html h3 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.petition-body-html ul { padding-left: 20px; list-style: disc; margin: 6px 0; }
+.petition-body-html ol { padding-left: 20px; list-style: decimal; margin: 6px 0; }
+.petition-body-html blockquote { border-left: 3px solid var(--bp); padding-left: 12px; margin: 8px 0; opacity: 0.8; font-style: italic; }
+.petition-body-html p + p { margin-top: 6px; }
+.petition-body-html strong { font-weight: 700; }
+.petition-body-html em { font-style: italic; }
+.petition-body-html s { text-decoration: line-through; }

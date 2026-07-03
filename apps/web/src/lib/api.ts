@@ -16,7 +16,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: "Error desconocido" }));
-    throw new Error(error.detail || `HTTP ${res.status}`);
+    const detail = typeof error.detail === "object"
+      ? JSON.stringify(error.detail)
+      : error.detail || `HTTP ${res.status}`;
+    throw new Error(detail);
   }
 
   if (res.status === 204) return undefined as T;
