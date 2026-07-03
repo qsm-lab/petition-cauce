@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-07-03 — Sesión 16: editor rework + ShareSection + StepThanks + PetitionBody
+
+**Completado:**
+- `PetitionBody.tsx`: headers "Lo que pedimos" / "Por qué importa" con icono + badge color; asks en bold/15px
+- `ShareSection.tsx`: reescritura completa — iconos SVG, sin Telegram, +Email, QR bajo URL, archivos descargables, disabled cuando `closed`
+- `StepThanks.tsx`: sin Telegram, agrega X + Facebook + Email, layout mejorado
+- `CampanaEditorClient.tsx`: layout 2 columnas rework — portada (desktop+mobile URL), asks editor (max 5), archivos descargables, QR generator client-side, categoría/fecha/política movidas al panel derecho, selector de org
+- Validación antes de activar: warning amarillo en panel + indicadores rojos por campo faltante; `api.ts` corregido para serializar `detail` objeto a JSON
+- Correcciones: `AdminCampaign.asks`, `CategoriasList/OrganizacionesClient/PoliticasList` usan `api.post/patch`, `qr_code_data` en `CampaignUpdate`
+- TypeScript: 0 errores; contenedor web compilando sin errores
+
+**Pendiente:**
+- Review manual de 5 puntos (PetitionBody visual, ShareSection, StepThanks, editor layout, validación activación)
+- Ítems 8, 9, 10: org detail page, edición inline categorías, edición inline políticas + template contrato LOPDP
+
+---
+
 ## 2026-07-02 — Sesión 12: dashboard-firmas implementado + ui-design-system verificado
 
 **Completado:**
