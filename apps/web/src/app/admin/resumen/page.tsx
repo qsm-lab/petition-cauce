@@ -1,20 +1,59 @@
 import Link from "next/link";
+import { getDashboardSummary } from "@/lib/admin-campaigns-api";
 
-// Datos stub — los KPIs reales se conectarán cuando modelo-base + endpoints /v1/admin/dashboard existan
-const KPI_DATA = [
-  { label: "Total firmas", value: "0",   trend: "Sin datos aún",  trendColor: "var(--bmut)", alert: false },
-  { label: "Campañas activas", value: "0", trend: "Sin campañas", trendColor: "var(--bmut)", alert: false },
-  { label: "Pendientes revisión", value: "0", trend: "Sin pendientes", trendColor: "#c2410c", alert: false },
-  { label: "Tasa de conversión", value: "—",  trend: "Sin datos aún",  trendColor: "var(--bmut)", alert: false },
-];
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  active:  { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa"   },
+  draft:   { bg: "var(--bbg)",                                  color: "var(--bmut)",  label: "Borrador" },
+  closed:  { bg: "#e8f0fe",                                     color: "#1a56db",      label: "Cerrada"  },
+};
 
-const ACTIVITY_STUB = [
-  { text: "Sistema iniciado correctamente", time: "Ahora", recent: true },
-  { text: "Base de datos conectada", time: "Ahora", recent: true },
-  { text: "Panel de administración listo", time: "Ahora", recent: false },
-];
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
+  return (
+    <span
+      className="inline-flex items-center font-bold text-[11px]"
+      style={{ background: s.bg, color: s.color, padding: "3px 8px", borderRadius: "99px" }}
+    >
+      {s.label}
+    </span>
+  );
+}
 
-export default function ResumenPage() {
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export default async function ResumenPage() {
+  const summary = await getDashboardSummary();
+
+  const kpis = [
+    {
+      label: "Firmas confirmadas",
+      value: summary ? summary.total_confirmed_signatures.toLocaleString("es-EC") : "—",
+      trend: summary ? (summary.total_confirmed_signatures > 0 ? "Total acumulado" : "Sin firmas aún") : "Sin datos",
+      trendColor: "var(--bmut)",
+    },
+    {
+      label: "Campañas activas",
+      value: summary ? String(summary.active_campaigns) : "—",
+      trend: summary ? (summary.active_campaigns > 0 ? "En recolección" : "Sin campañas activas") : "Sin datos",
+      trendColor: summary?.active_campaigns ? "#18794A" : "var(--bmut)",
+    },
+    {
+      label: "En borrador",
+      value: summary ? String(summary.draft_campaigns) : "—",
+      trend: summary ? (summary.draft_campaigns > 0 ? "Pendientes de activar" : "Sin borradores") : "Sin datos",
+      trendColor: "var(--bmut)",
+    },
+    {
+      label: "Meta total",
+      value: summary?.total_goal ? summary.total_goal.toLocaleString("es-EC") : "—",
+      trend: summary?.total_goal ? "firmas objetivo" : "Sin meta definida",
+      trendColor: "var(--bmut)",
+    },
+  ];
+
   return (
     <div>
       {/* Sticky header */}
@@ -36,13 +75,13 @@ export default function ResumenPage() {
       <div className="p-6 animate-pc-rise">
         {/* KPIs */}
         <div className="grid grid-cols-4 gap-4 mb-5">
-          {KPI_DATA.map((kpi) => (
+          {kpis.map((kpi) => (
             <div
               key={kpi.label}
               className="rounded-[14px] p-5"
               style={{
                 backgroundColor: "var(--bsurf)",
-                border: `1px solid ${kpi.alert ? "color-mix(in srgb, #c2410c 30%, var(--bbord))" : "var(--bbord)"}`,
+                border: "1px solid var(--bbord)",
               }}
             >
               <p
@@ -65,7 +104,7 @@ export default function ResumenPage() {
         </div>
 
         {/* Dos columnas */}
-        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 300px" }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 260px" }}>
           {/* Campañas recientes */}
           <div
             className="rounded-[14px] overflow-hidden"
@@ -89,21 +128,59 @@ export default function ResumenPage() {
                 Ver todas →
               </Link>
             </div>
-            <div className="px-[18px] py-10 text-center">
-              <p className="text-[13px]" style={{ color: "var(--bmut)" }}>
-                Las campañas aparecerán aquí cuando el módulo de peticiones esté activo.
-              </p>
-              <Link
-                href="/admin/campanas"
-                className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold"
-                style={{ color: "var(--bp)" }}
-              >
-                Ir a Campañas →
-              </Link>
-            </div>
+
+            {!summary || summary.recent_campaigns.length === 0 ? (
+              <div className="px-[18px] py-10 text-center">
+                <p className="text-[13px]" style={{ color: "var(--bmut)" }}>
+                  Aún no hay campañas creadas.
+                </p>
+                <Link
+                  href="/admin/campanas/nueva"
+                  className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold"
+                  style={{ color: "var(--bp)" }}
+                >
+                  Crear primera campaña →
+                </Link>
+              </div>
+            ) : (
+              summary.recent_campaigns.map((c, i) => (
+                <div
+                  key={c.id}
+                  className="flex items-center px-[18px] py-3.5 gap-4"
+                  style={{
+                    borderBottom:
+                      i < summary.recent_campaigns.length - 1
+                        ? "1px solid color-mix(in srgb, var(--bbord) 60%, transparent)"
+                        : undefined,
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/admin/campanas/${c.id}`}
+                      className="font-semibold text-[13px] truncate block hover:underline"
+                      style={{ color: "var(--bink)" }}
+                    >
+                      {c.title}
+                    </Link>
+                    <p className="text-[12px] mt-0.5" style={{ color: "var(--bmut)" }}>
+                      <strong style={{ color: "var(--bink)" }}>
+                        {c.confirmed_signatures.toLocaleString("es-EC")}
+                      </strong>
+                      {c.goal_count ? ` / ${c.goal_count.toLocaleString("es-EC")}` : ""} firmas
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                    <StatusBadge status={c.status} />
+                    <span className="text-[11px]" style={{ color: "var(--bmut)" }}>
+                      {fmtDate(c.ends_at)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
-          {/* Actividad reciente */}
+          {/* Accesos rápidos */}
           <div
             className="rounded-[14px] overflow-hidden"
             style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}
@@ -116,43 +193,43 @@ export default function ResumenPage() {
                 className="font-display font-bold text-[14px]"
                 style={{ color: "var(--bink)" }}
               >
-                Actividad reciente
+                Accesos rápidos
               </h2>
             </div>
-            <ul>
-              {ACTIVITY_STUB.map((item, i) => (
-                <li
-                  key={i}
-                  className="flex gap-2.5 px-4 py-2.5"
+            <div className="p-4 flex flex-col gap-2">
+              <Link
+                href="/admin/campanas/nueva"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-semibold text-white"
+                style={{ backgroundColor: "var(--bp)" }}
+              >
+                <span>+</span>
+                Nueva campaña
+              </Link>
+              {summary?.recent_campaigns[0] && (
+                <Link
+                  href={`/admin/campanas/${summary.recent_campaigns[0].id}/firmas`}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-semibold"
                   style={{
-                    borderBottom:
-                      i < ACTIVITY_STUB.length - 1
-                        ? "1px solid color-mix(in srgb, var(--bbord) 50%, transparent)"
-                        : undefined,
+                    color: "var(--bink)",
+                    border: "1px solid var(--bbord)",
                   }}
                 >
-                  <span
-                    className="mt-1 flex-shrink-0 rounded-full"
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      backgroundColor: item.recent ? "var(--bp)" : "var(--bbord)",
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-[12.5px] leading-snug"
-                      style={{ color: "var(--bink)" }}
-                    >
-                      {item.text}
-                    </p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "var(--bmut)" }}>
-                      {item.time}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  <span style={{ color: "var(--bp)" }}>↗</span>
+                  Firmas: {summary.recent_campaigns[0].title.slice(0, 22)}…
+                </Link>
+              )}
+              <Link
+                href="/admin/campanas"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-medium"
+                style={{
+                  color: "var(--bmut)",
+                  border: "1px solid var(--bbord)",
+                }}
+              >
+                <span>≡</span>
+                Todas las campañas
+              </Link>
+            </div>
           </div>
         </div>
       </div>
