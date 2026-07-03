@@ -5,6 +5,12 @@ export interface CampaignOrg {
   id: string;
   name: string;
   initial: string;
+  logo_url: string | null;
+}
+
+export interface CampaignAttachment {
+  title: string;
+  url: string;
 }
 
 export interface FormConfig {
@@ -25,12 +31,20 @@ export interface PublicCampaign {
   id: string;
   slug: string;
   title: string;
+  petition_title: string;
   status: string;
+  is_draft: boolean;
   category: string | null;
   authority: string | null;
+  show_authority: boolean;
+  show_goal: boolean;
   asks: string[];
   petition_body: Record<string, unknown>;
   hero_image_url: string | null;
+  hero_image_mobile_url: string | null;
+  attachments: CampaignAttachment[];
+  show_qr: boolean;
+  qr_code_data: string | null;
   lifecycle_stage: number;
   goal_count: number | null;
   signature_count: number;

@@ -6,15 +6,22 @@ interface Props {
   count: number;
   goal: number | null;
   authority: string | null;
+  showAuthority?: boolean;
+  showGoal?: boolean;
+  status: string;
   onSign: () => void;
 }
 
-export default function ActionBlock({ count, goal, authority, onSign }: Props) {
+const SIGNABLE = new Set(["draft", "active", "online"]);
+
+export default function ActionBlock({ count, goal, authority, showAuthority = true, showGoal = true, status, onSign }: Props) {
   const [barW, setBarW] = useState(0);
   const [showFloat, setShowFloat] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
 
-  const pct = goal && goal > 0 ? Math.min(100, Math.round((count / goal) * 100)) : 0;
+  const effectiveGoal = showGoal ? goal : null;
+  const pct = effectiveGoal && effectiveGoal > 0 ? Math.min(100, Math.round((count / effectiveGoal) * 100)) : 0;
+  const canSign = SIGNABLE.has(status);
 
   // Animate progress bar on mount
   useEffect(() => {
@@ -35,23 +42,36 @@ export default function ActionBlock({ count, goal, authority, onSign }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  const CTAButton = ({ height = 54 }: { height?: number }) => (
-    <button
-      onClick={onSign}
-      className="w-full font-display font-bold rounded-full transition-all hover:brightness-110 active:scale-[0.98]"
-      style={{
-        minHeight: height,
-        background: "var(--bp)",
-        color: "var(--bop)",
-        fontSize: 17,
-        fontFamily: "var(--fd)",
-        boxShadow:
-          "0 8px 22px color-mix(in srgb,var(--bp) 34%,transparent)",
-      }}
-    >
-      Firmar esta petición
-    </button>
-  );
+  const CTAButton = ({ height = 54 }: { height?: number }) =>
+    canSign ? (
+      <button
+        onClick={onSign}
+        className="w-full font-display font-bold rounded-full transition-all hover:brightness-110 active:scale-[0.98]"
+        style={{
+          minHeight: height,
+          background: "var(--bp)",
+          color: "var(--bop)",
+          fontSize: 17,
+          fontFamily: "var(--fd)",
+          boxShadow: "0 8px 22px color-mix(in srgb,var(--bp) 34%,transparent)",
+        }}
+      >
+        {status === "draft" ? "Firmar (modo prueba)" : "Firmar esta petición"}
+      </button>
+    ) : (
+      <div
+        className="w-full font-display font-bold rounded-full flex items-center justify-center"
+        style={{
+          minHeight: height,
+          background: "var(--bbord)",
+          color: "var(--bmut)",
+          fontSize: 15,
+          fontFamily: "var(--fd)",
+        }}
+      >
+        {status === "closed" ? "Campaña cerrada" : "Campaña no disponible"}
+      </div>
+    );
 
   return (
     <>
@@ -73,18 +93,18 @@ export default function ActionBlock({ count, goal, authority, onSign }: Props) {
           >
             {count.toLocaleString("es-EC")}
           </span>
-          {goal && (
+          {effectiveGoal && (
             <span
               className="font-semibold"
               style={{ fontSize: 14, color: "var(--bmut)" }}
             >
-              de {goal.toLocaleString("es-EC")} firmas
+              de {effectiveGoal.toLocaleString("es-EC")} firmas
             </span>
           )}
         </div>
 
         {/* Progress bar */}
-        {goal && (
+        {effectiveGoal && (
           <div
             role="progressbar"
             aria-valuenow={pct}
@@ -111,7 +131,7 @@ export default function ActionBlock({ count, goal, authority, onSign }: Props) {
         )}
 
         {/* Directed at chip */}
-        {authority && (
+        {showAuthority && authority && (
           <div
             className="flex items-center gap-2 rounded-[14px] px-[14px] py-3 text-[13px]"
             style={{ background: "var(--bbg)", color: "var(--bink)" }}
@@ -133,8 +153,8 @@ export default function ActionBlock({ count, goal, authority, onSign }: Props) {
         </p>
       </div>
 
-      {/* Floating CTA — mobile only */}
-      {showFloat && (
+      {/* Floating CTA — mobile only, solo si la campaña acepta firmas */}
+      {showFloat && canSign && (
         <div
           className="fixed bottom-0 left-0 right-0 px-4 pb-7 z-50 md:hidden animate-pc-float-in"
           style={{

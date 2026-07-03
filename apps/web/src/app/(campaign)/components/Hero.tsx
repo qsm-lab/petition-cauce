@@ -5,19 +5,22 @@ interface Props {
 }
 
 export default function Hero({ campaign }: Props) {
+  const desktopSrc = campaign.hero_image_url;
+  const mobileSrc = campaign.hero_image_mobile_url ?? campaign.hero_image_url;
+
   return (
     <div
-      className="relative overflow-hidden"
+      className="relative overflow-hidden rounded-[14px]"
       style={{ height: "196px" }}
       aria-hidden="true"
     >
-      {campaign.hero_image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={campaign.hero_image_url}
-          alt=""
-          className="w-full h-full object-cover"
-        />
+      {desktopSrc ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mobileSrc ?? desktopSrc} alt="" className="w-full h-full object-cover md:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={desktopSrc} alt="" className="hidden md:block w-full h-full object-cover" />
+        </>
       ) : (
         <div
           className="w-full h-full"
@@ -28,16 +31,11 @@ export default function Hero({ campaign }: Props) {
         />
       )}
 
-      {/* Overlay */}
       <div
         className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, transparent 38%, rgba(21,36,27,0.78))",
-        }}
+        style={{ background: "linear-gradient(180deg, transparent 38%, rgba(21,36,27,0.78))" }}
       />
 
-      {/* Category badge — top right */}
       {campaign.category && (
         <span
           className="absolute top-3 right-3 text-[11.5px] font-bold px-3 py-1 rounded-full"
@@ -47,19 +45,22 @@ export default function Hero({ campaign }: Props) {
         </span>
       )}
 
-      {/* Org avatar — bottom left */}
       <div
-        className="absolute bottom-3 left-3 flex items-center justify-center text-[16px] font-black"
+        className="absolute bottom-3 left-3 flex items-center justify-center overflow-hidden"
         style={{
-          width: 38,
-          height: 38,
-          borderRadius: 11,
+          width: 38, height: 38, borderRadius: 11,
           background: "var(--bsurf)",
-          color: "var(--bp)",
-          fontFamily: "var(--fd)",
+          border: "2px solid rgba(255,255,255,0.2)",
         }}
       >
-        {campaign.org.initial}
+        {campaign.org.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={campaign.org.logo_url} alt={campaign.org.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="font-display font-black text-[16px]" style={{ color: "var(--bp)", fontFamily: "var(--fd)" }}>
+            {campaign.org.initial}
+          </span>
+        )}
       </div>
     </div>
   );

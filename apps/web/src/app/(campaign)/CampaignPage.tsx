@@ -35,6 +35,20 @@ export default function CampaignPage({
         className="min-h-screen"
         style={{ background: "var(--bbg)" }}
       >
+        {/* Banner borrador */}
+        {campaign.is_draft && (
+          <div
+            className="w-full text-center py-2 text-[12px] font-semibold"
+            style={{
+              background: "color-mix(in srgb,#ca8a04 14%,transparent)",
+              color: "#92400e",
+              borderBottom: "1px solid color-mix(in srgb,#ca8a04 30%,transparent)",
+            }}
+          >
+            Campaña en revisión · Las firmas realizadas aquí son de prueba y no se contabilizarán
+          </div>
+        )}
+
         {/* Mobile: single column */}
         <div className="md:hidden flex flex-col gap-[18px] pb-16">
           <Hero campaign={campaign} />
@@ -51,7 +65,7 @@ export default function CampaignPage({
                 fontFamily: "var(--fd)",
               }}
             >
-              {campaign.title}
+              {campaign.petition_title}
             </h1>
           </div>
 
@@ -60,6 +74,9 @@ export default function CampaignPage({
               count={campaign.signature_count}
               goal={campaign.goal_count}
               authority={campaign.authority}
+              showAuthority={campaign.show_authority}
+              showGoal={campaign.show_goal}
+              status={campaign.status}
               onSign={() => setSignOpen(true)}
             />
           </div>
@@ -86,7 +103,14 @@ export default function CampaignPage({
           </div>
 
           <div className="px-4">
-            <ShareSection title={campaign.title} url={campaignUrl} />
+            <ShareSection
+              title={campaign.petition_title}
+              url={campaignUrl}
+              status={campaign.status}
+              attachments={campaign.attachments}
+              showQr={campaign.show_qr}
+              qrCodeData={campaign.qr_code_data}
+            />
           </div>
 
           {regions.length > 0 && (
@@ -125,7 +149,7 @@ export default function CampaignPage({
                 fontFamily: "var(--fd)",
               }}
             >
-              {campaign.title}
+              {campaign.petition_title}
             </h1>
 
             <LifecycleSteps currentStage={campaign.lifecycle_stage} />
@@ -155,9 +179,19 @@ export default function CampaignPage({
                 count={campaign.signature_count}
                 goal={campaign.goal_count}
                 authority={campaign.authority}
+                showAuthority={campaign.show_authority}
+                showGoal={campaign.show_goal}
+                status={campaign.status}
                 onSign={() => setSignOpen(true)}
               />
-              <ShareSection title={campaign.title} url={campaignUrl} />
+              <ShareSection
+              title={campaign.petition_title}
+              url={campaignUrl}
+              status={campaign.status}
+              attachments={campaign.attachments}
+              showQr={campaign.show_qr}
+              qrCodeData={campaign.qr_code_data}
+            />
             </div>
           </aside>
         </div>
