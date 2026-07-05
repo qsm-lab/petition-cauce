@@ -162,6 +162,9 @@ export default function CampanaEditorClient({
   const [locationModes, setLocationModes] = useState<string[]>((fc.location_modes as string[]) ?? ["nacional"]);
   const [visibilityOptions, setVisibilityOptions] = useState<string[]>((fc.visibility_options as string[]) ?? ["publica", "anonima"]);
 
+  // — Texto de difusión
+  const [shareText, setShareText] = useState((meta.share_text as string) ?? "");
+
   // — Archivos descargables
   const [attachments, setAttachments] = useState<{ title: string; url: string }[]>(
     (meta.attachments as { title: string; url: string }[]) ?? []
@@ -246,6 +249,7 @@ export default function CampanaEditorClient({
         form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
         show_qr: showQr,
         qr_code_data: qrGenerated ? qrData : undefined,
+        share_text: shareText.trim() || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -258,6 +262,17 @@ export default function CampanaEditorClient({
 
   async function handleStatusChange(newStatus: string) {
     setActivationWarning(null);
+    // Validación preemptiva en frontend
+    if (newStatus === "active") {
+      const missing: string[] = [];
+      if (!category) missing.push("category");
+      if (!endsAt) missing.push("ends_at");
+      if (!privacyPolicyId) missing.push("privacy_policy_id");
+      if (missing.length > 0) {
+        setActivationWarning(missing);
+        return;
+      }
+    }
     setStatusSaving(true);
     setError(null);
     try {
@@ -416,36 +431,21 @@ export default function CampanaEditorClient({
               </Field>
             </div>
 
-            {/* Configuración del formulario */}
+            {/* Texto de difusión */}
             <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
-              <SectionHeader title="Configuración del formulario de firma" />
-              <Field label="Tipo de firmante" hint="Elige quiénes pueden firmar.">
-                <MultiCheck options={[{ value: "natural", label: "Persona natural" }, { value: "org", label: "Organización" }]} selected={signerTypes} onChange={setSignerTypes} />
+              <SectionHeader title="Texto de difusión" />
+              <Field label="Copy para compartir" hint="Texto que se usará en WhatsApp, X y Email al compartir. Si se omite se genera automáticamente." last>
+                <textarea
+                  value={shareText}
+                  onChange={(e) => setShareText(e.target.value)}
+                  placeholder={`${title || "Nombre de la campaña"} — firma aquí: [URL]`}
+                  rows={3}
+                  maxLength={300}
+                  className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-30 resize-none leading-snug"
+                  style={{ color: "var(--bink)" }}
+                />
+                <p className="text-[11px] mt-1" style={{ color: "var(--bmut)" }}>{shareText.length}/300 · La URL se agrega automáticamente</p>
               </Field>
-              <Field label="Ubicación del firmante">
-                <MultiCheck options={[{ value: "nacional", label: "Ecuador" }, { value: "internacional", label: "Internacional" }]} selected={locationModes} onChange={setLocationModes} />
-              </Field>
-              <Field label="Opciones de visibilidad" hint="Controla qué puede elegir el firmante." last>
-                <MultiCheck options={[{ value: "publica", label: "Pública" }, { value: "anonima", label: "Anónima" }, { value: "secreta", label: "Secreta" }]} selected={visibilityOptions} onChange={setVisibilityOptions} />
-              </Field>
-            </div>
-
-            {/* Archivos descargables */}
-            <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
-              <SectionHeader title="Archivos descargables (anexos)" />
-              <div className="px-5 py-4 flex flex-col gap-3">
-                {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input type="text" value={att.title} onChange={(e) => setAttachmentField(i, "title", e.target.value)} placeholder="Nombre del archivo" className="flex-1 bg-transparent text-[13px] outline-none placeholder:opacity-30" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
-                    <input type="url" value={att.url} onChange={(e) => setAttachmentField(i, "url", e.target.value)} placeholder="https://…/archivo.pdf" className="flex-1 bg-transparent text-[12px] outline-none placeholder:opacity-30" style={{ color: "var(--bmut)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
-                    <button type="button" onClick={() => removeAttachment(i)} className="text-[11px] px-2 py-0.5 rounded-[5px]" style={{ color: "#c2410c", background: "#fef2f2" }}>✕</button>
-                  </div>
-                ))}
-                <button type="button" onClick={addAttachment} className="self-start text-[12px] font-semibold hover:opacity-70" style={{ color: "var(--bp)" }}>
-                  + Agregar archivo
-                </button>
-                <p className="text-[11px]" style={{ color: "var(--bmut)" }}>Los archivos aparecen en la sección "Comparte esta campaña" de la landing.</p>
-              </div>
             </div>
 
             {error && (
@@ -470,8 +470,21 @@ export default function CampanaEditorClient({
             {/* Estado */}
             <PanelSection title="Estado">
               {activationWarning && (
-                <div className="mb-3 px-3 py-2 rounded-[8px] text-[11.5px]" style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e" }}>
-                  Para activar completa: {activationWarning.map((k) => MISSING_LABELS[k] ?? k).join(", ")}.
+                <div className="mb-3 rounded-[10px] overflow-hidden" style={{ border: "1.5px solid #f59e0b" }}>
+                  <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "#f59e0b" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    <span className="text-[12px] font-bold text-white">No se puede activar</span>
+                  </div>
+                  <div className="px-3 py-2.5 flex flex-col gap-1.5" style={{ background: "#fffbeb" }}>
+                    {activationWarning.map((k) => (
+                      <div key={k} className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#d97706" }} />
+                        <span className="text-[12px] font-semibold" style={{ color: "#92400e" }}>
+                          Falta: {MISSING_LABELS[k] ?? k}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="flex flex-col gap-2">
@@ -521,6 +534,42 @@ export default function CampanaEditorClient({
               {!endsAt && (
                 <p className="text-[11px] mt-1.5" style={{ color: "#92400e" }}>Requerida para activar</p>
               )}
+            </PanelSection>
+
+            {/* Configuración del formulario */}
+            <PanelSection title="Configuración formulario">
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Tipo de firmante</p>
+                  <MultiCheck options={[{ value: "natural", label: "Natural" }, { value: "org", label: "Org." }]} selected={signerTypes} onChange={setSignerTypes} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Ubicación</p>
+                  <MultiCheck options={[{ value: "nacional", label: "Ecuador" }, { value: "internacional", label: "Intl." }]} selected={locationModes} onChange={setLocationModes} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Visibilidad</p>
+                  <MultiCheck options={[{ value: "publica", label: "Pública" }, { value: "anonima", label: "Anónima" }, { value: "secreta", label: "Secreta" }]} selected={visibilityOptions} onChange={setVisibilityOptions} />
+                </div>
+              </div>
+            </PanelSection>
+
+            {/* Archivos descargables */}
+            <PanelSection title="Archivos (anexos)">
+              <div className="flex flex-col gap-2">
+                {attachments.map((att, i) => (
+                  <div key={i} className="flex flex-col gap-1 pb-2" style={{ borderBottom: "1px solid var(--bbord)" }}>
+                    <div className="flex items-center gap-1.5">
+                      <input type="text" value={att.title} onChange={(e) => setAttachmentField(i, "title", e.target.value)} placeholder="Nombre" className="flex-1 bg-transparent text-[12px] outline-none placeholder:opacity-30" style={{ color: "var(--bink)" }} />
+                      <button type="button" onClick={() => removeAttachment(i)} className="text-[11px] px-1.5 py-0.5 rounded-[4px]" style={{ color: "#c2410c", background: "#fef2f2" }}>✕</button>
+                    </div>
+                    <input type="url" value={att.url} onChange={(e) => setAttachmentField(i, "url", e.target.value)} placeholder="https://…/archivo.pdf" className="w-full bg-transparent text-[11.5px] outline-none placeholder:opacity-30" style={{ color: "var(--bmut)" }} />
+                  </div>
+                ))}
+                <button type="button" onClick={addAttachment} className="self-start text-[12px] font-semibold hover:opacity-70" style={{ color: "var(--bp)" }}>
+                  + Agregar archivo
+                </button>
+              </div>
             </PanelSection>
 
             {/* Política de privacidad */}
