@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-07-04 — Sesión 18: org detail, categorías inline, políticas inline + 9 rectificaciones front/back
+
+**Batch 1 (ítems 8-10):** `/admin/organizaciones/[id]` (edit org + campañas vinculadas), `CategoriasList` inline edit + campañas lazy, `PoliticasList` inline edit + campañas lazy + modal contrato LOPDP.
+
+**Batch 2 (9 rectificaciones):** CSP `img-src https:`, PetitionBody iconos MDI SVG + jerarquía asks numerados, StepThanks icono MDI + iconos en botones sociales, ShareSection prop `shareText`, CampanaEditorClient campo `share_text` + secciones movidas al panel derecho + validación preemptiva + banner error prominente, PoliticasList botón × SVG en modal, firmas/page.tsx reescrito como tabla de campañas con conteos, OrgDetailClient campo logo_url + miniatura, backend `share_text` en `CampaignUpdate`+`_META_FIELDS`+`_serialize`. TypeScript: 0 errores. Docker rebuild exitoso.
+
+---
+
+## 2026-07-03 — Sesión 17: cierre administrativo — borradores de commits + resumen ítems 8-10
+
+**Completado:**
+- Preparados 11 borradores de commits para sesiones 13-16 (sin código nuevo)
+- Corregido error zsh glob en rutas con `[id]`: usar comillas simples
+- Breve resumen de ítems 8-10 pendientes (perfiles-org): org detail page, edición inline categorías, edición inline políticas + template LOPDP
+
+**Pendiente:**
+- El usuario ejecuta los commits manualmente en terminal
+- Review manual de los 5 puntos de sesión 16 (PetitionBody, ShareSection, StepThanks, editor layout, validación activación)
+- Implementar ítems 8, 9, 10 de perfiles-org
+
+---
+
 ## 2026-07-03 — Sesión 16: editor rework + ShareSection + StepThanks + PetitionBody
 
 **Completado:**

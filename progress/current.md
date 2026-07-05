@@ -1,53 +1,59 @@
-# Estado actual — tras sesión 16 (2026-07-03)
+# Estado actual — tras sesión 18 (2026-07-04)
 
-## Resumen de sesión 16
+## Resumen de sesión 18
 
-Continuación de la lista de 10 rectificaciones pendiente de sesión 15. Se implementaron ítems 2, 3, 4, 5, 6, 7 (parcial) y correcciones de infraestructura frontend.
+Sesión en dos batches. Batch 1: ítems 8, 9, 10 implementados (org detail page, inline edit categorías, inline edit políticas + contrato LOPDP). Batch 2: 9 rectificaciones front/back implementadas y compiladas sin errores TypeScript.
 
 ---
 
-### Cambios implementados
+## Batch 2 — Rectificaciones implementadas
 
-#### `PetitionBody.tsx` — ítem 2
-- Secciones "Lo que pedimos" y "Por qué importa" con `SectionHeading` (icono + badge color primario + texto en bold 17px)
-- Items de asks con bullet check circular en color primario + texto bold 15px
-- Texto descriptivo (`petition_body.html`) renderizado en 14.5px/1.68
+### 1. CSP — imágenes HTTPS externas
+- `next.config.mjs`: `img-src 'self' data:` → `img-src 'self' data: https:`
+- Habilita hero_image_url de dominio externo, org.logo_url, QR data URLs
 
-#### `ShareSection.tsx` — ítem 3 (reescritura completa)
-- Iconos SVG inline en todos los botones (WhatsApp, Facebook, X, Email, link, descarga)
-- **Sin Telegram** — eliminado
-- Nuevo: Email como opción de compartir
-- QR colocado debajo del campo URL copiable
-- Sección de archivos descargables (título + enlace) al fondo
-- Todo el componente deshabilitado (`opacity: 0.35 / pointerEvents: none`) cuando `status === "closed"`
-- Mensaje de encabezado diferenciado entre campaña abierta y cerrada
+### 2. PetitionBody.tsx — iconos MDI + jerarquía
+- `SectionHeading` ahora recibe `React.ReactNode` como icono (no string emoji)
+- "Lo que pedimos": icono `checklist` MDI SVG, títulos `font-extrabold 18px`
+- Bullets numerados (1,2,3…) en círculo color primario, texto 14.5px
+- "Por qué importa": icono `article` MDI SVG
 
-#### `StepThanks.tsx` — ítem 4
-- Sin Telegram
-- Agrega Email y X/Twitter además de WhatsApp y Facebook
-- Layout: icono check → nombre → contador → "Invita" 2 filas (WA+FB / X+Email) → opt-in newsletter
+### 3. StepThanks.tsx — icono principal + iconos en botones sociales
+- Icono principal: `task_alt` MDI SVG (check en círculo animado)
+- Botones WA/FB/X/Email: iconos SVG inline (mismo set que ShareSection)
 
-#### `CampanaEditorClient.tsx` — ítems 5, 6 (layout rework)
-- **Columna izquierda:** Portada (hero desktop + mobile URL), Identidad (title/petition_title/slug), Lo que pedimos (hasta 5 items editables, añadir/remover), Texto petición (TipTap), Objetivo y destinatario, Configuración formulario, Archivos descargables
-- **Panel derecho:** Estado, Organización (selector de lista), Categoría (movida desde izq), Fecha cierre (movida desde izq), Política de privacidad, QR toggle + generar QR client-side, ID campaña, Zona peligro
-- Editor de "Lo que pedimos": inputs + add/remove + max 5 + guardado en `campaign.asks`
-- Editor de portada: dos inputs URL (desktop + mobile) → `hero_image_url` y `meta.hero_image_mobile_url`
-- Editor de archivos: rows título+URL con add/remove → `meta.attachments`
-- QR: genera data URL client-side con `qrcode` npm → guarda en `campaign.qr_code_data`
+### 4. ShareSection.tsx — prop shareText
+- Nueva prop `shareText?: string | null`
+- Si `shareText` viene del backend, se usa para WA, X y Email; si no, fallback al texto automático
 
-#### Validación antes de activar — ítem 7 (backend + frontend)
-- Backend (`routers/campaigns.py`): ya implementado en sesión 15 — 422 con `{error: "missing_required_for_active", missing: [...]}`
-- `api.ts`: corregido para serializar `detail` objeto a JSON string (antes quedaba `[object Object]`)
-- Editor: muestra warning amarillo en panel de estado con lista de campos faltantes
-- Panel derecho muestra indicadores rojos ("Requerida para activar") en categoría, fecha y política cuando están vacías
+### 5. CampanaEditorClient.tsx — múltiples mejoras
+- **Campo `share_text`**: nueva sección "Texto de difusión" en columna izquierda con textarea + contador de chars
+- **Configuración formulario + Archivos**: movidos a columna derecha (debajo de Fecha de cierre)
+- **Activación — validación preemptiva**: antes de llamar al backend, si `category`, `endsAt` o `privacyPolicyId` están vacíos en el form state → muestra warning sin llamar la API
+- **Alerta prominente**: banner naranja con header "No se puede activar" + lista de campos faltantes por ítem (no un solo string concatenado)
+- `share_text` incluido en `handleSave`
 
-#### Correcciones de infraestructura
-- `apps/web/src/lib/admin-campaigns-api.ts` — añadido `asks: string[]` a `AdminCampaign`
-- `apps/web/src/lib/api.ts` — serializa `detail` objeto a JSON para parseo correcto de errores estructurados
-- `apps/web/src/app/admin/campanas/[id]/page.tsx` — pasa lista `orgs` al editor
-- `CategoriasList.tsx`, `OrganizacionesClient.tsx`, `PoliticasList.tsx` — corregidos de `api(url, opts)` a `api.post/patch/get`
-- `apps/api/app/schemas/campaign.py` — añadido `qr_code_data: str | None` a `CampaignUpdate`
-- TypeScript: 0 errores tras correcciones
+### 6. PoliticasList.tsx — botón X en modal LOPDP
+- Botón "Cerrar" (texto rojo) reemplazado por botón cuadrado con icono × SVG
+
+### 7. firmas/page.tsx — reescritura completa
+- Server component con `getAdminCampaigns()`
+- Tabla: Campaña / Firmas (número grande) / Estado / Acciones
+- Botón "Ver firmas →" por fila → `/admin/campanas/{id}/firmas`
+- Vacío state con link a Campañas
+
+### 8. OrgDetailClient.tsx + admin-orgs-api.ts — campo logo_url
+- `OrgUpdate` interface: agregado `logo_url?: string | null`
+- Vista (lectura): muestra thumbnail del logo si URL definida
+- Formulario edición: input URL + hint sobre visibilidad en front
+- `handleSave` / `handleCancelEdit`: incluyen `logo_url`
+
+### 9. Backend — share_text en PUT y en respuesta pública
+- `_META_FIELDS` en `campaign.py`: agregado `"share_text"`
+- `CampaignUpdate`: campo `share_text: str | None = None`
+- `public_campaign.py _serialize()`: incluye `"share_text": meta.get("share_text")`
+- `campaign-api.ts PublicCampaign`: `share_text: string | null`
+- `CampaignPage.tsx`: pasa `shareText={campaign.share_text}` a ambas instancias de `ShareSection`
 
 ---
 
@@ -64,21 +70,22 @@ Continuación de la lista de 10 rectificaciones pendiente de sesión 15. Se impl
 
 ---
 
-## Pendiente de review manual
+## Pendiente de review manual (Batch 2)
 
-1. `PetitionBody.tsx` — verificar que "Lo que pedimos" y "Por qué importa" destacan visualmente
-2. `ShareSection.tsx` — verificar iconos, QR, descargas, estado disabled en campaña cerrada
-3. `StepThanks.tsx` — verificar modal tras firma con nuevas redes sociales
-4. Editor — verificar nuevo layout 2 columnas, adds de items/portada/attachments, QR generator
-5. Validación activación — intentar activar campaña sin categoría/fecha/política para ver warning
+1. **Hero image**: asignar URL de imagen en editor → guardar → verificar que aparece en landing
+2. **PetitionBody**: verificar iconos MDI y jerarquía de asks numerados
+3. **StepThanks**: firmar y verificar icono + botones con iconos
+4. **ShareSection**: verificar `shareText` si está definido en campaña
+5. **CampanaEditorClient**: verificar secciones movidas al panel derecho; probar flujo de activación sin política → ver banner de error
+6. **PoliticasList**: abrir contrato LOPDP → verificar botón × cierra el modal
+7. **/admin/firmas**: verificar tabla de campañas con conteos y botones "Ver firmas"
+8. **OrgDetailClient**: editar org → agregar URL de logo → guardar → verificar miniatura
 
 ---
 
-## Pendiente de implementar (de la lista de 10)
+## Pendiente de implementar
 
-- **Ítem 8**: Página `/admin/organizaciones/[id]` — editar org + campañas vinculadas
-- **Ítem 9**: `CategoriasList` — edición inline + mostrar campañas vinculadas por categoría
-- **Ítem 10**: `PoliticasList` — edición inline + campañas vinculadas + template contrato LOPDP
+*Ninguno identificado por el usuario en esta sesión.*
 
 ---
 
@@ -96,9 +103,9 @@ Continuación de la lista de 10 rectificaciones pendiente de sesión 15. Se impl
 | `landing-campana` | **done** | Completo ✓ |
 | `formulario-firma` | **done** | Submit/confirm/dedup + form_config + Resend ✓ |
 | `dashboard-firmas` | **in_progress** | Implementado ✓ (usuario valida) |
-| `editor-campana` | **in_progress** | Layout rework + asks + portada + QR + attachments |
+| `editor-campana` | **in_progress** | Rectificaciones sesión 18 aplicadas |
 | `resumen-admin` | **in_progress** | Implementado ✓ (usuario valida) |
-| `perfiles-org` | **in_progress** | CRUD base ✓; ítems 8-10 pendientes |
+| `perfiles-org` | **in_progress** | Ítems 8-10 ✓; logo_url ✓ |
 
 ---
 
@@ -121,6 +128,6 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 ### Continuar con
-1. Review manual de los 5 puntos pendientes
-2. Implementar ítems 8, 9, 10 (org detail page, inline edit categorías, inline edit políticas + contrato)
-3. Cuando todo esté aprobado → iniciar `infra-fork` para primer deploy VPS
+1. Review manual de los 8 puntos pendientes del Batch 2
+2. Preparar borradores de commits para sesiones 17-18
+3. Cuando todo esté aprobado → avanzar `infra-fork` hacia primer deploy VPS
