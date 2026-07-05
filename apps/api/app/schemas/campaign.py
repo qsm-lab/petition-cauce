@@ -21,7 +21,7 @@ class CampaignCreate(BaseModel):
     quota_config: dict = {}
 
 
-_META_FIELDS = {"show_authority", "show_goal", "form_config", "hero_image_mobile_url", "attachments", "show_qr"}
+_META_FIELDS = {"show_authority", "show_goal", "form_config", "hero_image_mobile_url", "attachments", "show_qr", "share_text"}
 
 
 class CampaignUpdate(BaseModel):
@@ -50,6 +50,7 @@ class CampaignUpdate(BaseModel):
     attachments: list | None = None
     show_qr: bool | None = None
     qr_code_data: str | None = None
+    share_text: str | None = None
 
 
 class CampaignStatusUpdate(BaseModel):

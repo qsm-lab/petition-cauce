@@ -50,6 +50,7 @@ export interface PublicCampaign {
   signature_count: number;
   signer_type: string;
   form_config: FormConfig;
+  share_text: string | null;
   meta: Record<string, unknown>;
   org: CampaignOrg;
 }

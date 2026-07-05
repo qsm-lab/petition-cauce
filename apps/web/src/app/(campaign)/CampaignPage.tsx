@@ -110,6 +110,7 @@ export default function CampaignPage({
               attachments={campaign.attachments}
               showQr={campaign.show_qr}
               qrCodeData={campaign.qr_code_data}
+              shareText={campaign.share_text}
             />
           </div>
 
@@ -185,13 +186,14 @@ export default function CampaignPage({
                 onSign={() => setSignOpen(true)}
               />
               <ShareSection
-              title={campaign.petition_title}
-              url={campaignUrl}
-              status={campaign.status}
-              attachments={campaign.attachments}
-              showQr={campaign.show_qr}
-              qrCodeData={campaign.qr_code_data}
-            />
+                title={campaign.petition_title}
+                url={campaignUrl}
+                status={campaign.status}
+                attachments={campaign.attachments}
+                showQr={campaign.show_qr}
+                qrCodeData={campaign.qr_code_data}
+                shareText={campaign.share_text}
+              />
             </div>
           </aside>
         </div>

@@ -17,7 +17,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
-  "img-src 'self' data:",
+  "img-src 'self' data: https:",
   `connect-src ${connectSrc}`,
   "frame-src https://challenges.cloudflare.com",
   // Turnstile ejecuta un Web Worker desde blob URL

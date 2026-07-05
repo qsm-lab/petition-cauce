@@ -3,23 +3,36 @@ interface Props {
   petitionBody: Record<string, unknown>;
 }
 
-function SectionHeading({ icon, label }: { icon: string; label: string }) {
+const IcoChecklist = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M22 7h-9v2h9V7zm0 8h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.13 2.13 4.24-4.24 1.42 1.41zm0 8L2 15.46l1.41-1.41 2.13 2.13 4.24-4.24 1.42 1.41z"/>
+  </svg>
+);
+
+const IcoArticle = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+  </svg>
+);
+
+function SectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
       <span
-        className="flex items-center justify-center text-[13px]"
+        className="flex items-center justify-center"
         style={{
-          width: 26, height: 26, borderRadius: 8,
+          width: 28, height: 28, borderRadius: 8,
           background: "color-mix(in srgb,var(--bp) 14%,transparent)",
           color: "var(--bp)",
+          flexShrink: 0,
         }}
         aria-hidden="true"
       >
         {icon}
       </span>
       <h2
-        className="font-display font-bold"
-        style={{ fontSize: 17, color: "var(--bink)", fontFamily: "var(--fd)" }}
+        className="font-display font-extrabold"
+        style={{ fontSize: 18, color: "var(--bink)", fontFamily: "var(--fd)", letterSpacing: "-0.01em" }}
       >
         {label}
       </h2>
@@ -43,23 +56,24 @@ export default function PetitionBody({ asks, petitionBody }: Props) {
       {/* Lo que pedimos */}
       {asks.length > 0 && (
         <div>
-          <SectionHeading icon="✓" label="Lo que pedimos" />
-          <ul className="flex flex-col gap-[10px]">
+          <SectionHeading icon={<IcoChecklist />} label="Lo que pedimos" />
+          <ul className="flex flex-col gap-[12px]">
             {asks.map((ask, i) => (
-              <li key={i} className="flex gap-[11px] items-start">
+              <li key={i} className="flex gap-[12px] items-start">
                 <span
-                  className="shrink-0 flex items-center justify-center rounded-full text-[11px] font-bold mt-0.5"
+                  className="shrink-0 flex items-center justify-center rounded-full font-bold mt-0.5"
                   style={{
-                    width: 22, height: 22,
+                    width: 24, height: 24, minWidth: 24,
                     background: "color-mix(in srgb,var(--bp) 14%,transparent)",
                     color: "var(--bp)",
+                    fontSize: 11,
                   }}
                 >
-                  ✓
+                  {i + 1}
                 </span>
                 <span
-                  className="font-bold leading-snug"
-                  style={{ fontSize: 15, color: "var(--bink)" }}
+                  className="font-semibold leading-snug"
+                  style={{ fontSize: 14.5, color: "var(--bink)" }}
                 >
                   {ask}
                 </span>
@@ -72,7 +86,7 @@ export default function PetitionBody({ asks, petitionBody }: Props) {
       {/* Por qué importa */}
       {(richHtml || paragraphs.length > 0) && (
         <div>
-          <SectionHeading icon="📄" label="Por qué importa" />
+          <SectionHeading icon={<IcoArticle />} label="Por qué importa" />
           {richHtml ? (
             <div
               className="petition-body-html"

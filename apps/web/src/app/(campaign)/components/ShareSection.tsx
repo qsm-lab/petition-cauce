@@ -10,6 +10,7 @@ interface Props {
   attachments?: CampaignAttachment[];
   showQr?: boolean;
   qrCodeData?: string | null;
+  shareText?: string | null;
 }
 
 const IcoWA = () => (
@@ -53,12 +54,12 @@ const IcoDownload = () => (
   </svg>
 );
 
-export default function ShareSection({ title, url, status, attachments = [], showQr = false, qrCodeData }: Props) {
+export default function ShareSection({ title, url, status, attachments = [], showQr = false, qrCodeData, shareText }: Props) {
   const [copied, setCopied] = useState(false);
   const isClosed = status === "closed";
 
   const encoded = encodeURIComponent(url);
-  const text = encodeURIComponent(`${title} — firma aquí: ${url}`);
+  const text = encodeURIComponent(shareText ?? `${title} — firma aquí: ${url}`);
 
   async function copyUrl() {
     if (isClosed) return;

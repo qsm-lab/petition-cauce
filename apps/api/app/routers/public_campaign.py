@@ -84,6 +84,7 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict
         "attachments": meta.get("attachments", []),
         "show_qr": show_qr,
         "qr_code_data": campaign.qr_code_data if show_qr else None,
+        "share_text": meta.get("share_text"),
         "lifecycle_stage": campaign.lifecycle_stage,
         "goal_count": campaign.goal_count if show_goal else None,
         "signature_count": count,
