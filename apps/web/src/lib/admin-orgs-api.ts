@@ -34,4 +34,5 @@ export interface OrgUpdate {
   domains?: string[];
   rep_name?: string;
   status?: string;
+  logo_url?: string | null;
 }

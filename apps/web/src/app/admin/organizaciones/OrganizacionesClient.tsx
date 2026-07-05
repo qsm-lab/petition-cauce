@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import type { AdminOrg, OrgCreate } from "@/lib/admin-orgs-api";
 
@@ -222,6 +223,13 @@ export default function OrganizacionesClient({ initialOrgs }: Props) {
                 >
                   Archivar
                 </button>
+                <Link
+                  href={`/admin/organizaciones/${org.id}`}
+                  className="text-[11.5px] font-medium px-3 py-1 rounded-[7px]"
+                  style={{ background: "var(--bbord)", color: "var(--bink)" }}
+                >
+                  Ver
+                </Link>
               </div>
             </div>
           ))

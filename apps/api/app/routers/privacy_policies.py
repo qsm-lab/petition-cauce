@@ -63,6 +63,37 @@ async def archive_policy(
     return {"ok": True}
 
 
+@router.get("/privacy-policies/{policy_id}/contrato-preview")
+async def get_contrato_preview(
+    policy_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    policy = await PrivacyPolicyService.get_policy(db, policy_id, current_user.org_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Política no encontrada")
+
+    from sqlalchemy import select
+    from app.models.organization import Organization
+    from app.legal.contrato_encargo import build_contrato_context, render_contrato_encargo
+    import secrets
+
+    org_result = await db.execute(select(Organization).where(Organization.id == policy.org_id))
+    org = org_result.scalar_one_or_none()
+
+    context = build_contrato_context(
+        org=org,
+        campaign_scope={
+            "authority": "— (se define por campaña) —",
+            "signer_types_label": "personas naturales",
+            "data_categories_label": "nombre, cédula (cifrada), correo electrónico (cifrado), provincia",
+        },
+        validation_token="PREVIEW-" + secrets.token_hex(3).upper(),
+        retention_days=365,
+    )
+    return {"text": render_contrato_encargo(context)}
+
+
 @router.get("/privacy-policies/{policy_id}/campaigns")
 async def get_policy_campaigns(
     policy_id: uuid.UUID,
