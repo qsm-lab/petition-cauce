@@ -70,6 +70,18 @@ Sesión en dos batches. Batch 1: ítems 8, 9, 10 implementados (org detail page,
 
 ---
 
+## Commits de sesión 18 (ejecutados)
+
+| Hash | Descripción |
+|------|-------------|
+| `766309c` | feat: perfiles-org |
+| `43e9579` | feat: landing-campana |
+| `40e8e5b` | feat: editor-campana |
+| `179d54a` | feat: admin-firmas |
+| `6f29113` | docs: cierre sesión 18 |
+
+---
+
 ## Pendiente de review manual (Batch 2)
 
 1. **Hero image**: asignar URL de imagen en editor → guardar → verificar que aparece en landing

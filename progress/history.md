@@ -6,7 +6,7 @@
 
 **Batch 1 (ítems 8-10):** `/admin/organizaciones/[id]` (edit org + campañas vinculadas), `CategoriasList` inline edit + campañas lazy, `PoliticasList` inline edit + campañas lazy + modal contrato LOPDP.
 
-**Batch 2 (9 rectificaciones):** CSP `img-src https:`, PetitionBody iconos MDI SVG + jerarquía asks numerados, StepThanks icono MDI + iconos en botones sociales, ShareSection prop `shareText`, CampanaEditorClient campo `share_text` + secciones movidas al panel derecho + validación preemptiva + banner error prominente, PoliticasList botón × SVG en modal, firmas/page.tsx reescrito como tabla de campañas con conteos, OrgDetailClient campo logo_url + miniatura, backend `share_text` en `CampaignUpdate`+`_META_FIELDS`+`_serialize`. TypeScript: 0 errores. Docker rebuild exitoso.
+**Batch 2 (9 rectificaciones):** CSP `img-src https:`, PetitionBody iconos MDI SVG + jerarquía asks numerados, StepThanks icono MDI + iconos en botones sociales, ShareSection prop `shareText`, CampanaEditorClient campo `share_text` + secciones movidas al panel derecho + validación preemptiva + banner error prominente, PoliticasList botón × SVG en modal, firmas/page.tsx reescrito como tabla de campañas con conteos, OrgDetailClient campo logo_url + miniatura, backend `share_text` en `CampaignUpdate`+`_META_FIELDS`+`_serialize`. TypeScript: 0 errores. Docker rebuild exitoso. 5 commits en branch `dev` (766309c…6f29113).
 
 ---
 
