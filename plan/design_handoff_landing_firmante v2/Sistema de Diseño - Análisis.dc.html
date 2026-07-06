@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#FBF0E6;-webkit-font-smoothing:antialiased}
+  ::selection{background:#16261F;color:#FBF0E6}
+</style>
+</helmet>
+
+<div style="font-family:'Work Sans',sans-serif;background:#FBF0E6;color:#16261F;min-height:100vh">
+
+  <!-- ============ HEADER / MEMO ============ -->
+  <div style="max-width:1180px;margin:0 auto;padding:72px 32px 48px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:#16261F;color:#FBF0E6;padding:6px 12px;border-radius:5px">Fase 1 · Análisis</span>
+      <span style="font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:rgba(22,38,31,0.55)">Sistema de diseño de referencia — v2</span>
+    </div>
+    <h1 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(46px,7vw,84px);line-height:0.98;letter-spacing:0.002em;margin:0 0 24px;max-width:960px">Seis sitios, un lenguaje <span style="color:#2E6B48">más legible</span> y con un llamado a firmar que no se puede ignorar.</h1>
+    <p style="font-size:20px;line-height:1.6;max-width:660px;color:rgba(22,38,31,0.75);margin:0 0 10px">
+      Ajuste sobre la v2: se suma <strong>IPER</strong> (display condensado de impacto + degradados en fondos oscuros) a Clico y CauseHouse. Se reemplaza la serif por un display condensado más grande y directo; el cuerpo de texto sigue en Work Sans, pensado para leerse cómodo sobre blanco.
+    </p>
+    <p style="font-size:14px;line-height:1.6;max-width:660px;color:rgba(22,38,31,0.5);margin:0">Regla nueva y no-negociable: el botón de <strong>Firmar</strong> tiene un color reservado — no se reutiliza en ningún otro elemento.</p>
+  </div>
+
+  <!-- ============ FUENTES ============ -->
+  <div style="max-width:1180px;margin:0 auto;padding:0 32px 64px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#FF5A2B;margin-bottom:10px">Get Hyped</div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Bold y cálido</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Pills, fotos rotadas con borde de color.</div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#2B4EEA;margin-bottom:10px">Museum of Money</div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Bloques de color, paso a paso</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Secciones sólidas, stepper con badge.</div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#3F8F5C;margin-bottom:10px">Alethia <span style="opacity:0.5;font-weight:500">(tono)</span></div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Riguroso, en calma</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Listas numeradas de principios, prueba antes que promesa.</div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#12222E;margin-bottom:10px">Clico</div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Bordes finos</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Tarjetas con borde fino negro, fondo papel con grilla sutil. Su serif de acento ya no se usa — reemplazada por el display de IPER.</div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#7BA82E;margin-bottom:10px">CauseHouse</div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Verde oscuro + lima</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Ink verde muy oscuro, un solo acento lima reservado para el CTA. Referencia directa para el botón de firma.</div>
+    </div>
+    <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#12222E;margin-bottom:10px">IPER — nuevo</div>
+      <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:8px">Display de impacto</div>
+      <div style="font-size:14px;line-height:1.55;color:rgba(22,38,31,0.65)">Titulares condensados enormes, pills con degradado cálido, fondos oscuros con leve gradiente. Define el display y el criterio de contraste de esta versión.</div>
+    </div>
+  </div>
+
+  <!-- ============ BOTÓN DE FIRMA (destacado) ============ -->
+  <div style="background:linear-gradient(150deg,#1B2E24 0%,#16261F 45%,#0F1C17 100%);padding:64px 32px">
+    <div style="max-width:1180px;margin:0 auto">
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#D7F24C;margin-bottom:12px">▾ Regla de contraste</div>
+      <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(32px,4.6vw,50px);color:#FBF0E6;margin:0 0 20px;max-width:760px">El botón de firmar usa un color que no aparece en ningún otro lugar del sistema.</h2>
+      <p style="font-size:17px;line-height:1.6;color:rgba(251,240,230,0.65);max-width:640px;margin:0 0 40px">Así se distingue de inmediato del resto de acentos (categorías, badges, links) sin importar en qué fondo aparezca.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
+        <div style="background:#FBF0E6;border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.45)">Sobre crema</div>
+          <button style="align-self:flex-start;font-family:'Work Sans',sans-serif;font-size:17px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px 28px;cursor:pointer">Firmar esta petición</button>
+        </div>
+        <div style="background:linear-gradient(150deg,#182F42 0%,#12222E 55%,#0B1620 100%);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:12px;font-weight:700;color:rgba(251,240,230,0.5)">Sobre azul oscuro</div>
+          <button style="align-self:flex-start;font-family:'Work Sans',sans-serif;font-size:17px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px 28px;cursor:pointer">Firmar esta petición</button>
+        </div>
+        <div style="background:#fff;border:1.5px solid #16261F;border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.45)">Sobre blanco (formulario)</div>
+          <button style="align-self:flex-start;font-family:'Work Sans',sans-serif;font-size:17px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px 28px;cursor:pointer">Firmar esta petición</button>
+        </div>
+      </div>
+      <p style="font-size:13px;color:rgba(251,240,230,0.4);margin-top:24px;max-width:640px;line-height:1.6">#D7F24C (lima) — inspirado en el CTA de CauseHouse. Reservado exclusivamente para: botón de firma en el ActionBlock, CTA flotante mobile, y botón de submit del formulario.</p>
+    </div>
+  </div>
+
+  <!-- ============ PALETA ============ -->
+  <div style="max-width:1180px;margin:0 auto;padding:64px 32px">
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:12px">▾ Paleta actualizada</div>
+    <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(32px,4.6vw,50px);margin:0 0 32px">Tinta verde/azul oscura + un acento por función.</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px">
+      <div>
+        <div style="height:96px;border-radius:12px;background:#FBF0E6;border:1px solid rgba(22,38,31,0.15)"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#FBF0E6</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Crema fondo</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#DCE9E6;border:1px solid rgba(22,38,31,0.1)"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#DCE9E6</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Verde-azulado sección</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#16261F"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#16261F</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Tinta verde — texto</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#12222E"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#12222E</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Tinta azul — secciones</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#D7F24C;border:1px solid rgba(22,38,31,0.15)"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#D7F24C</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">CTA firmar — reservado</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#2B4EEA"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#2B4EEA</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Categoría · Agua</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#3F8F5C"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#3F8F5C</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Categoría · Bosques</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#FF5A2B"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#FF5A2B</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Categoría · Minería</div>
+      </div>
+      <div>
+        <div style="height:96px;border-radius:12px;background:#F2C230"></div>
+        <div style="font-size:13px;font-weight:600;margin-top:8px">#F2C230</div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5)">Badge de progreso</div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;padding:16px 20px;background:#fff;border:1.5px dashed rgba(22,38,31,0.3);border-radius:12px;font-size:13px;line-height:1.6;color:rgba(22,38,31,0.6)">
+      <strong style="color:#16261F">Descartado de v1:</strong> <span style="text-decoration:line-through;opacity:0.6">#C42A98 magenta</span> y <span style="text-decoration:line-through;opacity:0.6">#F3AEF2 pill lila</span> — reemplazados por la tinta verde/azul y el lima reservado del CTA.
+    </div>
+  </div>
+
+  <!-- ============ TIPOGRAFÍA ============ -->
+  <div style="background:#DCE9E6;padding:64px 32px">
+    <div style="max-width:1180px;margin:0 auto">
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:12px">▾ Tipografía — más legible</div>
+      <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(32px,4.6vw,50px);margin:0 0 32px">Display de impacto + sans humanista para todo lo demás.</h2>
+
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:start">
+        <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:32px">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:rgba(22,38,31,0.45);margin-bottom:14px">Display — Anton</div>
+          <div style="font-family:'Anton',sans-serif;font-size:68px;line-height:0.98;letter-spacing:0.002em">Firmá por <span style="color:#2E6B48">el agua</span>.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:rgba(22,38,31,0.45);margin-bottom:12px">Texto — Work Sans</div>
+            <div style="font-size:19px;line-height:1.6">Cuerpo de petición y formularios. Tamaño mínimo 18–19px sobre blanco — nunca texto pequeño para contenido que decide.</div>
+          </div>
+          <div style="background:linear-gradient(150deg,#1B2E24 0%,#16261F 55%,#0F1C17 100%);border-radius:14px;padding:24px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:rgba(251,240,230,0.5);margin-bottom:12px">Etiquetas — Work Sans 700</div>
+            <div style="font-size:14px;letter-spacing:0.05em;text-transform:uppercase;color:#FBF0E6;font-weight:700">Dirigida a: Ministerio del Ambiente</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:rgba(22,38,31,0.5);margin-top:20px;max-width:640px;line-height:1.6">Se retira la serif de v2 (leía elegante, pero no tenía el peso que pide un botón de firma). Anton condensado da presencia a los titulares; Work Sans, más grande, resuelve legibilidad en el cuerpo.</p>
+    </div>
+  </div>
+
+  <!-- ============ COMPONENTES ============ -->
+  <div style="max-width:1180px;margin:0 auto;padding:64px 32px">
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:12px">▾ Componentes recurrentes</div>
+    <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(32px,4.6vw,50px);margin:0 0 32px">Patrones que se repiten en los seis sitios.</h2>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.4);margin-bottom:16px">Badge / pill</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <span style="background:#fff;border:1.5px solid #16261F;border-radius:20px;padding:7px 16px;font-size:14px;font-weight:600">Agua</span>
+          <span style="background:#16261F;color:#FBF0E6;border-radius:20px;padding:7px 16px;font-size:14px;font-weight:700">Start building</span>
+        </div>
+        <div style="font-size:14px;color:rgba(22,38,31,0.6);line-height:1.5">En Cauce: badge de categoría en el Hero, chip "Dirigida a".</div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.4);margin-bottom:16px">Tarjeta borde fino (Clico)</div>
+        <div style="border:1.5px solid #16261F;border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <span style="width:38px;height:38px;border:1.5px solid #16261F;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px">✎</span>
+          <div>
+            <div style="font-weight:700;font-size:15px">Firmas recientes</div>
+            <div style="font-size:13px;color:rgba(22,38,31,0.55)">Actividad en vivo</div>
+          </div>
+        </div>
+        <div style="font-size:14px;color:rgba(22,38,31,0.6);line-height:1.5">Ícono en caja + título + descripción. En Cauce: lista de RecentSignatures, filas de ShareSection.</div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.4);margin-bottom:16px">Tarjeta foto + borde de color</div>
+        <div style="position:relative;height:120px;border-radius:16px;border:3px solid #3F8F5C;background:repeating-linear-gradient(135deg,#f2e3d6,#f2e3d6 10px,#e9d5c2 10px,#e9d5c2 20px);display:flex;align-items:flex-end;padding:10px;margin-bottom:14px">
+          <span style="font-size:11px;font-weight:700;background:rgba(22,38,31,0.8);color:#fff;padding:4px 8px;border-radius:6px">foto de impacto</span>
+        </div>
+        <div style="font-size:14px;color:rgba(22,38,31,0.6);line-height:1.5">En Cauce: Hero, evidencia adjunta.</div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.4);margin-bottom:16px">Stepper + progreso</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#3F8F5C"></span>
+          <span style="width:10px;height:10px;border-radius:50%;border:1.5px solid #16261F"></span>
+          <span style="width:10px;height:10px;border-radius:50%;border:1.5px solid #16261F"></span>
+          <span style="margin-left:auto;font-size:11px;font-weight:700;background:#F2C230;padding:5px 10px;border-radius:5px">PASO 1 DE 3</span>
+        </div>
+        <div style="height:8px;border-radius:5px;background:rgba(22,38,31,0.1);margin-bottom:14px">
+          <div style="height:100%;width:36%;border-radius:5px;background:#16261F"></div>
+        </div>
+        <div style="font-size:14px;color:rgba(22,38,31,0.6);line-height:1.5">En Cauce: LifecycleSteps, progreso del formulario.</div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:24px">
+        <div style="font-size:12px;font-weight:700;color:rgba(22,38,31,0.4);margin-bottom:16px">Lista numerada de principios</div>
+        <div style="display:flex;gap:14px;margin-bottom:14px">
+          <span style="font-family:'Anton',sans-serif;font-size:28px;color:rgba(22,38,31,0.3)">01</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:2px">Prueba, no proyección</div>
+            <div style="font-size:14px;color:rgba(22,38,31,0.6)">Cada afirmación se respalda con datos verificables.</div>
+          </div>
+        </div>
+        <div style="font-size:14px;color:rgba(22,38,31,0.6);line-height:1.5">En Cauce: "Lo que pedimos", notas legales LOPDP.</div>
+      </div>
+
+      <div style="border-radius:14px;padding:24px;background:linear-gradient(150deg,#182F42 0%,#12222E 55%,#0B1620 100%)">
+        <div style="font-size:12px;font-weight:700;color:rgba(251,240,230,0.55);margin-bottom:16px">Ritmo de sección oscura</div>
+        <div style="font-family:'Anton',sans-serif;font-size:24px;color:#FBF0E6;margin-bottom:14px">Bloques oscuros alternan con crema para marcar etapas.</div>
+        <div style="font-size:14px;color:rgba(251,240,230,0.7);line-height:1.5">En Cauce: separar Hero → Petición → Prueba social → Compartir.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ SIGUIENTE PASO ============ -->
+  <div style="background:linear-gradient(150deg,#1B2E24 0%,#16261F 45%,#0F1C17 100%);padding:56px 32px">
+    <div style="max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(251,240,230,0.5);margin-bottom:8px">Siguiente</div>
+        <div style="font-family:'Anton',sans-serif;font-size:28px;color:#FBF0E6;max-width:520px">Con esta base ajustada, diseñamos la landing de campaña del firmante — mobile y desktop.</div>
+      </div>
+      <button style="font-family:'Work Sans',sans-serif;font-size:16px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px 28px;cursor:pointer;white-space:nowrap">Aprobar y continuar</button>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

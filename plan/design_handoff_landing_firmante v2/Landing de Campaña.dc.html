@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#FBF0E6;-webkit-font-smoothing:antialiased}
+  @keyframes cauce-pulse{0%{box-shadow:0 0 0 0 rgba(43,78,234,0.45)}70%{box-shadow:0 0 0 8px rgba(43,78,234,0)}100%{box-shadow:0 0 0 0 rgba(43,78,234,0)}}
+  @keyframes cauce-spin{to{transform:rotate(360deg)}}
+  input:focus,select:focus,button:focus{outline:2px solid #2B4EEA;outline-offset:1px}
+</style>
+</helmet>
+
+<div ref="{{ setRootRef }}" style="font-family:'Work Sans',sans-serif;background:#FBF0E6;color:#16261F;min-height:100vh;position:relative" data-screen-label="Landing de campaña — firmante">
+
+  <sc-if value="{{ isDraft }}" hint-placeholder-val="{{ false }}">
+    <div style="position:sticky;top:0;z-index:40;background:#F2C230;color:#16261F;text-align:center;padding:10px 16px;font-size:14px;font-weight:700">Campaña en revisión · las firmas realizadas aquí son de prueba y no se contabilizarán</div>
+  </sc-if>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;max-width:1180px;margin:0 auto">
+    <div style="font-family:'Anton',sans-serif;font-size:22px;letter-spacing:0.01em">Cauce</div>
+    <div style="font-size:13px;color:rgba(22,38,31,0.55)">Plataforma de firmas ciudadanas</div>
+  </div>
+
+  <div style="position:relative;margin:0 16px;border-radius:20px;overflow:hidden;max-width:1148px;margin-left:auto;margin-right:auto">
+    <div style="height:clamp(260px,42vw,420px);background:repeating-linear-gradient(135deg,#cfd9d4,#cfd9d4 14px,#bfcac4 14px,#bfcac4 28px);position:relative;display:flex;align-items:flex-end">
+      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(22,38,31,0.88),rgba(22,38,31,0) 58%)"></div>
+      <div style="position:absolute;top:18px;left:18px;background:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;color:#16261F">{{ categoryLabel }}</div>
+      <div style="position:absolute;top:18px;right:18px;width:44px;height:44px;border-radius:50%;background:#16261F;color:#FBF0E6;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:18px">{{ orgInitial }}</div>
+      <div style="position:relative;padding:20px 24px;font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:rgba(251,240,230,0.7)">foto de impacto ambiental</div>
+    </div>
+  </div>
+
+  <div style="max-width:1148px;margin:0 auto;padding:28px 24px 0">
+    <h1 style="font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.03;margin:0 0 14px;max-width:820px;color:{{ categoryColor }}">{{ title }}</h1>
+    <div style="font-size:14px;color:rgba(22,38,31,0.6)">Impulsada por <strong style="color:#16261F">{{ orgName }}</strong></div>
+  </div>
+
+  <div style="max-width:1148px;margin:0 auto;padding:24px 24px 64px;display:grid;grid-template-columns:{{ gridCols }};gap:32px;align-items:start">
+
+    <div style="display:flex;flex-direction:column;gap:36px;order:{{ mainOrder }};min-width:0">
+
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:14px">Estado de la campaña</div>
+        <div style="display:flex;align-items:flex-start">
+          <sc-for list="{{ stages }}" as="st" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;flex:1;min-width:0">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:none">
+                <div style="width:32px;height:32px;border-radius:50%;background:{{ st.dotBg }};border:{{ st.dotBorder }};color:{{ st.dotColor }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">{{ st.mark }}</div>
+                <div style="font-size:12px;font-weight:{{ st.labelWeight }};opacity:{{ st.labelOpacity }};text-align:center;white-space:nowrap">{{ st.label }}</div>
+              </div>
+              <sc-if value="{{ st.showLine }}" hint-placeholder-val="{{ true }}">
+                <div style="height:2px;flex:1;background:{{ st.lineBg }};margin:0 6px;margin-bottom:20px"></div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div>
+        <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:26px;margin:0 0 16px">Lo que pedimos</h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ asksForTpl }}" as="ask" hint-placeholder-count="4">
+            <div style="display:flex;gap:12px;align-items:flex-start;background:#fff;border:1.5px solid #16261F;border-radius:14px;padding:16px 18px">
+              <div style="width:26px;height:26px;border-radius:50%;background:{{ categoryColor }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">{{ ask.n }}</div>
+              <div style="font-size:16px;line-height:1.5;padding-top:2px">{{ ask.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div>
+        <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:26px;margin:0 0 16px">Por qué importa</h2>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <sc-for list="{{ bodyParagraphs }}" as="para" hint-placeholder-count="2">
+            <p style="font-size:17px;line-height:1.65;color:rgba(22,38,31,0.82);margin:0">{{ para }}</p>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasAttachments }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:12px">Documentos adjuntos</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ attachments }}" as="doc" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid #16261F;border-radius:12px;padding:14px 18px;gap:12px">
+                <div style="font-size:14px;font-weight:600">{{ doc.name }}</div>
+                <div style="font-size:12px;color:rgba(22,38,31,0.5);white-space:nowrap">{{ doc.size }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <span style="width:9px;height:9px;border-radius:50%;background:{{ categoryColor }};animation:cauce-pulse 1.8s infinite;flex:none"></span>
+          <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:24px;margin:0">Firmas recientes</h2>
+        </div>
+        <div style="display:flex;flex-direction:column;border:1.5px solid #16261F;border-radius:14px;overflow:hidden;background:#fff">
+          <sc-for list="{{ signatures }}" as="sig" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(22,38,31,0.1)">
+              <sc-if value="{{ sig.hidden }}" hint-placeholder-val="{{ false }}">
+                <div style="width:34px;height:34px;border-radius:50%;background:rgba(22,38,31,0.08);flex:none;position:relative">
+                  <div style="width:12px;height:9px;border:2px solid #16261F;border-bottom:none;border-radius:6px 6px 0 0;position:absolute;top:6px;left:50%;transform:translateX(-50%)"></div>
+                  <div style="width:16px;height:11px;background:#16261F;border-radius:3px;position:absolute;bottom:6px;left:50%;transform:translateX(-50%)"></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sig.shown }}" hint-placeholder-val="{{ true }}">
+                <div style="width:34px;height:34px;border-radius:50%;background:{{ categoryColor }};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">{{ sig.initial }}</div>
+              </sc-if>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:600">{{ sig.displayName }}</div>
+                <div style="font-size:13px;color:rgba(22,38,31,0.5)">{{ sig.province }} · {{ sig.time }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;color:rgba(22,38,31,0.45);margin-top:10px;line-height:1.5">Las firmas se muestran según la visibilidad elegida por cada firmante: pública, anónima o secreta.</div>
+      </div>
+
+      <div>
+        <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:24px;margin:0 0 16px;color:#16261F">De dónde vienen las firmas</h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ regionsForTpl }}" as="reg" hint-placeholder-count="5">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:6px">
+                <span>{{ reg.name }}</span><span>{{ reg.pct }}%</span>
+              </div>
+              <div style="height:8px;border-radius:5px;background:rgba(22,38,31,0.1)">
+                <div style="height:100%;border-radius:5px;background:{{ categoryColor }};width:{{ reg.pctStr }}"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px;order:{{ sidebarOrder }};position:{{ sidebarPosition }};top:{{ sidebarTop }}">
+
+      <div id="cauce-action-cta" style="background:#fff;border:1.5px solid #16261F;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;gap:10px;align-self:flex-start;background:#16261F;color:#FBF0E6;border-radius:14px;padding:10px 16px;max-width:100%;box-sizing:border-box">
+          <span style="width:28px;height:28px;border-radius:50%;background:rgba(251,240,230,0.15);display:flex;align-items:center;justify-content:center;flex:none;position:relative">
+            <span style="width:2px;height:15px;background:#FBF0E6;position:absolute;left:10px;top:6px;border-radius:1px"></span>
+            <span style="width:10px;height:7px;background:#FBF0E6;position:absolute;left:12px;top:6px;border-radius:0 3px 3px 0"></span>
+          </span>
+          <div style="min-width:0">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.65;margin-bottom:2px">Dirigida a</div>
+            <div style="font-size:13px;font-weight:700;line-height:1.3">{{ authority }}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Anton',sans-serif;font-size:40px;line-height:1">{{ currentLabel }}</div>
+          <div style="font-size:14px;color:rgba(22,38,31,0.6)">de {{ goalLabel }} firmas objetivo</div>
+        </div>
+        <div style="height:10px;border-radius:6px;background:rgba(22,38,31,0.1)">
+          <div style="height:100%;border-radius:6px;background:{{ categoryColor }};width:{{ goalPctStr }};transition:width .4s ease"></div>
+        </div>
+        <button onClick="{{ openModal }}" disabled="{{ ctaDisabled }}" style="font-family:'Work Sans',sans-serif;font-size:18px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:18px 24px;cursor:pointer;opacity:{{ ctaOpacity }}">{{ ctaLabel }}</button>
+        <div style="font-size:12px;color:rgba(22,38,31,0.5);line-height:1.5">Confirmamos tu firma por correo. Por defecto es privada — vos elegís cómo aparece.</div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:18px;padding:20px;display:flex;align-items:center;gap:14px">
+        <div style="width:46px;height:46px;border-radius:50%;background:#16261F;color:#FBF0E6;display:flex;align-items:center;justify-content:center;font-family:'Anton',sans-serif;font-size:18px;flex:none">{{ orgInitial }}</div>
+        <div>
+          <div style="font-size:12px;color:rgba(22,38,31,0.5)">Organización</div>
+          <div style="font-size:16px;font-weight:700">{{ orgName }}</div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1.5px solid #16261F;border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:16px;font-weight:700">{{ shareHeading }}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:700;color:#FBF0E6;background:#12222E;border:none;border-radius:24px;padding:14px 18px;cursor:pointer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;position:relative;flex:none">
+              <span style="width:17px;height:13px;border-radius:7px;background:#FBF0E6;display:block"></span>
+              <span style="position:absolute;bottom:-3px;left:3px;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:5px solid #FBF0E6"></span>
+            </span>
+            <span>Compartir por WhatsApp</span>
+          </button>
+          <div style="display:flex;gap:8px">
+            <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">Facebook</button>
+            <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">X</button>
+            <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">Email</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;background:#FBF0E6;border-radius:12px;padding:8px 8px 8px 14px">
+          <div style="flex:1;font-size:13px;color:rgba(22,38,31,0.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">cauce.eco/rio-aguarico</div>
+          <button onClick="{{ copyLink }}" style="font-size:12px;font-weight:700;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:18px;padding:8px 14px;cursor:pointer;white-space:nowrap">{{ copyLabel }}</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <sc-if value="{{ showFloatingCTA }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:0;right:0;bottom:0;z-index:50;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:#FBF0E6;border-top:1.5px solid #16261F;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 16px rgba(22,38,31,0.1)">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700">{{ currentLabel }} firmas</div>
+        <div style="font-size:11px;color:rgba(22,38,31,0.55)">de {{ goalLabel }}</div>
+      </div>
+      <button onClick="{{ openModal }}" style="font-family:'Work Sans',sans-serif;font-size:15px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:26px;padding:14px 22px;cursor:pointer">{{ ctaLabel }}</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" data-screen-label="Formulario de firma (SignFlow)" style="position:fixed;inset:0;z-index:100;display:flex;align-items:{{ modalAlign }};justify-content:center;background:rgba(18,34,46,0.55);backdrop-filter:blur(3px)" role="dialog" aria-modal="true">
+      <div onClick="{{ stopPropagation }}" style="background:#fff;width:{{ modalWidth }};max-width:560px;max-height:{{ modalMaxHeight }};overflow-y:auto;border-radius:{{ modalRadius }};padding:28px;position:relative;box-shadow:0 20px 60px rgba(22,38,31,0.3);box-sizing:border-box">
+
+        <button onClick="{{ closeModal }}" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:#FBF0E6;border:none;font-size:16px;cursor:pointer;color:#16261F">✕</button>
+
+        <sc-if value="{{ stepIsForm }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(22,38,31,0.5);margin-bottom:8px;padding-right:40px">{{ title }}</div>
+          <h2 style="font-family:'Anton',sans-serif;font-weight:400;font-size:28px;margin:0 0 20px;color:{{ categoryColor }}">Firmar esta petición</h2>
+
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">Tipo de firmante</div>
+          <div style="display:flex;gap:8px;margin-bottom:18px">
+            <button onClick="{{ setSignerNatural }}" style="flex:1;padding:12px;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;background:{{ signerNaturalBg }};color:{{ signerNaturalColor }};border:1.5px solid #16261F">Persona natural</button>
+            <button onClick="{{ setSignerOrg }}" style="flex:1;padding:12px;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;background:{{ signerOrgBg }};color:{{ signerOrgColor }};border:1.5px solid #16261F">Organización</button>
+          </div>
+
+          <sc-if value="{{ isSignerOrg }}" hint-placeholder-val="{{ false }}">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">Nombre de la organización</label>
+            <input value="{{ orgNameInput }}" onChange="{{ onOrgNameChange }}" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif" />
+          </sc-if>
+
+          <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">Nombre completo *</label>
+          <input value="{{ fullName }}" onChange="{{ onFullNameChange }}" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif" />
+
+          <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">Correo electrónico *</label>
+          <input value="{{ email }}" onChange="{{ onEmailChange }}" type="email" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif" />
+
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">Ubicación</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button onClick="{{ setLocationEcuador }}" style="flex:1;padding:12px;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;background:{{ locEcuadorBg }};color:{{ locEcuadorColor }};border:1.5px solid #16261F">Ecuador</button>
+            <button onClick="{{ setLocationIntl }}" style="flex:1;padding:12px;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;background:{{ locIntlBg }};color:{{ locIntlColor }};border:1.5px solid #16261F">Internacional</button>
+          </div>
+
+          <sc-if value="{{ isLocationEcuador }}" hint-placeholder-val="{{ true }}">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">Provincia</label>
+            <select value="{{ province }}" onChange="{{ onProvinceChange }}" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif;background:#fff">
+              <option value="">Selecciona...</option>
+              <sc-for list="{{ provinceOptions }}" as="prov" hint-placeholder-count="24">
+                <option value="{{ prov }}">{{ prov }}</option>
+              </sc-for>
+            </select>
+          </sc-if>
+          <sc-if value="{{ isLocationIntl }}" hint-placeholder-val="{{ false }}">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">País</label>
+            <input value="{{ country }}" onChange="{{ onCountryChange }}" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif" />
+          </sc-if>
+
+          <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px">Cédula (opcional)</label>
+          <input value="{{ cedula }}" onChange="{{ onCedulaChange }}" style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid #16261F;font-size:16px;margin-bottom:16px;font-family:'Work Sans',sans-serif;background:#fff" />
+
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">Visibilidad de tu firma</div>
+          <div style="display:flex;gap:8px;margin-bottom:18px">
+            <button onClick="{{ setVisibilityPublica }}" style="flex:1;padding:12px 6px;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;background:{{ visPublicaBg }};color:{{ visPublicaColor }};border:1.5px solid #16261F">Pública</button>
+            <button onClick="{{ setVisibilityAnonima }}" style="flex:1;padding:12px 6px;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;background:{{ visAnonimaBg }};color:{{ visAnonimaColor }};border:1.5px solid #16261F">Anónima</button>
+            <button onClick="{{ setVisibilitySecreta }}" style="flex:1;padding:12px 6px;border-radius:24px;font-size:13px;font-weight:600;cursor:pointer;background:{{ visSecretaBg }};color:{{ visSecretaColor }};border:1.5px solid #16261F">Secreta</button>
+          </div>
+
+          <label style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;cursor:pointer">
+            <input type="checkbox" checked="{{ consent }}" onChange="{{ onConsentChange }}" style="margin-top:3px;width:18px;height:18px;flex:none" />
+            <span style="font-size:13px;line-height:1.5">Acepto el tratamiento de mis datos según el <a href="/aviso-de-privacidad" style="color:#16261F;text-decoration:underline">aviso de privacidad</a>.</span>
+          </label>
+
+          <div style="font-size:12px;color:rgba(22,38,31,0.45);margin-bottom:20px">Protegido con verificación de seguridad automática.</div>
+
+          <button onClick="{{ submit }}" disabled="{{ submitDisabled }}" style="width:100%;font-size:17px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:18px;cursor:pointer;opacity:{{ submitOpacity }}">Firmar esta petición</button>
+        </sc-if>
+
+        <sc-if value="{{ stepIsSending }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 10px">
+            <div style="width:44px;height:44px;border-radius:50%;border:4px solid rgba(22,38,31,0.15);border-top-color:#16261F;animation:cauce-spin 0.8s linear infinite;margin-bottom:20px"></div>
+            <div style="font-family:'Anton',sans-serif;font-size:22px;margin-bottom:8px">Enviando tu firma…</div>
+            <div style="font-size:14px;color:rgba(22,38,31,0.6)">Un momento, estamos procesando tu solicitud.</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ stepIsPending }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 10px 10px">
+            <div style="width:56px;height:56px;border-radius:50%;background:#DCE9E6;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:20px">✉</div>
+            <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:10px">Confirmá tu correo</div>
+            <div style="font-size:15px;color:rgba(22,38,31,0.7);line-height:1.5;margin-bottom:6px">Enviamos un enlace de confirmación a:</div>
+            <div style="font-size:16px;font-weight:700;margin-bottom:24px;word-break:break-all">{{ pendingEmail }}</div>
+            <button onClick="{{ confirmEmail }}" style="width:100%;font-size:16px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px;cursor:pointer;margin-bottom:12px">Ya confirmé — continuar</button>
+            <button onClick="{{ resend }}" disabled="{{ resendDisabled }}" style="width:100%;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:30px;padding:14px;cursor:pointer">{{ resendLabel }}</button>
+            <div style="font-size:12px;color:rgba(22,38,31,0.45);margin-top:16px;line-height:1.5">Si no lo ves, revisá spam. El enlace vence en 30 minutos.</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ stepIsError }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 10px 10px">
+            <div style="width:56px;height:56px;border-radius:50%;background:#FBEAE4;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:20px;color:#FF5A2B;font-weight:700">!</div>
+            <div style="font-family:'Anton',sans-serif;font-size:26px;margin-bottom:10px">No pudimos registrar tu firma</div>
+            <div style="font-size:15px;color:rgba(22,38,31,0.7);line-height:1.5;margin-bottom:24px">{{ errorMessage }}</div>
+            <button onClick="{{ retry }}" style="width:100%;font-size:16px;font-weight:700;color:#16261F;background:#D7F24C;border:none;border-radius:30px;padding:16px;cursor:pointer;margin-bottom:12px">Reintentar</button>
+            <button onClick="{{ editForm }}" style="width:100%;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:30px;padding:14px;cursor:pointer">Editar mis datos</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ stepIsThanks }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:10px 0 0">
+            <div style="width:56px;height:56px;border-radius:50%;background:{{ categoryColor }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px">✓</div>
+            <div style="font-family:'Anton',sans-serif;font-size:30px;margin-bottom:8px">¡Gracias, {{ thanksName }}!</div>
+            <div style="font-size:15px;color:rgba(22,38,31,0.7);line-height:1.5;margin-bottom:20px">Tu firma quedó registrada. Acabás de mover el contador.</div>
+
+            <div style="background:#FBF0E6;border-radius:14px;padding:20px;margin-bottom:24px">
+              <div style="font-family:'Anton',sans-serif;font-size:34px">{{ totalAfterSign }}</div>
+              <div style="font-size:13px;color:rgba(22,38,31,0.6);margin-bottom:10px">firmas de {{ goalLabel }}</div>
+              <div style="height:8px;border-radius:5px;background:rgba(22,38,31,0.12)">
+                <div style="height:100%;border-radius:5px;background:{{ categoryColor }};width:{{ goalPctStr }}"></div>
+              </div>
+            </div>
+
+            <div style="font-size:14px;font-weight:700;text-align:left;margin-bottom:10px">Ayudá a que llegue a más personas</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+              <button style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:700;color:#FBF0E6;background:#12222E;border:none;border-radius:24px;padding:14px 18px;cursor:pointer">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;position:relative;flex:none">
+                  <span style="width:17px;height:13px;border-radius:7px;background:#FBF0E6;display:block"></span>
+                  <span style="position:absolute;bottom:-3px;left:3px;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:5px solid #FBF0E6"></span>
+                </span>
+                <span>Compartir por WhatsApp</span>
+              </button>
+              <div style="display:flex;gap:8px">
+                <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">Facebook</button>
+                <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">X</button>
+                <button style="flex:1;font-size:14px;font-weight:600;color:#16261F;background:#fff;border:1.5px solid #16261F;border-radius:24px;padding:12px;cursor:pointer">Email</button>
+              </div>
+            </div>
+
+            <label style="display:flex;gap:10px;align-items:flex-start;text-align:left;cursor:pointer">
+              <input type="checkbox" checked="{{ newsletterOptIn }}" onChange="{{ onNewsletterChange }}" style="margin-top:3px;width:18px;height:18px;flex:none" />
+              <span style="font-size:13px;line-height:1.5;color:rgba(22,38,31,0.7)">Quiero recibir noticias de esta campaña por correo (consentimiento independiente de tu firma).</span>
+            </label>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;isDraft&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado de campaña&quot;},&quot;isClosed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estado de campaña&quot;},&quot;simulateError&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;cedula_invalida&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;ninguno&quot;,&quot;ya_firmaste&quot;,&quot;cedula_invalida&quot;,&quot;rate_limit&quot;,&quot;sin_conexion&quot;],&quot;section&quot;:&quot;Simular error de firma&quot;}}">
+class Component extends DCLogic {
+  provinces = ['Azuay','Bolívar','Cañar','Carchi','Chimborazo','Cotopaxi','El Oro','Esmeraldas','Galápagos','Guayas','Imbabura','Loja','Los Ríos','Manabí','Morona Santiago','Napo','Orellana','Pastaza','Pichincha','Santa Elena','Santo Domingo de los Tsáchilas','Sucumbíos','Tungurahua','Zamora Chinchipe','Otra'];
+
+  stagesList = ['Lanzada','Recolección','Entrega','Diálogo','Decisión'];
+
+  campaign = {
+    categoryLabel: 'Agua',
+    categoryColor: '#2B4EEA',
+    orgName: 'Río Vivo',
+    orgInitial: 'R',
+    title: 'Protejamos el río Aguarico de la contaminación minera',
+    authority: 'Ministerio del Ambiente, Agua y Transición Ecológica',
+    goal: 15000,
+    current: 8432,
+    stageIndex: 1,
+    asks: [
+      'Suspender las concesiones mineras activas en la cuenca del Aguarico.',
+      'Realizar un monitoreo independiente de la calidad del agua.',
+      'Publicar los estudios de impacto ambiental pendientes desde 2024.',
+      'Garantizar consulta previa a las comunidades ribereñas.'
+    ],
+    bodyParagraphs: [
+      'Las comunidades de la cuenca del Aguarico dependen del río para el consumo, la pesca y la agricultura. En los últimos dos años, reportes independientes detectaron niveles de mercurio y sedimentos por encima de lo permitido aguas abajo de concesiones mineras activas.',
+      'Esta petición pide a la autoridad ambiental suspender las operaciones mientras se realiza un monitoreo independiente y se publican los estudios de impacto pendientes.'
+    ],
+    recentSignatures: [
+      { name: 'María Andrade', province: 'Sucumbíos', time: 'hace 2 min', visibility: 'publica' },
+      { name: 'Anónimo', province: 'Pichincha', time: 'hace 6 min', visibility: 'anonima' },
+      { name: 'Carlos Yumbo', province: 'Orellana', time: 'hace 14 min', visibility: 'publica' },
+      { name: 'Reservado', province: '—', time: 'hace 19 min', visibility: 'secreta' },
+      { name: 'Paola Ríos', province: 'Guayas', time: 'hace 33 min', visibility: 'publica' }
+    ],
+    regions: [
+      { name: 'Sucumbíos', pct: 34 },
+      { name: 'Pichincha', pct: 22 },
+      { name: 'Orellana', pct: 18 },
+      { name: 'Guayas', pct: 12 },
+      { name: 'Otras provincias', pct: 14 }
+    ],
+    attachments: [
+      { name: 'Informe de calidad del agua — 2025.pdf', size: '2.4 MB' },
+      { name: 'Estudio de impacto ambiental (resumen).pdf', size: '1.1 MB' }
+    ]
+  };
+
+  state = {
+    isMobile: false,
+    showFloatingCTA: false,
+    modalOpen: false,
+    step: 'form',
+    signerType: 'natural',
+    orgNameInput: '',
+    fullName: '',
+    email: '',
+    locationType: 'ecuador',
+    province: '',
+    country: '',
+    cedula: '',
+    visibility: 'publica',
+    consent: false,
+    resendState: 'idle',
+    copyState: 'idle',
+    newsletterOptIn: false
+  };
+
+  setRootRef = (el) => {
+    if (this._roEl === el) return;
+    if (this.ro && this._roEl) this.ro.unobserve(this._roEl);
+    this._roEl = el;
+    if (!el) return;
+    if (!this.ro) {
+      this.ro = new ResizeObserver((entries) => {
+        const w = entries[0].contentRect.width;
+        const isMobile = w < 760;
+        if (isMobile !== this.state.isMobile) this.setState({ isMobile });
+      });
+    }
+    this.ro.observe(el);
+    const w0 = el.getBoundingClientRect().width;
+    const isMobile0 = w0 < 760;
+    if (isMobile0 !== this.state.isMobile) this.setState({ isMobile: isMobile0 });
+  };
+
+  componentDidMount() {
+    this.io = new IntersectionObserver((entries) => {
+      const entry = entries[0];
+      if (entry) this.setState({ showFloatingCTA: !entry.isIntersecting });
+    }, { threshold: 0 });
+    this.ioTarget = document.getElementById('cauce-action-cta');
+    if (this.ioTarget) this.io.observe(this.ioTarget);
+
+    this.handleKeydown = (e) => {
+      if (e.key === 'Escape' && this.state.modalOpen) this.closeModal();
+    };
+    document.addEventListener('keydown', this.handleKeydown);
+  }
+
+  componentWillUnmount() {
+    if (this.ro) this.ro.disconnect();
+    if (this.io) this.io.disconnect();
+    if (this.handleKeydown) document.removeEventListener('keydown', this.handleKeydown);
+    if (this._t1) clearTimeout(this._t1);
+    if (this._t2) clearTimeout(this._t2);
+    if (this._t3) clearTimeout(this._t3);
+  }
+
+  openModal = () => {
+    if (this.props.isClosed) return;
+    this.setState({ modalOpen: true });
+  };
+  closeModal = () => this.setState({ modalOpen: false });
+  stopPropagation = (e) => e.stopPropagation();
+
+  setField = (key, value) => this.setState({ [key]: value });
+
+  isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || ''); }
+
+  canSubmit() {
+    const s = this.state;
+    return !!(s.fullName.trim() && this.isValidEmail(s.email) && s.consent);
+  }
+
+  submit = () => {
+    if (!this.canSubmit()) return;
+    this.setState({ step: 'sending' });
+    this._t1 = setTimeout(() => {
+      const err = this.props.simulateError;
+      if (err && err !== 'ninguno') this.setState({ step: 'error' });
+      else this.setState({ step: 'pending' });
+    }, 1200);
+  };
+
+  retry = () => {
+    this.setState({ step: 'sending' });
+    this._t2 = setTimeout(() => this.setState({ step: 'pending' }), 1000);
+  };
+
+  editForm = () => this.setState({ step: 'form' });
+  confirmEmail = () => this.setState({ step: 'thanks' });
+
+  resend = () => {
+    this.setState({ resendState: 'sending' });
+    this._t3 = setTimeout(() => this.setState({ resendState: 'sent' }), 900);
+  };
+
+  copyLink = () => {
+    this.setState({ copyState: 'copied' });
+    setTimeout(() => this.setState({ copyState: 'idle' }), 1500);
+  };
+
+  errorMessage() {
+    const map = {
+      ya_firmaste: 'Ya registramos una firma tuya en esta campaña.',
+      cedula_invalida: 'La cédula ingresada no es válida. Revísala e inténtalo de nuevo.',
+      rate_limit: 'Demasiados intentos. Esperá unos minutos e inténtalo de nuevo.',
+      sin_conexion: 'No pudimos conectar. Revisá tu conexión e inténtalo de nuevo.'
+    };
+    return map[this.props.simulateError] || 'Algo salió mal. Inténtalo de nuevo.';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const c = this.campaign;
+    const isMobile = s.isMobile;
+    const isDraft = !!this.props.isDraft;
+    const isClosed = !!this.props.isClosed;
+    const goalPct = Math.min(100, Math.round((c.current / c.goal) * 100));
+
+    const ctaLabel = isClosed ? 'Campaña cerrada' : isDraft ? 'Firmar (modo prueba)' : 'Firmar esta petición';
+
+    const stagesForTpl = this.stagesList.map((label, i) => ({
+      label,
+      dotBg: i < c.stageIndex ? '#16261F' : i === c.stageIndex ? c.categoryColor : '#ffffff',
+      dotColor: i <= c.stageIndex ? '#FBF0E6' : '#16261F',
+      dotBorder: i <= c.stageIndex ? 'none' : '2px solid #16261F',
+      labelWeight: i === c.stageIndex ? 700 : 500,
+      labelOpacity: i === c.stageIndex ? 1 : 0.55,
+      lineBg: i < c.stageIndex ? '#16261F' : 'rgba(22,38,31,0.2)',
+      showLine: i !== this.stagesList.length - 1,
+      mark: i < c.stageIndex ? '✓' : String(i + 1)
+    }));
+
+    const signaturesForTpl = c.recentSignatures.map((sig) => {
+      const hidden = sig.visibility !== 'publica';
+      return {
+        displayName: hidden ? (sig.visibility === 'secreta' ? 'Firma protegida' : 'Anónimo') : sig.name,
+        province: sig.province,
+        time: sig.time,
+        hidden,
+        shown: !hidden,
+        initial: hidden ? '' : (sig.name || '?').charAt(0)
+      };
+    });
+
+    const regionsForTpl = c.regions.map((r) => ({ name: r.name, pct: r.pct, pctStr: r.pct + '%' }));
+    const asksForTpl = c.asks.map((text, i) => ({ n: i + 1, text }));
+
+    const totalAfterSign = c.current + 1;
+
+    return {
+      setRootRef: this.setRootRef,
+      isDraft,
+      isClosed,
+      categoryLabel: c.categoryLabel,
+      categoryColor: c.categoryColor,
+      orgName: c.orgName,
+      orgInitial: c.orgInitial,
+      title: c.title,
+      authority: c.authority,
+      goalLabel: c.goal.toLocaleString('es-EC'),
+      currentLabel: c.current.toLocaleString('es-EC'),
+      goalPctStr: goalPct + '%',
+      ctaLabel,
+      ctaDisabled: isClosed,
+      ctaOpacity: isClosed ? 0.5 : 1,
+      openModal: this.openModal,
+      closeModal: this.closeModal,
+      stopPropagation: this.stopPropagation,
+      modalOpen: s.modalOpen,
+      stepIsForm: s.step === 'form',
+      stepIsSending: s.step === 'sending',
+      stepIsPending: s.step === 'pending',
+      stepIsError: s.step === 'error',
+      stepIsThanks: s.step === 'thanks',
+      asksForTpl,
+      bodyParagraphs: c.bodyParagraphs,
+      signatures: signaturesForTpl,
+      regionsForTpl,
+      attachments: c.attachments,
+      hasAttachments: c.attachments.length > 0,
+      stages: stagesForTpl,
+      gridCols: isMobile ? '1fr' : 'minmax(0,1.6fr) minmax(300px,1fr)',
+      sidebarOrder: isMobile ? -1 : 1,
+      mainOrder: 0,
+      sidebarPosition: isMobile ? 'static' : 'sticky',
+      sidebarTop: isMobile ? 'auto' : '20px',
+      modalAlign: isMobile ? 'flex-end' : 'center',
+      modalRadius: isMobile ? '24px 24px 0 0' : '20px',
+      modalWidth: isMobile ? '100%' : '520px',
+      modalMaxHeight: isMobile ? '88vh' : '90vh',
+      showFloatingCTA: s.showFloatingCTA && isMobile && !s.modalOpen && !isClosed,
+      shareHeading: 'Comparte esta campaña',
+
+      signerType: s.signerType,
+      isSignerOrg: s.signerType === 'organizacion',
+      signerNaturalBg: s.signerType === 'natural' ? '#DCE9E6' : '#fff',
+      signerNaturalColor: '#16261F',
+      signerOrgBg: s.signerType === 'organizacion' ? '#DCE9E6' : '#fff',
+      signerOrgColor: '#16261F',
+      setSignerNatural: () => this.setField('signerType', 'natural'),
+      setSignerOrg: () => this.setField('signerType', 'organizacion'),
+      orgNameInput: s.orgNameInput,
+      onOrgNameChange: (e) => this.setField('orgNameInput', e.target.value),
+      fullName: s.fullName,
+      onFullNameChange: (e) => this.setField('fullName', e.target.value),
+      email: s.email,
+      onEmailChange: (e) => this.setField('email', e.target.value),
+
+      locationType: s.locationType,
+      isLocationEcuador: s.locationType === 'ecuador',
+      isLocationIntl: s.locationType === 'internacional',
+      locEcuadorBg: s.locationType === 'ecuador' ? '#16261F' : '#fff',
+      locEcuadorColor: s.locationType === 'ecuador' ? '#FBF0E6' : '#16261F',
+      locIntlBg: s.locationType === 'internacional' ? '#16261F' : '#fff',
+      locIntlColor: s.locationType === 'internacional' ? '#FBF0E6' : '#16261F',
+      setLocationEcuador: () => this.setField('locationType', 'ecuador'),
+      setLocationIntl: () => this.setField('locationType', 'internacional'),
+      province: s.province,
+      onProvinceChange: (e) => this.setField('province', e.target.value),
+      provinceOptions: this.provinces,
+      country: s.country,
+      onCountryChange: (e) => this.setField('country', e.target.value),
+      cedula: s.cedula,
+      onCedulaChange: (e) => this.setField('cedula', e.target.value),
+
+      visibility: s.visibility,
+      visPublicaBg: s.visibility === 'publica' ? c.categoryColor : '#fff',
+      visPublicaColor: s.visibility === 'publica' ? '#FBF0E6' : '#16261F',
+      visAnonimaBg: s.visibility === 'anonima' ? '#16261F' : '#fff',
+      visAnonimaColor: s.visibility === 'anonima' ? '#FBF0E6' : '#16261F',
+      visSecretaBg: s.visibility === 'secreta' ? '#16261F' : '#fff',
+      visSecretaColor: s.visibility === 'secreta' ? '#FBF0E6' : '#16261F',
+      setVisibilityPublica: () => this.setField('visibility', 'publica'),
+      setVisibilityAnonima: () => this.setField('visibility', 'anonima'),
+      setVisibilitySecreta: () => this.setField('visibility', 'secreta'),
+
+      consent: s.consent,
+      onConsentChange: (e) => this.setField('consent', e.target.checked),
+      submitDisabled: !this.canSubmit(),
+      submitOpacity: !this.canSubmit() ? 0.5 : 1,
+      submit: this.submit,
+
+      retry: this.retry,
+      editForm: this.editForm,
+      confirmEmail: this.confirmEmail,
+      resend: this.resend,
+      resendDisabled: s.resendState === 'sending',
+      resendLabel: s.resendState === 'sending' ? 'Enviando…' : s.resendState === 'sent' ? 'Correo reenviado' : 'Reenviar correo de confirmación',
+      errorMessage: this.errorMessage(),
+      pendingEmail: s.email,
+
+      totalAfterSign: totalAfterSign.toLocaleString('es-EC'),
+      thanksName: (s.fullName || '').trim().split(' ')[0] || 'firmante',
+      newsletterOptIn: s.newsletterOptIn,
+      onNewsletterChange: (e) => this.setField('newsletterOptIn', e.target.checked),
+      copyLink: this.copyLink,
+      copyLabel: s.copyState === 'copied' ? '¡Copiado!' : 'Copiar enlace'
+    };
+  }
+}
+
+</script>
+</body>
+</html>
