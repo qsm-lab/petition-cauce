@@ -1,32 +1,30 @@
 export default function StepSending() {
+  const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
+
   return (
     <div
-      className="flex flex-col items-center justify-center gap-4 py-12"
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "40px 10px" }}
       aria-busy="true"
       aria-live="polite"
     >
       <div
-        className="rounded-full animate-pc-spin"
+        className="animate-pc-spin"
         style={{
-          width: 52,
-          height: 52,
-          border: "5px solid var(--bbord)",
-          borderTopColor: "var(--bp)",
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          border: "4px solid rgba(22,38,31,0.15)",
+          borderTopColor: "#16261F",
+          marginBottom: 20,
         }}
         aria-hidden="true"
       />
-      <p
-        className="font-display font-semibold text-center"
-        style={{ fontSize: 16, color: "var(--bink)", fontFamily: "var(--fd)" }}
-      >
-        Registrando tu firma…
-      </p>
-      <p
-        className="text-center"
-        style={{ fontSize: 13, color: "var(--bmut)" }}
-      >
-        Un momento, no cierres esta ventana.
-      </p>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, marginBottom: 8, color: "#16261F" }}>
+        Enviando tu firma…
+      </div>
+      <div style={{ fontSize: 14, color: "rgba(22,38,31,0.6)" }}>
+        Un momento, estamos procesando tu solicitud.
+      </div>
     </div>
   );
 }

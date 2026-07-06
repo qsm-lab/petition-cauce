@@ -8,29 +8,14 @@ const PROVINCIAS = [
   "Azuay", "Bolívar", "Cañar", "Carchi", "Chimborazo", "Cotopaxi",
   "El Oro", "Esmeraldas", "Galápagos", "Guayas", "Imbabura", "Loja",
   "Los Ríos", "Manabí", "Morona Santiago", "Napo", "Orellana",
-  "Pastaza", "Pichincha", "Santa Elena", "Santo Domingo", "Sucumbíos",
-  "Tungurahua", "Zamora Chinchipe", "Otra",
+  "Pastaza", "Pichincha", "Santa Elena", "Santo Domingo de los Tsáchilas",
+  "Sucumbíos", "Tungurahua", "Zamora Chinchipe", "Otra",
 ];
 
 const ALL_VIS_OPTIONS = [
-  {
-    value: "pub" as const,
-    db: "publica" as const,
-    label: "Pública",
-    desc: "Tu nombre y provincia aparecerán en la lista pública de firmas.",
-  },
-  {
-    value: "anon" as const,
-    db: "anonima" as const,
-    label: "Anónima",
-    desc: 'Aparecerás como "Anónimo". Tus datos van solo a la autoridad. (Recomendado)',
-  },
-  {
-    value: "sec" as const,
-    db: "secreta" as const,
-    label: "Secreta",
-    desc: "No apareces en ninguna lista. Solo la autoridad te cuenta para el total.",
-  },
+  { value: "pub"  as const, db: "publica"  as const, label: "Pública" },
+  { value: "anon" as const, db: "anonima"  as const, label: "Anónima" },
+  { value: "sec"  as const, db: "secreta"  as const, label: "Secreta" },
 ];
 
 export interface FormValues {
@@ -38,10 +23,10 @@ export interface FormValues {
   org_name: string;
   name: string;
   email: string;
+  cedula: string;
   location_mode: "nacional" | "internacional";
   provincia: string;
   country: string;
-  cedula: string;
   visibility: "pub" | "anon" | "sec";
   consent: boolean;
   cf_turnstile_token: string;
@@ -51,77 +36,44 @@ interface Props {
   initial: FormValues;
   campaignTitle: string;
   formConfig: FormConfig;
+  categoryColor: string;
   onSubmit: (values: FormValues) => void;
 }
 
-const inputClass = [
-  "w-full min-h-[48px] px-4 rounded-[16px] text-[15px] outline-none",
-  "transition-colors duration-150",
-  "bg-[var(--bbg)] border-[1.5px] border-[var(--bbord)]",
-  "placeholder:text-[var(--bmut)] text-[var(--bink)]",
-  "focus:border-[var(--bp)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--bp)_40%,transparent)]",
-].join(" ");
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "1.5px solid #16261F",
+  fontSize: 16,
+  fontFamily: "var(--font-work-sans, 'Work Sans', sans-serif)",
+  background: "#fff",
+  color: "#16261F",
+  outline: "none",
+};
 
-function TogglePills<T extends string>({
-  options,
-  value,
-  onChange,
-  labelId,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  labelId: string;
-}) {
-  return (
-    <div role="radiogroup" aria-labelledby={labelId} className="flex gap-2">
-      {options.map((opt) => {
-        const active = value === opt.value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(opt.value)}
-            className="flex-1 min-h-[44px] rounded-[14px] text-[13px] font-semibold transition-all"
-            style={
-              active
-                ? { background: "var(--bp)", color: "var(--bop)", border: "1.5px solid var(--bp)" }
-                : { background: "var(--bbg)", color: "var(--bink)", border: "1.5px solid var(--bbord)" }
-            }
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const labelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+  display: "block",
+  marginBottom: 6,
+  color: "#16261F",
+};
 
-export default function StepForm({ initial, formConfig, onSubmit }: Props) {
+export default function StepForm({ initial, campaignTitle, formConfig, categoryColor, onSubmit }: Props) {
   const [vals, setVals] = useState<FormValues>(initial);
-
   const set = <K extends keyof FormValues>(k: K, v: FormValues[K]) =>
     setVals((prev) => ({ ...prev, [k]: v }));
 
-  const showSignerType = formConfig.signer_types.length > 1;
+  const showSignerType   = formConfig.signer_types.length > 1;
   const showLocationToggle = formConfig.location_modes.length > 1;
-  const required = new Set(formConfig.required_fields);
-
-  const visOptions = ALL_VIS_OPTIONS.filter((o) =>
-    formConfig.visibility_options.includes(o.db)
-  );
-  const showVisGroup = visOptions.length > 1;
-
-  const isInternacional = vals.location_mode === "internacional";
-  const locationRequired = required.has("location");
-  const orgNameRequired = required.has("org_name");
-
-  // Cédula: solo obligatoria con algoritmo cuando es Ecuador
-  const cedulaRequired = !isInternacional && required.has("cedula");
-
-  const canSubmit = vals.consent && vals.cf_turnstile_token !== "";
+  const required          = new Set(formConfig.required_fields);
+  const visOptions        = ALL_VIS_OPTIONS.filter((o) => formConfig.visibility_options.includes(o.db));
+  const showVisGroup      = visOptions.length > 1;
+  const isIntl            = vals.location_mode === "internacional";
+  const cedulaRequired    = !isIntl && required.has("cedula");
+  const canSubmit         = !!(vals.name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email) && vals.consent);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,272 +81,223 @@ export default function StepForm({ initial, formConfig, onSubmit }: Props) {
     onSubmit(vals);
   }
 
-  const visDesc = visOptions.find((o) => o.value === vals.visibility)?.desc ?? "";
+  const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
+  const FONT_BODY    = "var(--font-work-sans, 'Work Sans', sans-serif)";
+
+  // Pill button factory
+  function pill(
+    label: string,
+    active: boolean,
+    onClick: () => void,
+    isPublica = false
+  ) {
+    const bg    = active ? (isPublica ? categoryColor : "#16261F") : "#fff";
+    const color = active ? "#EDF4F1" : "#16261F";
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={onClick}
+        style={{
+          flex: 1,
+          padding: "12px 6px",
+          borderRadius: 24,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: "pointer",
+          background: bg,
+          color,
+          border: "1.5px solid #16261F",
+          fontFamily: FONT_BODY,
+        }}
+      >
+        {label}
+      </button>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 pb-4">
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* Eyebrow */}
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "rgba(22,38,31,0.5)",
+          marginBottom: 8,
+          paddingRight: 40,
+        }}
+      >
+        {campaignTitle}
+      </div>
 
-      {/* ── Tipo de firmante ── */}
+      <h2
+        style={{
+          fontFamily: FONT_DISPLAY,
+          fontWeight: 400,
+          fontSize: 28,
+          margin: "0 0 20px",
+          color: categoryColor,
+        }}
+      >
+        Firmar esta petición
+      </h2>
+
+      {/* Tipo de firmante */}
       {showSignerType && (
-        <div className="flex flex-col gap-2">
-          <p
-            id="signer-type-label"
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--bink)" }}
-          >
-            Firmas como
-          </p>
-          <TogglePills
-            options={[
-              { value: "natural", label: "Persona natural" },
-              { value: "org", label: "Organización" },
-            ]}
-            value={vals.signer_type}
-            onChange={(v) => set("signer_type", v)}
-            labelId="signer-type-label"
-          />
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Tipo de firmante</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {pill("Persona natural", vals.signer_type === "natural", () => set("signer_type", "natural"))}
+            {pill("Organización", vals.signer_type === "org", () => set("signer_type", "org"))}
+          </div>
         </div>
       )}
 
-      {/* Nombre de la organización (condicional) */}
+      {/* Nombre de la org (condicional) */}
       {vals.signer_type === "org" && (
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="sig-org-name"
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--bink)" }}
-          >
-            Nombre de la organización{" "}
-            {orgNameRequired && <span aria-hidden="true">*</span>}
-          </label>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Nombre de la organización</label>
           <input
-            id="sig-org-name"
             type="text"
-            required={orgNameRequired}
             value={vals.org_name}
             onChange={(e) => set("org_name", e.target.value)}
-            className={inputClass}
+            style={inputStyle}
             placeholder="Nombre de tu organización"
           />
         </div>
       )}
 
-      {/* ── Nombre ── */}
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="sig-name"
-          className="text-[13px] font-semibold"
-          style={{ color: "var(--bink)" }}
-        >
-          Nombre completo <span aria-hidden="true">*</span>
-        </label>
+      {/* Nombre completo */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Nombre completo *</label>
         <input
-          id="sig-name"
           type="text"
           required
           autoComplete="name"
           value={vals.name}
           onChange={(e) => set("name", e.target.value)}
-          className={inputClass}
+          style={inputStyle}
           placeholder="Nombre Apellido"
         />
       </div>
 
-      {/* ── Email ── */}
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="sig-email"
-          className="text-[13px] font-semibold"
-          style={{ color: "var(--bink)" }}
-        >
-          Correo electrónico <span aria-hidden="true">*</span>
-        </label>
+      {/* Correo */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Correo electrónico *</label>
         <input
-          id="sig-email"
           type="email"
           required
           autoComplete="email"
           value={vals.email}
           onChange={(e) => set("email", e.target.value)}
-          className={inputClass}
+          style={inputStyle}
           placeholder="tu@correo.com"
         />
-        <p style={{ fontSize: 12, color: "var(--bmut)" }}>
-          Lo usamos solo para confirmar tu firma. No lo publicamos.
-        </p>
       </div>
 
-      {/* ── Toggle Nacional / Internacional ── */}
+      {/* Ubicación toggle */}
       {showLocationToggle && (
-        <div className="flex flex-col gap-2">
-          <p
-            id="location-mode-label"
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--bink)" }}
-          >
-            ¿Firmas desde?
-          </p>
-          <TogglePills
-            options={[
-              { value: "nacional", label: "Ecuador" },
-              { value: "internacional", label: "Internacional" },
-            ]}
-            value={vals.location_mode}
-            onChange={(v) => {
-              set("location_mode", v);
-              if (v === "nacional") set("country", "");
-              else set("provincia", "");
-            }}
-            labelId="location-mode-label"
-          />
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Ubicación</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {pill("Ecuador", vals.location_mode === "nacional", () => {
+              set("location_mode", "nacional");
+              set("country", "");
+            })}
+            {pill("Internacional", vals.location_mode === "internacional", () => {
+              set("location_mode", "internacional");
+              set("provincia", "");
+            })}
+          </div>
         </div>
       )}
 
-      {/* Provincia (Ecuador) */}
+      {/* Provincia */}
       {vals.location_mode === "nacional" && (
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="sig-prov"
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--bink)" }}
-          >
-            Provincia{" "}
-            {locationRequired && <span aria-hidden="true">*</span>}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>
+            Provincia {required.has("location") && <span aria-hidden="true">*</span>}
           </label>
           <select
-            id="sig-prov"
-            required={locationRequired}
             value={vals.provincia}
             onChange={(e) => set("provincia", e.target.value)}
-            className={inputClass + " appearance-none"}
-            style={{ background: "var(--bbg)" }}
+            required={required.has("location")}
+            style={{ ...inputStyle, appearance: "none" as const }}
           >
-            <option value="">Selecciona tu provincia</option>
-            {PROVINCIAS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
+            <option value="">Selecciona...</option>
+            {PROVINCIAS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
       )}
 
-      {/* País (Internacional) */}
-      {isInternacional && (
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="sig-country"
-            className="text-[13px] font-semibold"
-            style={{ color: "var(--bink)" }}
-          >
-            País{" "}
-            {locationRequired && <span aria-hidden="true">*</span>}
+      {/* País (internacional) */}
+      {isIntl && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>
+            País {required.has("location") && <span aria-hidden="true">*</span>}
           </label>
           <input
-            id="sig-country"
             type="text"
-            required={locationRequired}
+            required={required.has("location")}
             autoComplete="country-name"
             value={vals.country}
             onChange={(e) => set("country", e.target.value)}
-            className={inputClass}
+            style={inputStyle}
             placeholder="Ej. Colombia, España, EE.UU."
           />
         </div>
       )}
 
-      {/* ── Identificación ── */}
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="sig-cedula"
-          className="text-[13px] font-semibold"
-          style={{ color: "var(--bink)" }}
-        >
-          {isInternacional
-            ? "Número de identificación"
-            : "Cédula de identidad"}
-          {" "}
+      {/* Cédula */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>
+          {isIntl ? "Número de identificación" : "Cédula de identidad"}{" "}
           {cedulaRequired
             ? <span aria-hidden="true">*</span>
-            : <span style={{ fontWeight: 400, color: "var(--bmut)" }}>(opcional)</span>
+            : <span style={{ fontWeight: 400, color: "rgba(22,38,31,0.5)" }}>(opcional)</span>
           }
         </label>
         <input
-          id="sig-cedula"
           type="text"
-          inputMode={isInternacional ? "text" : "numeric"}
+          inputMode={isIntl ? "text" : "numeric"}
           required={cedulaRequired}
           pattern={cedulaRequired ? "[0-9]{10}" : undefined}
-          maxLength={isInternacional ? undefined : 10}
+          maxLength={isIntl ? undefined : 10}
           value={vals.cedula}
-          onChange={(e) =>
-            set(
-              "cedula",
-              isInternacional ? e.target.value : e.target.value.replace(/\D/g, "")
-            )
-          }
-          className={inputClass}
-          placeholder={isInternacional ? "Tu número de identificación" : "0102030405"}
+          onChange={(e) => set("cedula", isIntl ? e.target.value : e.target.value.replace(/\D/g, ""))}
+          style={inputStyle}
+          placeholder={isIntl ? "Tu número de identificación" : "0102030405"}
         />
-        {isInternacional && (
-          <p style={{ fontSize: 12, color: "var(--bmut)" }}>
-            Pasaporte, DNI u otro documento según tu país.
-          </p>
-        )}
       </div>
 
-      {/* ── Visibilidad ── */}
+      {/* Visibilidad */}
       {showVisGroup && (
-        <div>
-          <p
-            className="text-[13px] font-semibold mb-2"
-            style={{ color: "var(--bink)" }}
-            id="vis-group-label"
-          >
-            ¿Cómo quieres aparecer?
-          </p>
-          <div
-            role="radiogroup"
-            aria-labelledby="vis-group-label"
-            className="flex gap-2"
-          >
-            {visOptions.map((opt) => {
-              const active = vals.visibility === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => set("visibility", opt.value)}
-                  className="flex-1 min-h-[48px] rounded-[14px] text-[13px] font-semibold transition-all"
-                  style={
-                    active
-                      ? { background: "var(--bp)", color: "var(--bop)", border: "1.5px solid var(--bp)" }
-                      : { background: "var(--bbg)", color: "var(--bink)", border: "1.5px solid var(--bbord)" }
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Visibilidad de tu firma</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {visOptions.map((opt) =>
+              pill(
+                opt.label,
+                vals.visibility === opt.value,
+                () => set("visibility", opt.value),
+                opt.value === "pub"
+              )
+            )}
           </div>
-          {visDesc && (
-            <p
-              className="mt-2 text-[12px] leading-relaxed"
-              style={{ color: "var(--bmut)" }}
-            >
-              {visDesc}
-            </p>
-          )}
         </div>
       )}
 
-      {/* ── Consentimiento ── */}
+      {/* Consentimiento LOPDP */}
       <label
-        className="flex items-start gap-3 cursor-pointer rounded-[16px] p-3 transition-colors"
         style={{
-          border: `1.5px solid ${vals.consent ? "var(--bp)" : "var(--bbord)"}`,
+          display: "flex",
+          gap: 10,
+          alignItems: "flex-start",
+          cursor: "pointer",
+          marginBottom: 8,
         }}
       >
         <input
@@ -402,25 +305,23 @@ export default function StepForm({ initial, formConfig, onSubmit }: Props) {
           required
           checked={vals.consent}
           onChange={(e) => set("consent", e.target.checked)}
-          className="mt-0.5 w-[22px] h-[22px] shrink-0 accent-brand-primary"
+          style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0 }}
           aria-label="Acepto el aviso de privacidad"
         />
-        <span style={{ fontSize: 13, color: "var(--bink)", lineHeight: 1.5 }}>
-          He leído y acepto el{" "}
-          <a
-            href="/aviso-de-privacidad"
-            target="_blank"
-            className="underline"
-            style={{ color: "var(--bp)" }}
-          >
+        <span style={{ fontSize: 13, lineHeight: 1.5, color: "#16261F" }}>
+          Acepto el tratamiento de mis datos según el{" "}
+          <a href="/aviso-de-privacidad" target="_blank" style={{ color: "#16261F", textDecoration: "underline" }}>
             aviso de privacidad
-          </a>
-          . Mis datos se entregan a la autoridad como respaldo del trámite.
-          Puedo revocar mi consentimiento cuando quiera.
+          </a>.
         </span>
       </label>
 
-      {/* Turnstile */}
+      {/* Nota anti-bot — solo texto, sin espacio reservado visible */}
+      <div style={{ fontSize: 12, color: "rgba(22,38,31,0.45)", marginBottom: 20 }}>
+        Protegido con verificación de seguridad automática.
+      </div>
+
+      {/* Turnstile invisible */}
       <TurnstileWidget
         onVerify={(token) => set("cf_turnstile_token", token)}
         onExpire={() => set("cf_turnstile_token", "")}
@@ -431,34 +332,22 @@ export default function StepForm({ initial, formConfig, onSubmit }: Props) {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full font-display font-bold rounded-full text-[16px] transition-all"
-        style={
-          canSubmit
-            ? {
-                minHeight: 52,
-                background: "var(--bp)",
-                color: "var(--bop)",
-                fontFamily: "var(--fd)",
-                boxShadow: "0 6px 18px color-mix(in srgb,var(--bp) 32%,transparent)",
-              }
-            : {
-                minHeight: 52,
-                background: "var(--bbord)",
-                color: "var(--bmut)",
-                cursor: "not-allowed",
-                fontFamily: "var(--fd)",
-              }
-        }
+        style={{
+          width: "100%",
+          fontSize: 17,
+          fontWeight: 700,
+          color: canSubmit ? "#16261F" : "rgba(22,38,31,0.4)",
+          background: canSubmit ? "#D7F24C" : "rgba(22,38,31,0.1)",
+          border: "none",
+          borderRadius: 30,
+          padding: 18,
+          cursor: canSubmit ? "pointer" : "not-allowed",
+          fontFamily: FONT_BODY,
+          marginBottom: 16,
+        }}
       >
-        Firmar la petición
+        Firmar esta petición
       </button>
-
-      <p
-        className="text-center"
-        style={{ fontSize: 12, color: "var(--bmut)" }}
-      >
-        Verificación anti-bot invisible · doble confirmación por correo
-      </p>
     </form>
   );
 }

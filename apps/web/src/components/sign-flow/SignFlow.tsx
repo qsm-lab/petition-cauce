@@ -6,7 +6,12 @@ import StepSending from "./StepSending";
 import StepSuccess from "./StepSuccess";
 import StepError from "./StepError";
 import StepThanks from "./StepThanks";
-import { submitSignature, getCampaignCount, resendConfirmation, type SignatureError } from "@/lib/signatures-api";
+import {
+  submitSignature,
+  getCampaignCount,
+  resendConfirmation,
+  type SignatureError,
+} from "@/lib/signatures-api";
 import type { FormConfig } from "@/lib/campaign-api";
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -16,6 +21,7 @@ interface Props {
   campaignTitle: string;
   campaignUrl: string;
   formConfig: FormConfig;
+  categoryColor: string;
   onClose: () => void;
 }
 
@@ -25,7 +31,6 @@ function buildInitForm(formConfig: FormConfig): FormValues {
     : formConfig.visibility_options[0] === "publica"
     ? "pub"
     : "sec";
-
   return {
     signer_type: "natural",
     org_name: "",
@@ -43,20 +48,13 @@ function buildInitForm(formConfig: FormConfig): FormValues {
 
 function errorMessage(err: SignatureError): string {
   switch (err.type) {
-    case "ya_firmaste":
-      return "Ya firmaste esta campaña con este correo. Si crees que es un error, contacta al administrador.";
-    case "cedula_invalida":
-      return "La cédula ingresada no es válida. Por favor verifica el número.";
-    case "cedula_requerida":
-      return "La cédula es obligatoria para esta campaña.";
-    case "turnstile_failed":
-      return "La verificación anti-bot no pasó. Actualiza la página e intenta de nuevo.";
-    case "rate_limit":
-      return "Demasiados intentos. Espera un minuto e intenta de nuevo.";
-    case "network":
-      return "Sin conexión. Verifica tu internet e intenta de nuevo.";
-    default:
-      return "Hubo un problema de conexión. Tus datos no se perdieron: solo vuelve a intentar.";
+    case "ya_firmaste":    return "Ya registramos una firma tuya en esta campaña.";
+    case "cedula_invalida": return "La cédula ingresada no es válida. Revísala e inténtalo de nuevo.";
+    case "cedula_requerida": return "La cédula es obligatoria para esta campaña.";
+    case "turnstile_failed": return "La verificación anti-bot no pasó. Actualiza la página e intenta de nuevo.";
+    case "rate_limit":    return "Demasiados intentos. Esperá unos minutos e inténtalo de nuevo.";
+    case "network":       return "No pudimos conectar. Revisá tu conexión e inténtalo de nuevo.";
+    default:              return "Algo salió mal. Inténtalo de nuevo.";
   }
 }
 
@@ -65,24 +63,19 @@ export default function SignFlow({
   campaignTitle,
   campaignUrl,
   formConfig,
+  categoryColor,
   onClose,
 }: Props) {
-  const [step, setStep] = useState<Step>(0);
-  const [form, setForm] = useState<FormValues>(() => buildInitForm(formConfig));
-  const [errorMsg, setErrorMsg] = useState("");
-  const [confirmData, setConfirmData] = useState<{
-    count: number;
-    goal: number | null;
-  } | null>(null);
+  const [step, setStep]           = useState<Step>(0);
+  const [form, setForm]           = useState<FormValues>(() => buildInitForm(formConfig));
+  const [errorMsg, setErrorMsg]   = useState("");
+  const [confirmData, setConfirmData] = useState<{ count: number; goal: number | null } | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
-
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Close on Esc
+  // Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
@@ -95,21 +88,14 @@ export default function SignFlow({
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
     const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+    const last  = focusable[focusable.length - 1];
     first?.focus();
-
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        }
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
       } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
+        if (document.activeElement === last)  { e.preventDefault(); first?.focus(); }
       }
     };
     el.addEventListener("keydown", trap);
@@ -119,7 +105,6 @@ export default function SignFlow({
   async function handleSubmit(values: FormValues) {
     setForm(values);
     setStep(1);
-
     const result = await submitSignature(campaignId, {
       signer_type: values.signer_type,
       org_name: values.signer_type === "org" ? values.org_name : undefined,
@@ -134,13 +119,8 @@ export default function SignFlow({
       subscribe_newsletter: false,
       cf_turnstile_token: values.cf_turnstile_token,
     });
-
-    if (result.ok) {
-      setStep(2);
-    } else {
-      setErrorMsg(errorMessage(result.error));
-      setStep(3);
-    }
+    if (result.ok) { setStep(2); }
+    else { setErrorMsg(errorMessage(result.error)); setStep(3); }
   }
 
   async function handleContinue() {
@@ -149,121 +129,96 @@ export default function SignFlow({
     setStep(4);
   }
 
-  const stepTitle =
-    step === 4 ? "Tu apoyo quedó registrado" : "Firmar esta petición";
-
-  const requiredCount = formConfig.required_fields.length;
+  const FONT_BODY = "var(--font-work-sans, 'Work Sans', sans-serif)";
 
   return (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center"
-      style={{ background: "rgba(15,20,16,.5)", backdropFilter: "blur(2px)" }}
+      className="fixed inset-0 z-[100] flex items-end md:items-center md:justify-center"
+      style={{ background: "rgba(18,34,46,.55)", backdropFilter: "blur(3px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      aria-hidden="false"
+      role="dialog"
+      aria-modal="true"
+      aria-label={step === 4 ? "Tu apoyo quedó registrado" : "Firmar esta petición"}
     >
-      {/* Sheet / Modal */}
+      {/* Panel */}
       <div
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={stepTitle}
-        className="
-          w-full md:max-w-[420px]
-          rounded-t-[28px] md:rounded-[28px]
-          flex flex-col
-          animate-pc-rise
-          overflow-hidden
-        "
+        onClick={(e) => e.stopPropagation()}
+        className="w-full md:max-w-[520px] rounded-t-[24px] md:rounded-[20px] max-h-[88vh] md:max-h-[90vh] overflow-y-auto"
         style={{
-          background: "var(--bsurf)",
-          maxHeight: "92dvh",
+          background: "#fff",
+          padding: 28,
+          position: "relative",
+          boxShadow: "0 20px 60px rgba(22,38,31,.3)",
+          boxSizing: "border-box",
+          fontFamily: FONT_BODY,
         }}
       >
-        {/* Header */}
-        <div
-          className="shrink-0 px-5 pt-4 pb-3 flex items-start"
-          style={{ borderBottom: "1px solid var(--bbord)" }}
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          aria-label="Cerrar"
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: "#FBF0E6",
+            border: "none",
+            fontSize: 16,
+            cursor: "pointer",
+            color: "#16261F",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {/* Drag handle (mobile) */}
-          <div className="md:hidden w-full flex justify-center mb-3 absolute left-0 top-3 pointer-events-none">
-            <div
-              className="rounded-full"
-              style={{ width: 38, height: 5, background: "var(--bbord)" }}
-            />
-          </div>
+          ✕
+        </button>
 
-          <div className="flex-1 mt-6 md:mt-0">
-            <p
-              className="font-display font-bold"
-              style={{
-                fontSize: 17,
-                color: "var(--bink)",
-                fontFamily: "var(--fd)",
-              }}
-            >
-              {stepTitle}
-            </p>
-            {step === 0 && (
-              <p style={{ fontSize: 12.5, color: "var(--bmut)" }}>
-                {campaignTitle} · {requiredCount} datos obligatorios
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={onClose}
-            className="ml-2 mt-4 md:mt-0 shrink-0 rounded-full flex items-center justify-center transition-colors hover:bg-[var(--bbg)]"
-            style={{ width: 44, height: 44, color: "var(--bmut)", fontSize: 22 }}
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body (scrollable) */}
-        <div className="flex-1 overflow-y-auto px-5 pt-4">
-          {step === 0 && (
-            <StepForm
-              initial={form}
-              campaignTitle={campaignTitle}
-              formConfig={formConfig}
-              onSubmit={handleSubmit}
-            />
-          )}
-          {step === 1 && <StepSending />}
-          {step === 2 && (
-            <StepSuccess
-              email={form.email}
-              resendState={resendState}
-              onContinue={handleContinue}
-              onResend={async () => {
-                setResendState("sending");
-                await resendConfirmation(campaignId, form.email);
-                setResendState("sent");
-              }}
-            />
-          )}
-          {step === 3 && (
-            <StepError
-              message={errorMsg}
-              onRetry={() => handleSubmit(form)}
-              onBack={() => setStep(0)}
-            />
-          )}
-          {step === 4 && (
-            <StepThanks
-              name={form.name}
-              count={confirmData?.count ?? 0}
-              goal={confirmData?.goal ?? null}
-              campaignUrl={campaignUrl}
-              campaignTitle={campaignTitle}
-              onSubscribe={() => {
-                /* TODO: update newsletter consent */
-              }}
-            />
-          )}
-        </div>
+        {step === 0 && (
+          <StepForm
+            initial={form}
+            campaignTitle={campaignTitle}
+            formConfig={formConfig}
+            categoryColor={categoryColor}
+            onSubmit={handleSubmit}
+          />
+        )}
+        {step === 1 && <StepSending />}
+        {step === 2 && (
+          <StepSuccess
+            email={form.email}
+            resendState={resendState}
+            onContinue={handleContinue}
+            onResend={async () => {
+              setResendState("sending");
+              await resendConfirmation(campaignId, form.email);
+              setResendState("sent");
+            }}
+          />
+        )}
+        {step === 3 && (
+          <StepError
+            message={errorMsg}
+            onRetry={() => handleSubmit(form)}
+            onBack={() => setStep(0)}
+          />
+        )}
+        {step === 4 && (
+          <StepThanks
+            name={form.name}
+            count={confirmData?.count ?? 0}
+            goal={confirmData?.goal ?? null}
+            campaignUrl={campaignUrl}
+            campaignTitle={campaignTitle}
+            categoryColor={categoryColor}
+            onSubscribe={() => { /* TODO: newsletter consent */ }}
+          />
+        )}
       </div>
     </div>
   );

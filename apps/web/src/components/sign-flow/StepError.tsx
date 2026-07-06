@@ -1,51 +1,60 @@
 interface Props {
+  message?: string;
   onRetry: () => void;
   onBack: () => void;
-  message?: string;
 }
 
-export default function StepError({ onRetry, onBack, message }: Props) {
+export default function StepError({ message, onRetry, onBack }: Props) {
+  const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
+  const FONT_BODY    = "var(--font-work-sans, 'Work Sans', sans-serif)";
+
   return (
     <div
-      className="flex flex-col items-center gap-5 py-8 px-2"
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "20px 10px 10px" }}
       aria-live="assertive"
     >
-      {/* Icon */}
+      {/* Alert icon */}
       <div
-        className="flex items-center justify-center rounded-full text-[28px] animate-pc-pop"
         style={{
-          width: 64,
-          height: 64,
-          background: "color-mix(in srgb,#d9483b 12%,transparent)",
-          color: "#d9483b",
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "#FBEAE4",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 24,
+          marginBottom: 20,
+          color: "#FF5A2B",
+          fontWeight: 700,
         }}
         aria-hidden="true"
       >
-        ⚠
+        !
       </div>
 
-      <div className="text-center">
-        <h2
-          className="font-display font-bold mb-2"
-          style={{ fontSize: 18, color: "var(--bink)", fontFamily: "var(--fd)" }}
-        >
-          No pudimos registrar tu firma
-        </h2>
-        <p style={{ fontSize: 14, color: "var(--bmut)", lineHeight: 1.6 }}>
-          {message ||
-            "Tus datos no se perdieron. Solo vuelve a intentarlo."}
-        </p>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, marginBottom: 10, color: "#16261F" }}>
+        No pudimos registrar tu firma
+      </div>
+
+      <div style={{ fontSize: 15, color: "rgba(22,38,31,0.7)", lineHeight: 1.5, marginBottom: 24 }}>
+        {message ?? "Tus datos no se perdieron. Solo vuelve a intentarlo."}
       </div>
 
       <button
         onClick={onRetry}
-        className="w-full font-display font-bold rounded-full transition-all hover:brightness-110"
         style={{
-          minHeight: 52,
-          background: "var(--bp)",
-          color: "var(--bop)",
+          width: "100%",
           fontSize: 16,
-          fontFamily: "var(--fd)",
+          fontWeight: 700,
+          color: "#16261F",
+          background: "#D7F24C",
+          border: "none",
+          borderRadius: 30,
+          padding: 16,
+          cursor: "pointer",
+          marginBottom: 12,
+          fontFamily: FONT_BODY,
         }}
       >
         Reintentar
@@ -53,14 +62,20 @@ export default function StepError({ onRetry, onBack, message }: Props) {
 
       <button
         onClick={onBack}
-        className="w-full rounded-full font-semibold text-[14px] transition-opacity hover:opacity-75"
         style={{
-          minHeight: 46,
-          border: "1.5px solid var(--bbord)",
-          color: "var(--bink)",
+          width: "100%",
+          fontSize: 14,
+          fontWeight: 600,
+          color: "#16261F",
+          background: "#fff",
+          border: "1.5px solid #16261F",
+          borderRadius: 30,
+          padding: 14,
+          cursor: "pointer",
+          fontFamily: FONT_BODY,
         }}
       >
-        Volver al formulario
+        Editar mis datos
       </button>
     </div>
   );
