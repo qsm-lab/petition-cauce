@@ -18,9 +18,10 @@ services:
       POSTGRES_USER: petition_admin
       POSTGRES_PASSWORD: devpassword123
       POSTGRES_DB: petition_cause
+      PETITION_APP_PASSWORD: ${PETITION_APP_PASSWORD:-devapppassword123}
     volumes:
       - petition_db_dev_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./database/init.sh:/docker-entrypoint-initdb.d/01_init.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U petition_admin -d petition_cause"]
       interval: 10s
