@@ -27,7 +27,7 @@ async def create_category(
         return await CategoryService.create_category(db, data, current_user.org_id)
     except Exception as e:
         if "uq_categories_slug_org" in str(e):
-            raise HTTPException(status_code=409, detail="Slug de categoría ya existe")
+            raise HTTPException(status_code=409, detail="Ya existe una categoría con ese nombre")
         raise
 
 

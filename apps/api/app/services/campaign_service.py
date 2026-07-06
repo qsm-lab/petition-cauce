@@ -90,10 +90,20 @@ class CampaignService:
 
     @staticmethod
     async def create_campaign(db: AsyncSession, data: CampaignCreate, user: User) -> Campaign:
-        payload = data.model_dump()
-        if payload.get("petition_body") is None:
+        payload = data.model_dump(exclude_none=True)
+        if "petition_body" not in payload:
             payload["petition_body"] = {}
-        campaign = Campaign(created_by=user.id, org_id=user.org_id, **payload)
+        # org_id del usuario tiene precedencia; solo se sobreescribe si se pasa explícitamente
+        payload["org_id"] = payload.get("org_id") or user.org_id
+        # Extraer campos meta antes de construir el modelo
+        meta_fields = {k: payload.pop(k) for k in list(payload) if k in _META_FIELDS}
+        campaign = Campaign(created_by=user.id, **payload)
+        if meta_fields:
+            meta: dict = {}
+            if "form_config" in meta_fields:
+                meta["form_config"] = meta_fields.pop("form_config")
+            meta.update(meta_fields)
+            campaign.meta = meta
         db.add(campaign)
         await db.commit()
         await db.refresh(campaign)
