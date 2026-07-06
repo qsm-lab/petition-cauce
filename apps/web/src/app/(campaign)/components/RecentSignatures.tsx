@@ -6,9 +6,10 @@ import type { RecentSignature } from "@/lib/campaign-api";
 interface Props {
   campaignId: string;
   initial: RecentSignature[];
+  categoryColor: string;
 }
 
-export default function RecentSignatures({ campaignId, initial }: Props) {
+export default function RecentSignatures({ campaignId, initial, categoryColor }: Props) {
   const [sigs, setSigs] = useState<RecentSignature[]>(initial);
 
   useEffect(() => {
@@ -19,96 +20,147 @@ export default function RecentSignatures({ campaignId, initial }: Props) {
           `${apiUrl}/v1/public-campaign/${campaignId}/signatures/recent?limit=10`
         );
         if (res.ok) setSigs(await res.json());
-      } catch {
-        // silent — no mostrar error en poll
-      }
+      } catch { /* silent */ }
     };
-
     const id = setInterval(poll, 30_000);
     return () => clearInterval(id);
   }, [campaignId]);
 
+  const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
+
   return (
-    <div
-      className="rounded-petition p-5"
-      style={{ background: "var(--bsurf)", border: "1px solid var(--bbord)" }}
-    >
-      {/* Live indicator */}
-      <div className="flex items-center gap-2 mb-4">
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <span
-          className="inline-block rounded-full animate-pc-pulse"
-          style={{ width: 8, height: 8, background: "var(--bsec)" }}
+          className="animate-cauce-live-dot"
+          style={{
+            width: 9,
+            height: 9,
+            borderRadius: "50%",
+            background: categoryColor,
+            flexShrink: 0,
+            display: "inline-block",
+            // CSS custom property para el color del halo de pulso
+            ["--cauce-dot-color" as string]: categoryColor + "72",
+          }}
           aria-hidden="true"
         />
-        <span
-          className="uppercase font-bold tracking-[0.06em]"
-          style={{ fontSize: 11, color: "var(--bmut)" }}
+        <h2
+          style={{
+            fontFamily: FONT_DISPLAY,
+            fontWeight: 400,
+            fontSize: 24,
+            margin: 0,
+            color: "#16261F",
+          }}
         >
           Firmas recientes
-        </span>
+        </h2>
       </div>
 
-      {sigs.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--bmut)" }}>
-          Sé el primero en firmar esta campaña.
-        </p>
-      ) : (
-        <ul>
-          {sigs.map((sig, i) => (
-            <li
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          border: "1.5px solid #16261F",
+          borderRadius: 14,
+          overflow: "hidden",
+          background: "#fff",
+        }}
+      >
+        {sigs.length === 0 ? (
+          <p style={{ fontSize: 14, color: "rgba(22,38,31,0.6)", padding: "18px 18px", margin: 0 }}>
+            Sé el primero en firmar esta campaña.
+          </p>
+        ) : (
+          sigs.map((sig, i) => (
+            <div
               key={i}
-              className="flex items-center gap-[11px] py-2"
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "14px 18px",
                 borderBottom:
-                  i < sigs.length - 1
-                    ? "1px solid color-mix(in srgb,var(--bbord) 60%,transparent)"
-                    : "none",
+                  i < sigs.length - 1 ? "1px solid rgba(22,38,31,0.1)" : "none",
               }}
             >
-              {/* Avatar */}
-              <div
-                className="shrink-0 flex items-center justify-center rounded-full text-[13px] font-semibold"
-                style={
-                  sig.is_anon
-                    ? {
-                        width: 34,
-                        height: 34,
-                        background: "var(--bbg)",
-                        color: "var(--bmut)",
-                        border: "1px solid var(--bbord)",
-                      }
-                    : {
-                        width: 34,
-                        height: 34,
-                        background:
-                          "color-mix(in srgb,var(--bp) 15%,transparent)",
-                        color: "var(--bp)",
-                      }
-                }
-              >
-                {sig.is_anon ? "🔒" : sig.name_display[0]}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p
-                  className="font-semibold truncate"
-                  style={{ fontSize: 13.5, color: "var(--bink)" }}
+              {sig.is_anon ? (
+                /* Anon / secret avatar — lock icon */
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    background: "rgba(22,38,31,0.08)",
+                    flexShrink: 0,
+                    position: "relative",
+                  }}
                 >
+                  <div
+                    style={{
+                      width: 12,
+                      height: 9,
+                      border: "2px solid #16261F",
+                      borderBottom: "none",
+                      borderRadius: "6px 6px 0 0",
+                      position: "absolute",
+                      top: 6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: 16,
+                      height: 11,
+                      background: "#16261F",
+                      borderRadius: 3,
+                      position: "absolute",
+                      bottom: 6,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                    }}
+                  />
+                </div>
+              ) : (
+                /* Public avatar — colored initial */
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    background: categoryColor,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  {(sig.name_display || "?").charAt(0)}
+                </div>
+              )}
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#16261F" }}>
                   {sig.name_display}
-                </p>
-                <p style={{ fontSize: 11.5, color: "var(--bmut)" }}>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(22,38,31,0.68)" }}>
                   {sig.provincia}
                   {sig.provincia && sig.time_ago ? " · " : ""}
                   {sig.time_ago}
-                </p>
+                </div>
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          ))
+        )}
+      </div>
 
-      <p className="mt-3" style={{ fontSize: 11.5, color: "var(--bmut)" }}>
-        Quienes eligen firma anónima o secreta aparecen como &ldquo;Anónimo&rdquo;.
+      <p style={{ fontSize: 12, fontWeight: 500, color: "rgba(22,38,31,0.65)", marginTop: 10, lineHeight: 1.5 }}>
+        Las firmas se muestran según la visibilidad elegida por cada firmante: pública, anónima o secreta.
       </p>
     </div>
   );

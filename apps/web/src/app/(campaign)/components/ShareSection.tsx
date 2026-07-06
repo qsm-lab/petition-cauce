@@ -13,39 +13,6 @@ interface Props {
   shareText?: string | null;
 }
 
-const IcoWA = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.554 4.103 1.523 5.832L0 24l6.335-1.498A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.034-1.396l-.361-.214-3.742.985.998-3.648-.235-.374A9.771 9.771 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.432 0 9.818 4.388 9.818 9.818 0 5.432-4.386 9.818-9.818 9.818z"/>
-  </svg>
-);
-
-const IcoFB = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.931-1.956 1.887v2.256h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
-  </svg>
-);
-
-const IcoX = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-);
-
-const IcoEmail = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="2" y="4" width="20" height="16" rx="2"/>
-    <path d="M2 7l10 7 10-7"/>
-  </svg>
-);
-
-const IcoLink = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-  </svg>
-);
-
 const IcoDownload = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -54,7 +21,15 @@ const IcoDownload = () => (
   </svg>
 );
 
-export default function ShareSection({ title, url, status, attachments = [], showQr = false, qrCodeData, shareText }: Props) {
+export default function ShareSection({
+  title,
+  url,
+  status,
+  attachments = [],
+  showQr = false,
+  qrCodeData,
+  shareText,
+}: Props) {
   const [copied, setCopied] = useState(false);
   const isClosed = status === "closed";
 
@@ -66,110 +41,183 @@ export default function ShareSection({ title, url, status, attachments = [], sho
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 1500);
     } catch { /* silent */ }
   }
 
-  const pillBase = "inline-flex items-center justify-center gap-2 min-h-[44px] rounded-full font-semibold text-[13px] transition-opacity";
-  const disabledStyle = isClosed ? { opacity: 0.35, pointerEvents: "none" as const, cursor: "not-allowed" as const } : {};
+  const secondaryBtn: React.CSSProperties = {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 600,
+    color: "#16261F",
+    background: "#fff",
+    border: "1.5px solid #16261F",
+    borderRadius: 24,
+    padding: 12,
+    cursor: "pointer",
+  };
+
+  const disabledStyle: React.CSSProperties = isClosed
+    ? { opacity: 0.5, pointerEvents: "none", cursor: "not-allowed" }
+    : {};
 
   return (
     <div
-      className="rounded-petition p-5 flex flex-col gap-3"
-      style={{ background: "var(--bsurf)", border: "1px solid var(--bbord)" }}
+      style={{
+        background: "#fff",
+        border: "1.5px solid #16261F",
+        borderRadius: 18,
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}
     >
-      <h3
-        className="font-display font-bold"
-        style={{ fontSize: 15, color: isClosed ? "var(--bmut)" : "var(--bink)", fontFamily: "var(--fd)" }}
-      >
+      <div style={{ fontSize: 16, fontWeight: 700, color: "#16261F" }}>
         {isClosed ? "Campaña cerrada — comparte el resultado" : "Comparte esta campaña"}
-      </h3>
+      </div>
 
-      {/* WhatsApp */}
+      {/* WhatsApp — dark ink blue, full width */}
       <a
         href={`https://wa.me/?text=${text}`}
-        target="_blank" rel="noopener noreferrer"
-        className={`${pillBase} w-full hover:opacity-80`}
-        style={{ background: "var(--bp)", color: "var(--bop)", minHeight: 48, ...disabledStyle }}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          fontSize: 15,
+          fontWeight: 700,
+          color: "#FBF0E6",
+          background: "#12222E",
+          border: "none",
+          borderRadius: 24,
+          padding: "14px 18px",
+          textDecoration: "none",
+          boxSizing: "border-box",
+          ...disabledStyle,
+        }}
       >
-        <IcoWA /> WhatsApp
+        {/* Chat bubble icon (no marca registrada) */}
+        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, position: "relative", flexShrink: 0 }}>
+          <span style={{ width: 17, height: 13, borderRadius: 7, background: "#FBF0E6", display: "block" }} />
+          <span style={{ position: "absolute", bottom: -3, left: 3, width: 0, height: 0, borderLeft: "3px solid transparent", borderRight: "3px solid transparent", borderTop: "5px solid #FBF0E6" }} />
+        </span>
+        Compartir por WhatsApp
       </a>
 
-      {/* Facebook + X + Email */}
-      <div className="flex gap-2">
+      {/* Facebook / X / Email */}
+      <div style={{ display: "flex", gap: 8 }}>
         <a
           href={`https://www.facebook.com/sharer/sharer.php?u=${encoded}`}
-          target="_blank" rel="noopener noreferrer"
-          className={`${pillBase} flex-1 hover:opacity-80`}
-          style={{ border: "1.5px solid var(--bbord)", color: "var(--bmut)", fontSize: 12, ...disabledStyle }}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
         >
-          <IcoFB /> Facebook
+          Facebook
         </a>
         <a
           href={`https://twitter.com/intent/tweet?text=${text}`}
-          target="_blank" rel="noopener noreferrer"
-          className={`${pillBase} flex-1 hover:opacity-80`}
-          style={{ border: "1.5px solid var(--bbord)", color: "var(--bmut)", fontSize: 12, ...disabledStyle }}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
         >
-          <IcoX /> X
+          X
         </a>
         <a
           href={`mailto:?subject=${encodeURIComponent(title)}&body=${text}`}
-          className={`${pillBase} flex-1 hover:opacity-80`}
-          style={{ border: "1.5px solid var(--bbord)", color: "var(--bmut)", fontSize: 12, ...disabledStyle }}
+          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
         >
-          <IcoEmail /> Email
+          Email
         </a>
       </div>
 
       {/* URL copiable */}
       <div
-        className="flex rounded-[12px] overflow-hidden"
-        style={{ border: "1.5px solid var(--bbord)", opacity: isClosed ? 0.5 : 1 }}
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          background: "#FBF0E6",
+          borderRadius: 12,
+          padding: "8px 8px 8px 14px",
+          opacity: isClosed ? 0.5 : 1,
+        }}
       >
-        <div className="flex items-center px-2.5 shrink-0" aria-hidden="true">
-          <IcoLink />
+        <div
+          style={{
+            flex: 1,
+            fontSize: 13,
+            color: "rgba(22,38,31,0.6)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {url}
         </div>
-        <input
-          readOnly
-          value={url}
-          className="flex-1 py-2 text-[12px] bg-transparent outline-none pr-2"
-          style={{ color: "var(--bmut)", background: "var(--bbg)" }}
-        />
         <button
           onClick={copyUrl}
           disabled={isClosed}
-          className="px-4 text-[12px] font-semibold transition-opacity hover:opacity-90 shrink-0"
-          style={{ background: "var(--bp)", color: "var(--bop)" }}
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#16261F",
+            background: "#fff",
+            border: "1.5px solid #16261F",
+            borderRadius: 18,
+            padding: "8px 14px",
+            cursor: isClosed ? "not-allowed" : "pointer",
+            whiteSpace: "nowrap",
+          }}
         >
-          {copied ? "✓" : "Copiar"}
+          {copied ? "¡Copiado!" : "Copiar enlace"}
         </button>
       </div>
 
       {/* QR */}
       {showQr && qrCodeData && (
-        <div className="flex flex-col items-center gap-1.5" style={{ opacity: isClosed ? 0.6 : 1 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: isClosed ? 0.6 : 1 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrCodeData} alt="Código QR de la campaña" className="rounded-[10px]" style={{ width: 120, height: 120 }} />
-          <p className="text-[11px] text-center" style={{ color: "var(--bmut)" }}>Escanea para abrir</p>
+          <img src={qrCodeData} alt="Código QR de la campaña" style={{ width: 120, height: 120, borderRadius: 10 }} />
+          <p style={{ fontSize: 11, color: "rgba(22,38,31,0.5)", margin: 0 }}>Escanea para abrir</p>
         </div>
       )}
 
-      {/* Archivos descargables */}
+      {/* Documentos */}
       {attachments.length > 0 && (
-        <div style={{ borderTop: "1px solid var(--bbord)", paddingTop: 10 }}>
-          <p className="text-[11.5px] font-bold uppercase tracking-[.05em] mb-2" style={{ color: "var(--bmut)" }}>
-            Documentos
+        <div style={{ borderTop: "1px solid rgba(22,38,31,0.15)", paddingTop: 12 }}>
+          <p
+            style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "rgba(22,38,31,0.5)",
+              margin: "0 0 8px",
+            }}
+          >
+            Documentos adjuntos
           </p>
-          <div className="flex flex-col gap-1.5">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {attachments.map((att, i) => (
               <a
                 key={i}
                 href={att.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[12.5px] font-medium hover:underline"
-                style={{ color: isClosed ? "var(--bmut)" : "var(--bp)", ...disabledStyle }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "#16261F",
+                  textDecoration: "none",
+                  ...disabledStyle,
+                }}
               >
                 <IcoDownload />
                 {att.title}

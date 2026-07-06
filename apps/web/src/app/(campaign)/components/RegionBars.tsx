@@ -1,40 +1,51 @@
-interface RegionStat {
-  name: string;
-  pct: number;
-}
-
 interface Props {
-  regions: RegionStat[];
+  regions: { name: string; pct: number }[];
+  categoryColor: string;
 }
 
-export default function RegionBars({ regions }: Props) {
+export default function RegionBars({ regions, categoryColor }: Props) {
   if (!regions || regions.length === 0) return null;
 
+  const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
+
   return (
-    <div
-      className="rounded-petition p-5"
-      style={{ background: "var(--bsurf)", border: "1px solid var(--bbord)" }}
-    >
-      <h3
-        className="font-display font-bold mb-4"
-        style={{ fontSize: 15, color: "var(--bink)", fontFamily: "var(--fd)" }}
+    <div>
+      <h2
+        style={{
+          fontFamily: FONT_DISPLAY,
+          fontWeight: 400,
+          fontSize: 24,
+          margin: "0 0 16px",
+          color: "#16261F",
+        }}
       >
-        Apoyo por provincia
-      </h3>
-      <div className="flex flex-col gap-3">
-        {regions.slice(0, 7).map((r) => (
+        De dónde vienen las firmas
+      </h2>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {regions.map((r) => (
           <div key={r.name}>
-            <div className="flex justify-between mb-1">
-              <span style={{ fontSize: 12.5, color: "var(--bink)" }}>{r.name}</span>
-              <span style={{ fontSize: 12, color: "var(--bmut)" }}>{r.pct}%</span>
-            </div>
             <div
-              className="rounded-full h-[7px]"
-              style={{ background: "color-mix(in srgb,var(--bp) 12%,var(--bbg))" }}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 14,
+                fontWeight: 600,
+                marginBottom: 6,
+                color: "#16261F",
+              }}
             >
+              <span>{r.name}</span>
+              <span>{r.pct}%</span>
+            </div>
+            <div style={{ height: 8, borderRadius: 5, background: "rgba(22,38,31,0.1)" }}>
               <div
-                className="h-full rounded-full"
-                style={{ width: `${r.pct}%`, background: "var(--bp)" }}
+                style={{
+                  height: "100%",
+                  borderRadius: 5,
+                  background: categoryColor,
+                  width: `${r.pct}%`,
+                }}
               />
             </div>
           </div>

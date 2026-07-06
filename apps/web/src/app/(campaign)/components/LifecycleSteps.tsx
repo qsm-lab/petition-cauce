@@ -2,63 +2,91 @@ const STAGES = ["Lanzada", "Recolección", "Entrega", "Diálogo", "Decisión"];
 
 interface Props {
   currentStage: number;
+  categoryColor: string;
 }
 
-export default function LifecycleSteps({ currentStage }: Props) {
-  const progressPct = (currentStage / 4) * 84;
-
+export default function LifecycleSteps({ currentStage, categoryColor }: Props) {
   return (
-    <div
-      className="rounded-petition p-4"
-      style={{ background: "var(--bsurf)", border: "1px solid var(--bbord)" }}
-    >
-      <div className="relative flex justify-between">
-        {/* Track line */}
-        <div
-          className="absolute top-[13px] left-[8%] right-[8%] h-[3px] rounded-full"
-          style={{ background: "var(--bbord)" }}
-        />
-        {/* Progress fill */}
-        <div
-          className="absolute top-[13px] left-[8%] h-[3px] rounded-full transition-all duration-700"
-          style={{ background: "var(--bp)", width: `${progressPct}%` }}
-        />
+    <div>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "rgba(22,38,31,0.5)",
+          marginBottom: 14,
+        }}
+      >
+        Estado de la campaña
+      </div>
 
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
         {STAGES.map((label, i) => {
-          const done = i < currentStage;
+          const done    = i < currentStage;
           const current = i === currentStage;
+          const isLast  = i === STAGES.length - 1;
+
+          const dotBg     = done ? "#16261F" : current ? categoryColor : "#ffffff";
+          const dotColor  = done || current ? "#FBF0E6" : "#16261F";
+          const dotBorder = done || current ? "none" : "2px solid #16261F";
+
           return (
-            <div key={label} className="relative flex flex-col items-center" style={{ flex: 1 }}>
+            <div
+              key={label}
+              style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}
+            >
               <div
-                className="flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold z-10"
-                style={
-                  done || current
-                    ? {
-                        background: "var(--bp)",
-                        color: "var(--bop)",
-                        boxShadow: current
-                          ? "0 0 0 4px color-mix(in srgb,var(--bp) 22%,transparent)"
-                          : undefined,
-                      }
-                    : {
-                        background: "var(--bsurf)",
-                        color: "var(--bmut)",
-                        border: "2px solid var(--bbord)",
-                      }
-                }
-              >
-                {done ? "✓" : i + 1}
-              </div>
-              <span
-                className="mt-[7px] text-center leading-tight"
                 style={{
-                  fontSize: 10,
-                  color: done || current ? "var(--bink)" : "var(--bmut)",
-                  fontWeight: current ? 800 : done ? 600 : 400,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  flexShrink: 0,
                 }}
               >
-                {label}
-              </span>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    background: dotBg,
+                    border: dotBorder,
+                    color: dotColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  {done ? "✓" : i + 1}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: current ? 700 : 500,
+                    opacity: current ? 1 : 0.55,
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    color: "#16261F",
+                  }}
+                >
+                  {label}
+                </div>
+              </div>
+
+              {!isLast && (
+                <div
+                  style={{
+                    height: 2,
+                    flex: 1,
+                    background: done ? "#16261F" : "rgba(22,38,31,0.2)",
+                    margin: "0 6px",
+                    marginBottom: 20,
+                  }}
+                />
+              )}
             </div>
           );
         })}

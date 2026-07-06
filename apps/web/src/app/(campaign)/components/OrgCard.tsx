@@ -7,52 +7,44 @@ interface Props {
 export default function OrgCard({ org }: Props) {
   return (
     <div
-      className="rounded-petition p-5 flex items-center gap-4"
-      style={{ background: "var(--bsurf)", border: "1px solid var(--bbord)" }}
+      style={{
+        background: "#fff",
+        border: "1.5px solid #16261F",
+        borderRadius: 18,
+        padding: 20,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+      }}
     >
-      {/* Avatar */}
       <div
-        className="shrink-0 flex items-center justify-center font-black text-[20px]"
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 15,
-          background: "color-mix(in srgb,var(--bp) 14%,transparent)",
-          color: "var(--bp)",
-          fontFamily: "var(--fd)",
+          width: 46,
+          height: 46,
+          borderRadius: "50%",
+          background: "#16261F",
+          color: "#FBF0E6",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "var(--font-anton, 'Anton', sans-serif)",
+          fontSize: 18,
+          flexShrink: 0,
+          overflow: "hidden",
         }}
       >
-        {org.initial}
+        {org.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={org.logo_url} alt={org.name} className="w-full h-full object-cover" />
+        ) : (
+          org.initial
+        )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p
-          className="uppercase font-bold mb-0.5"
-          style={{ fontSize: 11, color: "var(--bmut)", letterSpacing: "0.04em" }}
-        >
-          Organización
-        </p>
-        <p
-          className="font-display font-bold truncate"
-          style={{ fontSize: 15, color: "var(--bink)", fontFamily: "var(--fd)" }}
-        >
-          {org.name}
-        </p>
+      <div>
+        <div style={{ fontSize: 12, color: "rgba(22,38,31,0.5)" }}>Organización</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#16261F" }}>{org.name}</div>
       </div>
-
-      <button
-        disabled
-        className="shrink-0 rounded-full font-semibold text-[12px] cursor-default opacity-60"
-        style={{
-          minHeight: 40,
-          padding: "0 16px",
-          border: "1.5px solid var(--bbord)",
-          color: "var(--bp)",
-        }}
-        title="Próximamente"
-      >
-        Ver perfil
-      </button>
     </div>
   );
 }
