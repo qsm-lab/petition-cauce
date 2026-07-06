@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-07-05 — Sesión 19: rediseño completo design system v2 — landing + SignFlow + admin
+
+**Design system v2:** fuentes Anton (display) + Work Sans (body) cargadas vía `next/font/google`. Tokens CSS actualizados: Lime `#D7F24C` como CTA/primary, Ink `#16261F`, Sage `#EDF4F1` como fondo, Green Light `#DCE9E6`. `category-color.ts` nueva utilidad. Tailwind: `font-display` → Anton, `font-body` → Work Sans.
+
+**Landing pública (9 componentes reescritos):** `CampaignPage` con grid sidebar-primero DOM + order invertido desktop. `ActionBlock` chip full-width Ink, CTA Lime, dot pulsante cauce-live-dot. `PetitionBody` sección "Por qué importa" fondo Ink oscuro con heading Lime. `LifecycleSteps` horizontal con dot activo coloreado. `ShareSection` WA Ink Blue. Fondo sage `#EDF4F1`.
+
+**SignFlow (6 archivos reescritos):** bottom-sheet mobile / modal desktop con blur. Pills activos Ink bg + sage text. `StepThanks` nuevo con contador crema + opt-in newsletter independiente.
+
+**Admin (15 archivos):** sidebar item activo Lime+Ink. `ui/Button` primary Lime+Ink. `ui/Badge` active/collecting Lime+Ink. 40+ instancias `#18794A` reemplazadas por Green Light chips + Ink text. `text-white` sobre Lime corregido en 13 páginas. TypeScript: 0 errores. 4 commits borradores preparados.
+
+---
+
 ## 2026-07-04 — Sesión 18: org detail, categorías inline, políticas inline + 9 rectificaciones front/back
 
 **Batch 1 (ítems 8-10):** `/admin/organizaciones/[id]` (edit org + campañas vinculadas), `CategoriasList` inline edit + campañas lazy, `PoliticasList` inline edit + campañas lazy + modal contrato LOPDP.

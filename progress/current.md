@@ -1,59 +1,48 @@
-# Estado actual — tras sesión 18 (2026-07-04)
+# Estado actual — tras sesión 19 (2026-07-05)
 
-## Resumen de sesión 18
+## Resumen de sesión 19
 
-Sesión en dos batches. Batch 1: ítems 8, 9, 10 implementados (org detail page, inline edit categorías, inline edit políticas + contrato LOPDP). Batch 2: 9 rectificaciones front/back implementadas y compiladas sin errores TypeScript.
+Rediseño completo del sistema de diseño front-end — zona pública (landing + SignFlow) y zona admin/back-office. Implementado desde cero siguiendo el handoff de Claude Design (`plan/design_handoff_landing_firmante v2/`). TypeScript: 0 errores en todo el proyecto.
 
 ---
 
-## Batch 2 — Rectificaciones implementadas
+## Lo que se implementó
 
-### 1. CSP — imágenes HTTPS externas
-- `next.config.mjs`: `img-src 'self' data:` → `img-src 'self' data: https:`
-- Habilita hero_image_url de dominio externo, org.logo_url, QR data URLs
+### 1. Infraestructura del sistema de diseño (design-system-v2)
+- `layout.tsx`: fuentes Anton + Work Sans cargadas vía `next/font/google` (auto-hosteadas en build)
+- `globals.css`: tokens CSS actualizados — `--bp` Lime `#D7F24C`, `--bink` Ink `#16261F`, `--bbg` Sage `#EDF4F1`, `--bsec` Green Light `#DCE9E6`, `--bop` Ink sobre Lime, `--br: 14px`
+- `tailwind.config.ts`: `font-display` → Anton, `font-body`/`font-heading` → Work Sans
+- `src/lib/category-color.ts`: utilidad nueva — deriva color de categoría desde `meta.category_color` o mapa por nombre (Agua/Bosques/Minería/Aire/Suelo/Páramo)
 
-### 2. PetitionBody.tsx — iconos MDI + jerarquía
-- `SectionHeading` ahora recibe `React.ReactNode` como icono (no string emoji)
-- "Lo que pedimos": icono `checklist` MDI SVG, títulos `font-extrabold 18px`
-- Bullets numerados (1,2,3…) en círculo color primario, texto 14.5px
-- "Por qué importa": icono `article` MDI SVG
+### 2. Landing pública — rediseño completo (zona firmante)
+- `CampaignPage.tsx`: fondo sage, nav "Cauce", grid sidebar-primero en DOM (order invertido en desktop con Tailwind), título en color de categoría
+- `ActionBlock.tsx`: chip "Dirigida a" full-width (Ink bg + cream text), contador Anton 40px, barra en color de categoría, CTA Lime, CTA flotante mobile, textos secundarios más oscuros (`fontWeight: 500`, opacidad 0.78)
+- `Hero.tsx`: badge de categoría top-left, avatar de org top-right, border-radius 20px
+- `LifecycleSteps.tsx`: dots horizontales conectados, color de categoría en etapa activa
+- `PetitionBody.tsx`: asks en cards blancas con borde Ink; "Por qué importa" en fondo oscuro `#16261F` con heading Lime y texto sage
+- `RecentSignatures.tsx`: dot pulsante en color de categoría (`animate-cauce-live-dot`), textos secundarios más visibles
+- `RegionBars.tsx`: barras en color de categoría, sin wrapper
+- `OrgCard.tsx`: avatar Ink simple, sin botón
+- `ShareSection.tsx`: WA en Ink Blue `#12222E`, botones secundarios blancos con borde Ink
 
-### 3. StepThanks.tsx — icono principal + iconos en botones sociales
-- Icono principal: `task_alt` MDI SVG (check en círculo animado)
-- Botones WA/FB/X/Email: iconos SVG inline (mismo set que ShareSection)
+### 3. SignFlow — rediseño completo
+- `SignFlow.tsx`: backdrop `rgba(18,34,46,.55)` + blur, bottom-sheet mobile / modal desktop (`md:max-w-[520px]`, `rounded-t-[24px] md:rounded-[20px]`)
+- `StepForm.tsx`: pills activos con fondo Ink `#16261F` + texto sage (máximo contraste), submit Lime
+- `StepSending.tsx`: spinner `animate-pc-spin`, Anton heading
+- `StepSuccess.tsx`: "Confirmá tu correo", CTA Lime + secundario blanco con borde Ink
+- `StepError.tsx`: círculo `#FBEAE4`/naranja, Lime para reintentar
+- `StepThanks.tsx` (nuevo): check en color de categoría, caja crema con contador + barra de progreso, botones de compartir (WA Ink Blue + secundarios), opt-in newsletter con aviso de consentimiento independiente
 
-### 4. ShareSection.tsx — prop shareText
-- Nueva prop `shareText?: string | null`
-- Si `shareText` viene del backend, se usa para WA, X y Email; si no, fallback al texto automático
-
-### 5. CampanaEditorClient.tsx — múltiples mejoras
-- **Campo `share_text`**: nueva sección "Texto de difusión" en columna izquierda con textarea + contador de chars
-- **Configuración formulario + Archivos**: movidos a columna derecha (debajo de Fecha de cierre)
-- **Activación — validación preemptiva**: antes de llamar al backend, si `category`, `endsAt` o `privacyPolicyId` están vacíos en el form state → muestra warning sin llamar la API
-- **Alerta prominente**: banner naranja con header "No se puede activar" + lista de campos faltantes por ítem (no un solo string concatenado)
-- `share_text` incluido en `handleSave`
-
-### 6. PoliticasList.tsx — botón X en modal LOPDP
-- Botón "Cerrar" (texto rojo) reemplazado por botón cuadrado con icono × SVG
-
-### 7. firmas/page.tsx — reescritura completa
-- Server component con `getAdminCampaigns()`
-- Tabla: Campaña / Firmas (número grande) / Estado / Acciones
-- Botón "Ver firmas →" por fila → `/admin/campanas/{id}/firmas`
-- Vacío state con link a Campañas
-
-### 8. OrgDetailClient.tsx + admin-orgs-api.ts — campo logo_url
-- `OrgUpdate` interface: agregado `logo_url?: string | null`
-- Vista (lectura): muestra thumbnail del logo si URL definida
-- Formulario edición: input URL + hint sobre visibilidad en front
-- `handleSave` / `handleCancelEdit`: incluyen `logo_url`
-
-### 9. Backend — share_text en PUT y en respuesta pública
-- `_META_FIELDS` en `campaign.py`: agregado `"share_text"`
-- `CampaignUpdate`: campo `share_text: str | None = None`
-- `public_campaign.py _serialize()`: incluye `"share_text": meta.get("share_text")`
-- `campaign-api.ts PublicCampaign`: `share_text: string | null`
-- `CampaignPage.tsx`: pasa `shareText={campaign.share_text}` a ambas instancias de `ShareSection`
+### 4. Admin — sistema de diseño unificado
+- `AdminSidebarClient.tsx`: logo box Lime, item activo Lime `#D7F24C` + Ink text (igual que CTA landing)
+- `ui/Button.tsx`: primary = Lime bg + Ink text, `font-body font-bold`, sin sombra verde
+- `ui/Badge.tsx`: `active`/`collecting` = Lime + Ink; `draft` = sage; `category` = Green Light + Ink
+- 13 páginas admin: eliminados 40+ instancias de `#18794A` hardcodeado y `text-white` sobre fondos Lime
+  - Status chips positivos (Activa, Verificada, Confirmada): Green Light `#DCE9E6` + Ink
+  - Botones primarios: Lime bg + `color: "var(--bop)"` en todos
+  - Links de acción tipo "Firmas →": Lime background + Ink text
+  - Breadcrumbs y links secundarios: Ink en lugar de Lime como texto
+  - `configuracion/page.tsx`: nav lateral activo con Lime pill
 
 ---
 
@@ -70,34 +59,110 @@ Sesión en dos batches. Batch 1: ítems 8, 9, 10 implementados (org detail page,
 
 ---
 
-## Commits de sesión 18 (ejecutados)
+## Borradores de commits (pendientes de ejecutar — desde `apps/web/`)
 
-| Hash | Descripción |
-|------|-------------|
-| `766309c` | feat: perfiles-org |
-| `43e9579` | feat: landing-campana |
-| `40e8e5b` | feat: editor-campana |
-| `179d54a` | feat: admin-firmas |
-| `6f29113` | docs: cierre sesión 18 |
+### Commit 1 — Infraestructura
+```bash
+git add src/app/globals.css src/app/layout.tsx tailwind.config.ts src/lib/category-color.ts
 
----
+git commit -m "$(cat <<'EOF'
+feat: design-system-v2 — fuentes Anton/Work Sans, tokens Ink/Lime/Sage
 
-## Pendiente de review manual (Batch 2)
+Carga Anton y Work Sans vía next/font/google (auto-hosteadas en build).
+Actualiza CSS custom properties a la nueva paleta: --bp Lime #D7F24C,
+--bink Ink #16261F, --bbg Sage #EDF4F1, --bsec Green Light #DCE9E6.
+Redirige font-display → Anton y font-body → Work Sans en Tailwind.
+Agrega category-color.ts para derivar color de categoría desde meta
+o mapa por nombre de causa.
 
-1. **Hero image**: asignar URL de imagen en editor → guardar → verificar que aparece en landing
-2. **PetitionBody**: verificar iconos MDI y jerarquía de asks numerados
-3. **StepThanks**: firmar y verificar icono + botones con iconos
-4. **ShareSection**: verificar `shareText` si está definido en campaña
-5. **CampanaEditorClient**: verificar secciones movidas al panel derecho; probar flujo de activación sin política → ver banner de error
-6. **PoliticasList**: abrir contrato LOPDP → verificar botón × cierra el modal
-7. **/admin/firmas**: verificar tabla de campañas con conteos y botones "Ver firmas"
-8. **OrgDetailClient**: editar org → agregar URL de logo → guardar → verificar miniatura
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)"
+```
 
----
+### Commit 2 — Landing pública
+```bash
+git add "src/app/(campaign)/CampaignPage.tsx" \
+        "src/app/(campaign)/components/ActionBlock.tsx" \
+        "src/app/(campaign)/components/Hero.tsx" \
+        "src/app/(campaign)/components/LifecycleSteps.tsx" \
+        "src/app/(campaign)/components/OrgCard.tsx" \
+        "src/app/(campaign)/components/PetitionBody.tsx" \
+        "src/app/(campaign)/components/RecentSignatures.tsx" \
+        "src/app/(campaign)/components/RegionBars.tsx" \
+        "src/app/(campaign)/components/ShareSection.tsx"
 
-## Pendiente de implementar
+git commit -m "$(cat <<'EOF'
+feat: landing-campana — rediseño completo zona pública (design system v2)
 
-*Ninguno identificado por el usuario en esta sesión.*
+Reescritura total de la landing con el nuevo sistema visual: fondo sage
+#EDF4F1, Anton para títulos, Work Sans para cuerpo, color de categoría
+dinámico por campaña. Grid sidebar-primero en DOM con order invertido
+en desktop. ActionBlock con chip "Dirigida a" full-width y CTA Lime.
+PetitionBody con sección "Por qué importa" sobre fondo Ink oscuro.
+RecentSignatures con dot pulsante en color de categoría. LifecycleSteps
+horizontal con dot activo coloreado. ShareSection con WA en Ink Blue.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Commit 3 — SignFlow
+```bash
+git add src/components/sign-flow/SignFlow.tsx \
+        src/components/sign-flow/StepForm.tsx \
+        src/components/sign-flow/StepSending.tsx \
+        src/components/sign-flow/StepSuccess.tsx \
+        src/components/sign-flow/StepError.tsx \
+        src/components/sign-flow/StepThanks.tsx
+
+git commit -m "$(cat <<'EOF'
+feat: sign-flow — rediseño completo (design system v2)
+
+Bottom-sheet en mobile, modal centrado en desktop, backdrop con blur.
+Pills activos con contraste máximo: fondo Ink #16261F + texto sage.
+Submit Lime. StepThanks nuevo: contador en caja crema, botones de
+compartir (WA Ink Blue) y opt-in newsletter con aviso explícito de
+consentimiento independiente de la firma.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Commit 4 — Admin
+```bash
+git add src/app/admin/AdminSidebarClient.tsx \
+        src/app/admin/resumen/page.tsx \
+        src/app/admin/campanas/page.tsx \
+        src/app/admin/campanas/nueva/page.tsx \
+        "src/app/admin/campanas/[id]/CampanaEditorClient.tsx" \
+        "src/app/admin/campanas/[id]/firmas/page.tsx" \
+        src/app/admin/firmas/page.tsx \
+        src/app/admin/organizaciones/OrganizacionesClient.tsx \
+        "src/app/admin/organizaciones/[id]/OrgDetailClient.tsx" \
+        src/app/admin/politicas-privacidad/PoliticasList.tsx \
+        src/app/admin/categorias/CategoriasList.tsx \
+        src/app/admin/configuracion/page.tsx \
+        src/app/admin/usuarios/page.tsx \
+        src/components/ui/Badge.tsx \
+        src/components/ui/Button.tsx
+
+git commit -m "$(cat <<'EOF'
+feat: admin — sistema de diseño unificado con landing pública (v2)
+
+Sidebar: item activo en Lime + Ink (máximo contraste), logo box Lime.
+Botones primarios: Lime bg + Ink text en todos los archivos. Status
+chips positivos (Activa, Verificada, Confirmada): Green Light + Ink.
+ui/Button primary migrado a Lime, font-body bold. ui/Badge active y
+collecting en Lime + Ink. Elimina 40+ instancias de #18794A hardcodeado
+y text-white sobre fondos Lime en 13 páginas admin.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+EOF
+)"
+```
 
 ---
 
@@ -107,27 +172,25 @@ Sesión en dos batches. Batch 1: ítems 8, 9, 10 implementados (org detail page,
 |---------|--------|-------|
 | `harness-setup` | **done** | Completo |
 | `infra-fork` | **in_progress** | Local completo; pendiente Cloudflare/VPS/Secrets |
-| `ui-design-system` | **done** | V1-V5 verificados |
+| `ui-design-system` | **done** | V2 — design system v2 aplicado a landing + admin |
 | `modelo-base` | **done** | Migración 006 aplicada ✓ |
 | `lopdp-base` | **done** | Completo ✓ |
 | `multidominio` | **done** | Completo ✓ |
 | `anti-fraude-basico` | **done** | Completo ✓ |
-| `landing-campana` | **done** | Completo ✓ |
+| `landing-campana` | **done** | Rediseño v2 ✓ |
 | `formulario-firma` | **done** | Submit/confirm/dedup + form_config + Resend ✓ |
 | `dashboard-firmas` | **in_progress** | Implementado ✓ (usuario valida) |
-| `editor-campana` | **in_progress** | Rectificaciones sesión 18 aplicadas |
+| `editor-campana` | **in_progress** | Sesiones 18-19 aplicadas |
 | `resumen-admin` | **in_progress** | Implementado ✓ (usuario valida) |
 | `perfiles-org` | **in_progress** | Ítems 8-10 ✓; logo_url ✓ |
 
 ---
 
-## Migraciones aplicadas en dev
+## Pendiente de review manual
 
-| N° | Descripción | Estado |
-|----|-------------|--------|
-| 001-010 | Schema base, RLS, LOPDP | ✓ |
-| 011 | `petition_title` en campaigns + `is_test` en signatures + RLS draft | ✓ |
-| 012 | `categories`, `privacy_policies`, `campaigns.privacy_policy_id`, org extras | ✓ |
+1. Landing pública — verificar fidelidad visual con el prototipo `plan/design_handoff_landing_firmante v2/`
+2. SignFlow — probar flujo completo: forma → sending → success → thanks con compartir
+3. Admin — verificar sidebar Lime activo y chips de estado en todas las páginas
 
 ---
 
@@ -140,6 +203,6 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 ### Continuar con
-1. Review manual de los 8 puntos pendientes del Batch 2
-2. Preparar borradores de commits para sesiones 17-18
+1. Review manual del rediseño v2 (landing + SignFlow + admin)
+2. Ejecutar los 4 commits borradores de sesión 19
 3. Cuando todo esté aprobado → avanzar `infra-fork` hacia primer deploy VPS
