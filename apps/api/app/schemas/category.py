@@ -21,6 +21,11 @@ class CategoryCreate(BaseModel):
     slug: str | None = None
     color: str | None = None
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def trim_name(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
     @field_validator("slug", mode="before")
     @classmethod
     def auto_slug(cls, v, info):
@@ -34,6 +39,11 @@ class CategoryUpdate(BaseModel):
     name: str | None = None
     slug: str | None = None
     color: str | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def trim_name(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 
 class CategoryResponse(BaseModel):

@@ -239,13 +239,23 @@ export default function CategoriasList({ initialCategories }: Props) {
     setSaving(true);
     setError("");
     try {
-      const created = await api.post<Category>("/v1/admin/categories", { name, color });
+      const created = await api.post<Category>("/v1/admin/categories", { name: name.trim(), color });
       setCategories((prev) => [...prev, created]);
       setName("");
       setColor(PRESET_COLORS[0]);
       setShowForm(false);
-    } catch {
-      setError("No se pudo crear la categoría");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("Ya existe")) {
+        setError("Ya existe una categoría con ese nombre. Búscala en la lista.");
+        // Recarga la lista para mostrar la categoría existente
+        try {
+          const fresh = await api.get<Category[]>("/v1/admin/categories");
+          if (fresh) setCategories(fresh);
+        } catch { /* silencioso */ }
+      } else {
+        setError("No se pudo crear la categoría");
+      }
     } finally {
       setSaving(false);
     }
