@@ -12,6 +12,7 @@ class CampaignCreate(BaseModel):
     category: str | None = None
     goal_count: int | None = None
     authority: str | None = None
+    asks: list | None = None
     petition_body: dict | None = None
     hero_image_url: str | None = None
     starts_at: datetime | None = None
@@ -19,6 +20,16 @@ class CampaignCreate(BaseModel):
     max_responses: int | None = None
     source_platform: str | None = None
     quota_config: dict = {}
+    org_id: uuid.UUID | None = None
+    privacy_policy_id: uuid.UUID | None = None
+    # Campos que van a meta
+    show_authority: bool | None = None
+    show_goal: bool | None = None
+    form_config: dict | None = None
+    hero_image_mobile_url: str | None = None
+    attachments: list | None = None
+    show_qr: bool | None = None
+    share_text: str | None = None
 
 
 _META_FIELDS = {"show_authority", "show_goal", "form_config", "hero_image_mobile_url", "attachments", "show_qr", "share_text"}
