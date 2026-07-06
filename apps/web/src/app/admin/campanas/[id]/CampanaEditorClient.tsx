@@ -19,7 +19,7 @@ const STATUSES = [
 ];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  active: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A" },
+  active: { bg: "#DCE9E6", color: "#16261F" },
   draft:  { bg: "color-mix(in srgb,#ca8a04 10%,transparent)", color: "#92400e" },
   closed: { bg: "#e8f0fe",                                     color: "#1a56db" },
 };
@@ -322,7 +322,7 @@ export default function CampanaEditorClient({
         style={{ backgroundColor: "var(--bsurf)", borderBottom: "1px solid var(--bbord)" }}
       >
         <nav className="flex items-center gap-1.5 text-[12px] mb-2" style={{ color: "var(--bmut)" }}>
-          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bp)" }}>Campañas</Link>
+          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bink)", fontWeight: 600 }}>Campañas</Link>
           <span>/</span>
           <span className="font-semibold truncate max-w-[280px]" style={{ color: "var(--bink)" }}>{campaign.title}</span>
         </nav>
@@ -334,7 +334,7 @@ export default function CampanaEditorClient({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/admin/campanas/${campaign.id}/firmas`} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bp)", border: "1px solid color-mix(in srgb, var(--bp) 30%, transparent)" }}>
+            <Link href={`/admin/campanas/${campaign.id}/firmas`} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bink)", background: "#D7F24C", border: "none" }}>
               Ver firmas
             </Link>
             <a href={`/?slug=${campaign.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
@@ -402,7 +402,7 @@ export default function CampanaEditorClient({
                   </div>
                 ))}
                 {asks.length < 5 && (
-                  <button type="button" onClick={addAsk} className="self-start text-[12px] font-semibold mt-1 hover:opacity-70" style={{ color: "var(--bp)" }}>
+                  <button type="button" onClick={addAsk} className="self-start text-[12px] font-semibold mt-1 hover:opacity-70" style={{ color: "var(--bink)", fontWeight: 600 }}>
                     + Agregar punto
                   </button>
                 )}
@@ -455,7 +455,7 @@ export default function CampanaEditorClient({
             )}
 
             <div className="flex items-center gap-3">
-              <button type="submit" disabled={saving} className="font-semibold text-[13px] text-white px-5 py-2.5 rounded-[10px]" style={{ backgroundColor: saved ? "#18794A" : saving ? "color-mix(in srgb, var(--bp) 60%, transparent)" : "var(--bp)", cursor: saving ? "not-allowed" : "pointer" }}>
+              <button type="submit" disabled={saving} className="font-semibold text-[13px] px-5 py-2.5 rounded-[10px]" style={{ backgroundColor: saved ? "#16261F" : saving ? "rgba(215,242,76,0.5)" : "var(--bp)", color: "var(--bop)", cursor: saving ? "not-allowed" : "pointer" }}>
                 {saved ? "✓ Guardado" : saving ? "Guardando…" : "Guardar cambios"}
               </button>
               <Link href="/admin/campanas" className="font-medium text-[13px] px-5 py-2.5 rounded-[10px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
@@ -566,7 +566,7 @@ export default function CampanaEditorClient({
                     <input type="url" value={att.url} onChange={(e) => setAttachmentField(i, "url", e.target.value)} placeholder="https://…/archivo.pdf" className="w-full bg-transparent text-[11.5px] outline-none placeholder:opacity-30" style={{ color: "var(--bmut)" }} />
                   </div>
                 ))}
-                <button type="button" onClick={addAttachment} className="self-start text-[12px] font-semibold hover:opacity-70" style={{ color: "var(--bp)" }}>
+                <button type="button" onClick={addAttachment} className="self-start text-[12px] font-semibold hover:opacity-70" style={{ color: "var(--bink)", fontWeight: 600 }}>
                   + Agregar archivo
                 </button>
               </div>
@@ -582,7 +582,7 @@ export default function CampanaEditorClient({
                 <p className="text-[11px] mt-1.5" style={{ color: "#92400e" }}>Requerida para activar</p>
               )}
               {policies.length === 0 && (
-                <Link href="/admin/politicas-privacidad" className="text-[11.5px] hover:underline mt-1 block" style={{ color: "var(--bp)" }}>
+                <Link href="/admin/politicas-privacidad" className="text-[11.5px] hover:underline mt-1 block" style={{ color: "var(--bink)", fontWeight: 600 }}>
                   → Crear política de privacidad
                 </Link>
               )}

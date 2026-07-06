@@ -11,25 +11,24 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-pill font-display font-bold " +
-  "transition-transform duration-100 active:scale-[0.97] focus-visible:outline-none " +
+  "inline-flex items-center justify-center gap-2 rounded-pill font-body font-bold " +
+  "transition-all duration-100 active:scale-[0.97] focus-visible:outline-none " +
   "focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 " +
   "select-none";
 
 const variants: Record<ButtonVariant, string> = {
   primary:
     "bg-brand-primary text-brand-on-primary " +
-    "shadow-[0_8px_22px_color-mix(in_srgb,var(--bp)_34%,transparent)] " +
-    "hover:brightness-110 focus-visible:ring-[var(--bp)]",
+    "hover:brightness-95 focus-visible:ring-[var(--bp)]",
   secondary:
-    "border-[1.5px] border-brand-border bg-brand-bg text-brand-ink " +
-    "hover:bg-brand-surface focus-visible:ring-[var(--bp)]",
+    "border-[1.5px] border-[rgba(22,38,31,0.3)] bg-white text-brand-ink " +
+    "hover:bg-brand-bg focus-visible:ring-[var(--bink)]",
   ghost:
-    "bg-transparent text-brand-primary border-[1.5px] border-brand-border " +
-    "hover:bg-brand-bg focus-visible:ring-[var(--bp)]",
+    "bg-transparent text-brand-ink border-[1.5px] border-[rgba(22,38,31,0.25)] " +
+    "hover:bg-brand-bg focus-visible:ring-[var(--bink)]",
   danger:
-    "bg-[#d9483b] text-white shadow-[0_6px_16px_rgba(217,72,59,0.3)] " +
-    "hover:brightness-110 focus-visible:ring-[#d9483b]",
+    "bg-[#d9483b] text-white shadow-[0_4px_12px_rgba(217,72,59,0.25)] " +
+    "hover:brightness-105 focus-visible:ring-[#d9483b]",
 };
 
 const sizes: Record<ButtonSize, string> = {

@@ -7,11 +7,11 @@ type UserStatus = "activo" | "pendiente";
 
 const ROLE_BADGE: Record<UserRole, { bg: string; color: string; label: string }> = {
   admin:  { bg: "#e8f0fe",                                      color: "#1a56db", label: "Administrador" },
-  gestor: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Gestor"        },
+  gestor: { bg: "#DCE9E6", color: "#16261F", label: "Gestor"        },
 };
 
 const STATUS_BADGE: Record<UserStatus, { bg: string; color: string; label: string }> = {
-  activo:    { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activo"    },
+  activo:    { bg: "#DCE9E6", color: "#16261F", label: "Activo"    },
   pendiente: { bg: "#fff7ed",                                      color: "#c2410c", label: "Pendiente" },
 };
 
@@ -59,8 +59,8 @@ export default async function UsuariosPage() {
           </p>
         </div>
         <button
-          className="flex items-center gap-1.5 font-semibold text-[13px] text-white"
-          style={{ backgroundColor: "var(--bp)", padding: "0 16px", minHeight: "38px", borderRadius: "10px" }}
+          className="flex items-center gap-1.5 font-semibold text-[13px]"
+          style={{ backgroundColor: "var(--bp)", color: "var(--bop)", padding: "0 16px", minHeight: "38px", borderRadius: "10px" }}
           disabled
           title="Disponible cuando modelo-base esté implementado"
         >

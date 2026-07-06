@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAdminCampaigns } from "@/lib/admin-campaigns-api";
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  active: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa" },
+  active: { bg: "#DCE9E6", color: "#16261F", label: "Activa" },
   draft: { bg: "#f3f4f6", color: "#6b7280", label: "Borrador" },
   closed: { bg: "#fef2f2", color: "#991b1b", label: "Cerrada" },
   online: { bg: "color-mix(in srgb,#0369a1 12%,transparent)", color: "#0369a1", label: "Online" },
@@ -51,7 +51,7 @@ export default async function FirmasPage() {
             <div className="px-5 py-16 text-center">
               <p className="text-[14px] font-semibold mb-1" style={{ color: "var(--bink)" }}>Sin campañas</p>
               <p className="text-[13px]" style={{ color: "var(--bmut)" }}>Crea una campaña para empezar a recibir firmas.</p>
-              <Link href="/admin/campanas" className="inline-flex items-center gap-1.5 mt-4 font-semibold text-[13px] text-white rounded-[9px] px-4 py-2" style={{ backgroundColor: "var(--bp)" }}>
+              <Link href="/admin/campanas" className="inline-flex items-center gap-1.5 mt-4 font-semibold text-[13px] rounded-[9px] px-4 py-2" style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}>
                 Ir a Campañas →
               </Link>
             </div>
@@ -72,7 +72,7 @@ export default async function FirmasPage() {
                     <p className="text-[11px]" style={{ color: "var(--bmut)" }}>/{c.slug}</p>
                   </div>
                   <div>
-                    <span className="font-display font-bold text-[18px]" style={{ color: "var(--bp)", fontFamily: "var(--fd)" }}>
+                    <span className="font-display font-bold text-[18px]" style={{ color: "var(--bink)" }}>
                       {c.confirmed_signatures.toLocaleString("es-EC")}
                     </span>
                     {c.goal_count && (
@@ -93,7 +93,7 @@ export default async function FirmasPage() {
                     <Link
                       href={`/admin/campanas/${c.id}/firmas`}
                       className="inline-flex items-center gap-1 text-[12px] font-semibold px-3 py-1.5 rounded-[7px]"
-                      style={{ background: "color-mix(in srgb,var(--bp) 10%,transparent)", color: "var(--bp)", border: "1px solid color-mix(in srgb,var(--bp) 25%,transparent)" }}
+                      style={{ background: "#D7F24C", color: "#16261F", border: "none" }}
                     >
                       Ver firmas →
                     </Link>

@@ -4,7 +4,7 @@ import { getAdminCampaigns, type AdminCampaignListItem } from "@/lib/admin-campa
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  active:  { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa"   },
+  active:  { bg: "#DCE9E6", color: "#16261F", label: "Activa"   },
   draft:   { bg: "var(--bbg)",                                  color: "var(--bmut)",  label: "Borrador" },
   closed:  { bg: "#e8f0fe",                                     color: "#1a56db",      label: "Cerrada"  },
   pending: { bg: "#fff7ed",                                     color: "#c2410c",      label: "Pendiente"},
@@ -89,9 +89,10 @@ export default async function CampanasPage() {
         </div>
         <Link
           href="/admin/campanas/nueva"
-          className="flex items-center gap-1.5 font-semibold text-[13px] text-white"
+          className="flex items-center gap-1.5 font-semibold text-[13px]"
           style={{
             backgroundColor: "var(--bp)",
+            color: "var(--bop)",
             padding: "0 16px",
             minHeight: "38px",
             borderRadius: "10px",
@@ -140,8 +141,8 @@ export default async function CampanasPage() {
               </p>
               <Link
                 href="/admin/campanas/nueva"
-                className="inline-flex items-center gap-1 text-[13px] font-semibold px-4 py-2 rounded-[8px] text-white"
-                style={{ backgroundColor: "var(--bp)" }}
+                className="inline-flex items-center gap-1 text-[13px] font-semibold px-4 py-2 rounded-[8px]"
+                style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}
               >
                 + Nueva campaña
               </Link>
@@ -188,8 +189,9 @@ export default async function CampanasPage() {
                     href={`/admin/campanas/${c.id}/firmas`}
                     className="text-[12px] font-semibold px-2.5 py-1 rounded-[6px]"
                     style={{
-                      color: "var(--bp)",
-                      border: "1px solid color-mix(in srgb, var(--bp) 30%, transparent)",
+                      color: "var(--bink)",
+                      background: "#D7F24C",
+                      border: "none",
                     }}
                   >
                     Firmas

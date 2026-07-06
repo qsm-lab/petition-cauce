@@ -13,7 +13,7 @@ const BASE_LEGAL_LABELS: Record<string, string> = {
 };
 
 const CAMPAIGN_STATUS: Record<string, { bg: string; color: string; label: string }> = {
-  active: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa" },
+  active: { bg: "#DCE9E6", color: "#16261F", label: "Activa" },
   draft: { bg: "#f3f4f6", color: "#6b7280", label: "Borrador" },
   closed: { bg: "#fef2f2", color: "#991b1b", label: "Cerrada" },
   online: { bg: "color-mix(in srgb,#0369a1 12%,transparent)", color: "#0369a1", label: "Online" },
@@ -205,7 +205,7 @@ function PolicyCard({
               </span>
               <span
                 className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "color-mix(in srgb,var(--bp) 12%,transparent)", color: "var(--bp)" }}
+                style={{ background: "color-mix(in srgb,var(--bp) 12%,transparent)", color: "var(--bink)" }}
               >
                 v{policy.version}
               </span>
@@ -263,7 +263,7 @@ function PolicyCard({
                     onClick={handleShowContrato}
                     disabled={loadingContrato}
                     className="text-[11.5px] font-semibold px-3 py-1.5 rounded-[7px] disabled:opacity-50"
-                    style={{ background: "color-mix(in srgb,var(--bp) 12%,transparent)", color: "var(--bp)" }}
+                    style={{ background: "color-mix(in srgb,var(--bp) 12%,transparent)", color: "var(--bink)" }}
                   >
                     {loadingContrato ? "Cargando…" : "Ver contrato LOPDP"}
                   </button>
@@ -307,8 +307,8 @@ function PolicyCard({
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="font-semibold text-[12px] text-white px-4 py-1.5 rounded-[7px]"
-                    style={{ backgroundColor: "var(--bp)" }}
+                    className="font-semibold text-[12px] px-4 py-1.5 rounded-[7px]"
+                    style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}
                   >
                     {saving ? "Guardando…" : "Guardar cambios"}
                   </button>
@@ -353,7 +353,7 @@ function PolicyCard({
                         <Link
                           href={`/admin/campanas/${c.id}`}
                           className="text-[11px] font-medium flex-shrink-0"
-                          style={{ color: "var(--bp)" }}
+                          style={{ color: "var(--bink)" }}
                         >
                           Editar →
                         </Link>
@@ -434,8 +434,8 @@ export default function PoliticasList({ initialPolicies }: Props) {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 font-semibold text-[13px] text-white mb-5"
-          style={{ backgroundColor: "var(--bp)", padding: "0 16px", minHeight: "36px", borderRadius: "10px" }}
+          className="flex items-center gap-1.5 font-semibold text-[13px] mb-5"
+          style={{ backgroundColor: "var(--bp)", color: "var(--bop)", padding: "0 16px", minHeight: "36px", borderRadius: "10px" }}
         >
           + Nueva política
         </button>
@@ -479,7 +479,7 @@ export default function PoliticasList({ initialPolicies }: Props) {
           {error && <p className="text-[11.5px] text-red-600">{error}</p>}
 
           <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="font-semibold text-[12.5px] text-white px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)" }}>
+            <button type="submit" disabled={saving} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}>
               {saving ? "Guardando…" : "Crear política"}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ background: "var(--bbord)", color: "var(--bmut)" }}>

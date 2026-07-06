@@ -19,14 +19,14 @@ const LIFECYCLE_LABELS: Record<LifecycleStatus, string> = {
 
 const variantStyles: Record<BadgeVariant, string> = {
   /* Ciclo de vida */
-  draft:      "bg-brand-bg text-brand-muted border border-brand-border",
-  active:     "bg-brand-primary text-brand-on-primary",
-  collecting: "bg-brand-primary text-brand-on-primary",
-  delivered:  "bg-[#d97706] text-white",          /* ámbar */
-  dialog:     "bg-[#2563eb] text-white",           /* azul */
-  decided:    "bg-[#16a34a] text-white",           /* verde oscuro */
+  draft:      "bg-[#EDF4F1] text-[rgba(22,38,31,0.6)] border border-[rgba(22,38,31,0.18)]",
+  active:     "bg-brand-primary text-brand-on-primary",   /* Lime + Ink */
+  collecting: "bg-brand-primary text-brand-on-primary",   /* Lime + Ink */
+  delivered:  "bg-[#d97706] text-white",                  /* ámbar */
+  dialog:     "bg-[#2563eb] text-white",                  /* azul */
+  decided:    "bg-[#16a34a] text-white",                  /* verde oscuro */
   /* Categoría temática */
-  category:   "bg-brand-primary text-brand-on-primary",
+  category:   "bg-brand-secondary text-brand-ink",        /* Green Light + Ink */
 };
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {

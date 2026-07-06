@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getDashboardSummary } from "@/lib/admin-campaigns-api";
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  active:  { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa"   },
+  active:  { bg: "#DCE9E6", color: "#16261F", label: "Activa"   },
   draft:   { bg: "var(--bbg)",                                  color: "var(--bmut)",  label: "Borrador" },
   closed:  { bg: "#e8f0fe",                                     color: "#1a56db",      label: "Cerrada"  },
 };
@@ -38,7 +38,7 @@ export default async function ResumenPage() {
       label: "Campañas activas",
       value: summary ? String(summary.active_campaigns) : "—",
       trend: summary ? (summary.active_campaigns > 0 ? "En recolección" : "Sin campañas activas") : "Sin datos",
-      trendColor: summary?.active_campaigns ? "#18794A" : "var(--bmut)",
+      trendColor: summary?.active_campaigns ? "#16261F" : "var(--bmut)",
     },
     {
       label: "En borrador",
@@ -123,7 +123,7 @@ export default async function ResumenPage() {
               <Link
                 href="/admin/campanas"
                 className="text-[12.5px] font-medium"
-                style={{ color: "var(--bp)" }}
+                style={{ color: "var(--bink)", fontWeight: 600 }}
               >
                 Ver todas →
               </Link>
@@ -137,7 +137,7 @@ export default async function ResumenPage() {
                 <Link
                   href="/admin/campanas/nueva"
                   className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-semibold"
-                  style={{ color: "var(--bp)" }}
+                  style={{ color: "var(--bink)", fontWeight: 600 }}
                 >
                   Crear primera campaña →
                 </Link>
@@ -199,8 +199,8 @@ export default async function ResumenPage() {
             <div className="p-4 flex flex-col gap-2">
               <Link
                 href="/admin/campanas/nueva"
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-semibold text-white"
-                style={{ backgroundColor: "var(--bp)" }}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-semibold"
+                style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}
               >
                 <span>+</span>
                 Nueva campaña
@@ -214,7 +214,7 @@ export default async function ResumenPage() {
                     border: "1px solid var(--bbord)",
                   }}
                 >
-                  <span style={{ color: "var(--bp)" }}>↗</span>
+                  <span style={{ color: "var(--bink)" }}>↗</span>
                   Firmas: {summary.recent_campaigns[0].title.slice(0, 22)}…
                 </Link>
               )}

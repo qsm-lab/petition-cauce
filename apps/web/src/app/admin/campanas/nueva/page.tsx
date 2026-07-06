@@ -111,7 +111,7 @@ export default function NuevaCampanaPage() {
         style={{ backgroundColor: "var(--bsurf)", borderBottom: "1px solid var(--bbord)" }}
       >
         <nav className="flex items-center gap-1.5 text-[12px] mb-2" style={{ color: "var(--bmut)" }}>
-          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bp)" }}>
+          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bink)" }}>
             Campañas
           </Link>
           <span>/</span>
@@ -241,9 +241,10 @@ export default function NuevaCampanaPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="font-semibold text-[13px] text-white px-5 py-2.5 rounded-[10px]"
+                className="font-semibold text-[13px] px-5 py-2.5 rounded-[10px]"
                 style={{
                   backgroundColor: loading ? "color-mix(in srgb, var(--bp) 60%, transparent)" : "var(--bp)",
+                  color: "var(--bop)",
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >

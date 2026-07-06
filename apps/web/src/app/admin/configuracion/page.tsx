@@ -82,8 +82,8 @@ export default function ConfiguracionPage() {
           </p>
         </div>
         <button
-          className="font-semibold text-[13px] text-white"
-          style={{ backgroundColor: "var(--bp)", padding: "0 18px", minHeight: "38px", borderRadius: "10px" }}
+          className="font-semibold text-[13px]"
+          style={{ backgroundColor: "var(--bp)", color: "var(--bop)", padding: "0 18px", minHeight: "38px", borderRadius: "10px" }}
           disabled
           title="La persistencia de configuración estará disponible cuando los endpoints existan"
         >
@@ -107,10 +107,8 @@ export default function ConfiguracionPage() {
                 style={{
                   padding: "9px 12px",
                   backgroundColor:
-                    activeSection === s.id
-                      ? "color-mix(in srgb, var(--bp) 10%, transparent)"
-                      : "transparent",
-                  color: activeSection === s.id ? "var(--bp)" : "var(--bmut)",
+                    activeSection === s.id ? "#D7F24C" : "transparent",
+                  color: activeSection === s.id ? "#16261F" : "var(--bmut)",
                   fontWeight: activeSection === s.id ? 700 : 500,
                 }}
               >

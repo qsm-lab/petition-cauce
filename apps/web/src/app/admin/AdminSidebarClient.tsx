@@ -39,11 +39,11 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
         <div className="flex items-center gap-2.5">
           <span
             className="w-[30px] h-[30px] flex items-center justify-center rounded-[9px] flex-shrink-0"
-            style={{ backgroundColor: "var(--bp)" }}
+            style={{ backgroundColor: "#D7F24C" }}
           >
-            <span className="font-display font-extrabold text-[14px] text-white leading-none">C</span>
+            <span className="font-display text-[16px] leading-none" style={{ color: "#16261F" }}>C</span>
           </span>
-          <span className="font-display font-bold text-[14px] text-white leading-tight">
+          <span className="font-body font-bold text-[14px] text-white leading-tight">
             Cauce Petition
           </span>
         </div>
@@ -61,11 +61,12 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-3 rounded-[10px] text-[13px] w-full transition-colors duration-100 ${
-                    isActive ? "font-semibold text-white" : "font-medium text-white/50 hover:text-white/80"
+                    isActive ? "font-bold" : "font-medium text-white/55 hover:text-white/85"
                   }`}
                   style={{
                     padding: "10px 16px",
-                    backgroundColor: isActive ? "rgba(255,255,255,.10)" : "transparent",
+                    backgroundColor: isActive ? "#D7F24C" : "transparent",
+                    color: isActive ? "#16261F" : undefined,
                   }}
                 >
                   <span className="flex-shrink-0 w-[15px] h-[15px] flex items-center justify-center" aria-hidden="true">

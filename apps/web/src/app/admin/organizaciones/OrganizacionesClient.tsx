@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import type { AdminOrg, OrgCreate } from "@/lib/admin-orgs-api";
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  verificada: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Verificada" },
+  verificada: { bg: "#DCE9E6", color: "#16261F", label: "Verificada" },
   pendiente: { bg: "#fff7ed", color: "#c2410c", label: "Pendiente" },
   archivada: { bg: "#f3f4f6", color: "#6b7280", label: "Archivada" },
 };
@@ -109,8 +109,8 @@ export default function OrganizacionesClient({ initialOrgs }: Props) {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 font-semibold text-[13px] text-white mb-5"
-          style={{ backgroundColor: "var(--bp)", padding: "0 16px", minHeight: "36px", borderRadius: "10px" }}
+          className="flex items-center gap-1.5 font-semibold text-[13px] mb-5"
+          style={{ backgroundColor: "var(--bp)", color: "var(--bop)", padding: "0 16px", minHeight: "36px", borderRadius: "10px" }}
         >
           + Nueva organización
         </button>
@@ -156,7 +156,7 @@ export default function OrganizacionesClient({ initialOrgs }: Props) {
           </div>
           {error && <p className="text-[11.5px] text-red-600 mb-3">{error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="font-semibold text-[12.5px] text-white px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)" }}>
+            <button type="submit" disabled={saving} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}>
               {saving ? "Guardando…" : "Crear organización"}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ background: "var(--bbord)", color: "var(--bmut)" }}>
@@ -210,7 +210,7 @@ export default function OrganizacionesClient({ initialOrgs }: Props) {
                   <button
                     onClick={() => handleVerify(org.id)}
                     className="text-[11.5px] font-medium px-3 py-1 rounded-[7px]"
-                    style={{ background: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A" }}
+                    style={{ background: "#DCE9E6", color: "#16261F" }}
                   >
                     Verificar
                   </button>

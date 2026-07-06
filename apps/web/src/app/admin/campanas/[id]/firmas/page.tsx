@@ -6,13 +6,13 @@ import ExportCsvButton from "./ExportCsvButton";
 // ─── Badges ─────────────────────────────────────────────────────────────────
 
 const VISIBILITY_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  publica:  { label: "Pública",  bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A" },
+  publica:  { label: "Pública",  bg: "#DCE9E6", color: "#16261F" },
   anonima:  { label: "Anónima",  bg: "var(--bbg)",                                  color: "var(--bmut)" },
   secreta:  { label: "Secreta",  bg: "color-mix(in srgb,#c2410c 10%,transparent)", color: "#c2410c" },
 };
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  confirmed:            { label: "Confirmada", bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A" },
+  confirmed:            { label: "Confirmada", bg: "#DCE9E6", color: "#16261F" },
   pending_confirmation: { label: "Pendiente",  bg: "color-mix(in srgb,#b45309 12%,transparent)", color: "#b45309" },
   anulada:              { label: "Anulada",    bg: "color-mix(in srgb,#c2410c 10%,transparent)", color: "#c2410c" },
 };
@@ -111,7 +111,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
       >
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-[12px] mb-2" style={{ color: "var(--bmut)" }}>
-          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bp)" }}>
+          <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bink)", fontWeight: 600 }}>
             Campañas
           </Link>
           <span>/</span>
@@ -156,7 +156,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
             <Link
               href="/admin/campanas"
               className="mt-4 inline-flex text-[13px] font-semibold"
-              style={{ color: "var(--bp)" }}
+              style={{ color: "var(--bink)", fontWeight: 600 }}
             >
               ← Volver a campañas
             </Link>
@@ -231,7 +231,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
                           <Link
                             href="?"
                             className="text-[13px] font-medium"
-                            style={{ color: "var(--bp)" }}
+                            style={{ color: "var(--bink)", fontWeight: 600 }}
                           >
                             Limpiar filtros
                           </Link>

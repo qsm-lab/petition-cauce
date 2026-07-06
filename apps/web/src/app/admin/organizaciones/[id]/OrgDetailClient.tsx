@@ -7,13 +7,13 @@ import { api } from "@/lib/api";
 import type { AdminOrg, OrgUpdate } from "@/lib/admin-orgs-api";
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  verificada: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Verificada" },
+  verificada: { bg: "#DCE9E6", color: "#16261F", label: "Verificada" },
   pendiente: { bg: "#fff7ed", color: "#c2410c", label: "Pendiente" },
   archivada: { bg: "#f3f4f6", color: "#6b7280", label: "Archivada" },
 };
 
 const CAMPAIGN_STATUS: Record<string, { bg: string; color: string; label: string }> = {
-  active: { bg: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A", label: "Activa" },
+  active: { bg: "#DCE9E6", color: "#16261F", label: "Activa" },
   draft: { bg: "#f3f4f6", color: "#6b7280", label: "Borrador" },
   closed: { bg: "#fef2f2", color: "#991b1b", label: "Cerrada" },
   online: { bg: "color-mix(in srgb,#0369a1 12%,transparent)", color: "#0369a1", label: "Online" },
@@ -261,7 +261,7 @@ export default function OrgDetailClient({ initialOrg, initialCampaigns }: Props)
             </div>
             {error && <p className="text-[11.5px] text-red-600">{error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={saving} className="font-semibold text-[12.5px] text-white px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)" }}>
+              <button type="submit" disabled={saving} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ backgroundColor: "var(--bp)", color: "var(--bop)" }}>
                 {saving ? "Guardando…" : "Guardar cambios"}
               </button>
               <button type="button" onClick={handleCancelEdit} className="font-semibold text-[12.5px] px-4 py-2 rounded-[8px]" style={{ background: "var(--bbord)", color: "var(--bmut)" }}>
@@ -279,7 +279,7 @@ export default function OrgDetailClient({ initialOrg, initialCampaigns }: Props)
             <button
               onClick={handleVerify}
               className="text-[12px] font-semibold px-4 py-2 rounded-[9px]"
-              style={{ background: "color-mix(in srgb,#18794A 12%,transparent)", color: "#18794A" }}
+              style={{ background: "#DCE9E6", color: "#16261F" }}
             >
               Marcar como verificada
             </button>
