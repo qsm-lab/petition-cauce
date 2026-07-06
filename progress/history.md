@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-07-06 — Sesión 20: editor unificado nueva/editar campaña + fix categorías
+
+**Nueva campaña = editor completo:** `CampanaEditorClient` refactorizado para aceptar `campaign?: AdminCampaign | null`. Modo `isNew`: auto-slug desde el título, POST en submit, header "Nueva campaña", sidebar Borrador estático, sin paneles QR/ID/Zona de peligro. `nueva/page.tsx` convertida a server component que carga categorías, políticas y orgs igual que la página de edición. `CampaignCreate` en backend expandido con todos los campos opcionales de `CampaignUpdate`; `create_campaign` extrae campos meta antes de construir el modelo. 2 commits aplicados en `dev`.
+
+**Fix categorías (4 bugs):** (1) nombre no se trimmeaba → espacios al final generaban slug idéntico y 409; (2) constraint único global incluía archivadas → imposible recrear categoría archivada; (3) slugs con tildes en datos existentes (`agua-y-páramos`); (4) mensaje de error genérico sin guía al usuario. Correcciones: validators `trim_name` en schema, mensaje 409 descriptivo, migración 013 (partial unique index `WHERE archived_at IS NULL` + limpieza de datos), frontend recarga lista en 409 y muestra mensaje específico. Commit 3 pendiente de ejecutar.
+
+---
+
 ## 2026-07-05 — Sesión 19: rediseño completo design system v2 — landing + SignFlow + admin
 
 **Design system v2:** fuentes Anton (display) + Work Sans (body) cargadas vía `next/font/google`. Tokens CSS actualizados: Lime `#D7F24C` como CTA/primary, Ink `#16261F`, Sage `#EDF4F1` como fondo, Green Light `#DCE9E6`. `category-color.ts` nueva utilidad. Tailwind: `font-display` → Anton, `font-body` → Work Sans.
