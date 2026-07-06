@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import {
+  Anton,
+  Work_Sans,
   Poppins,
   Inter,
   Montserrat,
@@ -8,6 +10,21 @@ import {
   Permanent_Marker,
 } from "next/font/google";
 import "./globals.css";
+
+/* ── Cauce v2: fuentes del nuevo sistema de diseño (landing pública) ── */
+const anton = Anton({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-anton",
+  display: "swap",
+});
+
+const workSans = Work_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-work-sans",
+  display: "swap",
+});
 
 /* ── Petition-Cauce: fuentes del sistema de diseño público ── */
 const poppins = Poppins({
@@ -63,6 +80,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       className={[
+        anton.variable,
+        workSans.variable,
         poppins.variable,
         inter.variable,
         montserrat.variable,

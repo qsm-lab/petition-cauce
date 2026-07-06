@@ -25,11 +25,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        /* ── Petition-Cauce ── */
-        display: ["var(--font-poppins)", "sans-serif"],
-        body:    ["var(--font-inter)",   "sans-serif"],
-        /* ── Legacy QSM (admin pages) ── */
-        heading: ["var(--font-montserrat)",       "sans-serif"],
+        /* ── Cauce v2 — todo el sistema ── */
+        display: ["var(--font-anton)",     "sans-serif"],
+        body:    ["var(--font-work-sans)", "sans-serif"],
+        heading: ["var(--font-work-sans)", "sans-serif"],
+        /* ── decorativo (mantener) ── */
         marker:  ["var(--font-fredoka)",          "sans-serif"],
         brush:   ["var(--font-permanent-marker)", "cursive"],
       },

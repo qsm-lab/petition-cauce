@@ -8,15 +8,15 @@
    layout server-side con los valores de meta.branding.
    ===================================================== */
 :root {
-  --bp:    #18794A;
-  --bop:   #ffffff;
-  --bsec:  #2F855A;
-  --bink:  #15241B;
-  --bmut:  #5A6B60;
-  --bsurf: #ffffff;
-  --bbg:   #EEF4EC;
-  --bbord: #DBE6D6;
-  --br:    24px;
+  --bp:    #D7F24C;              /* Lime — CTA / primary accent */
+  --bop:   #16261F;              /* On-primary — Ink sobre Lime */
+  --bsec:  #DCE9E6;              /* Green Light */
+  --bink:  #16261F;              /* Ink dark — texto principal */
+  --bmut:  rgba(22,38,31,0.55); /* texto secundario / muted */
+  --bsurf: #ffffff;              /* surface / fondo de cards */
+  --bbg:   #EDF4F1;              /* fondo de página — sage claro */
+  --bbord: rgba(22,38,31,0.15); /* bordes */
+  --br:    14px;
 }
 
 /* =====================================================
@@ -60,6 +60,13 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.35; }
 }
+/* Dot pulsante del nuevo sistema (box-shadow expandible, color configurable via --cauce-dot-color) */
+@keyframes cauce-live-dot {
+  0%   { box-shadow: 0 0 0 0 var(--cauce-dot-color, rgba(43,78,234,.45)); }
+  70%  { box-shadow: 0 0 0 9px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.animate-cauce-live-dot { animation: cauce-live-dot 1.8s ease-out infinite; }
 @keyframes pc-float-in {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: none; }
@@ -95,3 +102,8 @@
 .petition-body-html strong { font-weight: 700; }
 .petition-body-html em { font-style: italic; }
 .petition-body-html s { text-decoration: line-through; }
+
+/* Modo oscuro para "Por qué importa" */
+.petition-body-html--dark h2,
+.petition-body-html--dark h3 { color: rgba(237,244,241,0.95); }
+.petition-body-html--dark blockquote { border-left-color: #D7F24C; opacity: 0.75; }
