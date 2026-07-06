@@ -114,46 +114,58 @@ function MultiCheck({ options, selected, onChange }: {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+}
+
 export default function CampanaEditorClient({
   campaign,
   categories = [],
   policies = [],
   orgs = [],
 }: {
-  campaign: AdminCampaign;
+  campaign?: AdminCampaign | null;
   categories?: Category[];
   policies?: PrivacyPolicy[];
   orgs?: AdminOrg[];
 }) {
   const router = useRouter();
-  const meta = (campaign.meta ?? {}) as Record<string, unknown>;
+  const isNew = !campaign;
+  const meta = (campaign?.meta ?? {}) as Record<string, unknown>;
   const fc = (meta.form_config ?? {}) as Record<string, unknown>;
 
   // — Identidad
-  const [title, setTitle] = useState(campaign.title);
-  const [petitionTitle, setPetitionTitle] = useState(campaign.petition_title ?? "");
-  const [slug, setSlug] = useState(campaign.slug);
+  const [title, setTitle] = useState(campaign?.title ?? "");
+  const [petitionTitle, setPetitionTitle] = useState(campaign?.petition_title ?? "");
+  const [slug, setSlug] = useState(campaign?.slug ?? "");
+  const [slugManual, setSlugManual] = useState(false);
 
   // — Portada
-  const [heroImageUrl, setHeroImageUrl] = useState(campaign.hero_image_url ?? "");
+  const [heroImageUrl, setHeroImageUrl] = useState(campaign?.hero_image_url ?? "");
   const [heroImageMobileUrl, setHeroImageMobileUrl] = useState((meta.hero_image_mobile_url as string) ?? "");
 
   // — Lo que pedimos
   const [asks, setAsks] = useState<string[]>(
-    Array.isArray(campaign.asks) && campaign.asks.length > 0 ? campaign.asks : [""]
+    Array.isArray(campaign?.asks) && campaign.asks.length > 0 ? campaign.asks : [""]
   );
 
   // — Texto
   const legacyText =
-    (campaign.petition_body?.paragraphs as string[] | undefined)?.[0]
-    ?? (campaign.petition_body?.texto as string | undefined) ?? "";
+    (campaign?.petition_body?.paragraphs as string[] | undefined)?.[0]
+    ?? (campaign?.petition_body?.texto as string | undefined) ?? "";
   const [petitionHtml, setPetitionHtml] = useState<string>(
-    (campaign.petition_body?.html as string | undefined) ?? (legacyText ? `<p>${legacyText}</p>` : "")
+    (campaign?.petition_body?.html as string | undefined) ?? (legacyText ? `<p>${legacyText}</p>` : "")
   );
 
   // — Objetivo
-  const [goalCount, setGoalCount] = useState(campaign.goal_count?.toString() ?? "");
-  const [authority, setAuthority] = useState(campaign.authority ?? "");
+  const [goalCount, setGoalCount] = useState(campaign?.goal_count?.toString() ?? "");
+  const [authority, setAuthority] = useState(campaign?.authority ?? "");
   const [showGoal, setShowGoal] = useState((meta.show_goal as boolean) ?? true);
   const [showAuthority, setShowAuthority] = useState((meta.show_authority as boolean) ?? true);
 
@@ -171,12 +183,12 @@ export default function CampanaEditorClient({
   );
 
   // — Panel derecho
-  const [status, setStatus] = useState(campaign.status);
-  const [orgId, setOrgId] = useState((campaign as unknown as { org_id?: string }).org_id ?? "");
-  const [category, setCategory] = useState(campaign.category ?? "");
-  const [endsAt, setEndsAt] = useState(campaign.ends_at ? campaign.ends_at.slice(0, 10) : "");
+  const [status, setStatus] = useState(campaign?.status ?? "draft");
+  const [orgId, setOrgId] = useState((campaign as unknown as { org_id?: string })?.org_id ?? "");
+  const [category, setCategory] = useState(campaign?.category ?? "");
+  const [endsAt, setEndsAt] = useState(campaign?.ends_at ? campaign.ends_at.slice(0, 10) : "");
   const [privacyPolicyId, setPrivacyPolicyId] = useState(
-    (campaign as unknown as { privacy_policy_id?: string }).privacy_policy_id ?? ""
+    (campaign as unknown as { privacy_policy_id?: string })?.privacy_policy_id ?? ""
   );
   const [showQr, setShowQr] = useState((meta.show_qr as boolean) ?? false);
   const [qrGenerated, setQrGenerated] = useState(false);
@@ -190,7 +202,12 @@ export default function CampanaEditorClient({
   const [error, setError] = useState<string | null>(null);
   const [activationWarning, setActivationWarning] = useState<string[] | null>(null);
 
-  const isLocked = status === "active" || status === "online";
+  const isLocked = !isNew && (status === "active" || status === "online");
+
+  function handleTitleChange(v: string) {
+    setTitle(v);
+    if (isNew && !slugManual) setSlug(slugify(v));
+  }
 
   // — Asks helpers
   const setAsk = useCallback((i: number, val: string) => {
@@ -213,7 +230,7 @@ export default function CampanaEditorClient({
   async function generateQr() {
     try {
       const QRCode = (await import("qrcode")).default;
-      const campaignUrl = `${window.location.origin}/?slug=${campaign.slug}`;
+      const campaignUrl = `${window.location.origin}/?slug=${campaign!.slug}`;
       const dataUrl = await QRCode.toDataURL(campaignUrl, { width: 200, margin: 1 });
       setQrData(dataUrl);
       setQrGenerated(true);
@@ -222,34 +239,47 @@ export default function CampanaEditorClient({
     }
   }
 
+  const _buildPayload = () => ({
+    title: title.trim(),
+    petition_title: petitionTitle.trim() || null,
+    slug: slug.trim(),
+    asks: asks.filter((a) => a.trim()),
+    hero_image_url: heroImageUrl.trim() || null,
+    hero_image_mobile_url: heroImageMobileUrl.trim() || undefined,
+    goal_count: goalCount ? parseInt(goalCount, 10) : null,
+    authority: authority.trim() || null,
+    petition_body: petitionHtml && petitionHtml !== "<p></p>" ? { html: petitionHtml } : {},
+    attachments: attachments.filter((a) => a.title.trim() && a.url.trim()),
+    category: category || null,
+    ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+    privacy_policy_id: privacyPolicyId || null,
+    org_id: orgId || undefined,
+    show_goal: showGoal,
+    show_authority: showAuthority,
+    form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
+    show_qr: showQr,
+    share_text: shareText.trim() || null,
+  });
+
   // — Save
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!title.trim() || !slug.trim()) {
+      setError("El nombre interno y el slug son obligatorios.");
+      return;
+    }
     setSaving(true);
     setSaved(false);
     try {
-      await api.put(`/v1/campaigns/${campaign.id}`, {
-        title: title.trim(),
-        petition_title: petitionTitle.trim() || null,
-        slug: slug.trim(),
-        asks: asks.filter((a) => a.trim()),
-        hero_image_url: heroImageUrl.trim() || null,
-        hero_image_mobile_url: heroImageMobileUrl.trim() || undefined,
-        goal_count: goalCount ? parseInt(goalCount, 10) : null,
-        authority: authority.trim() || null,
-        petition_body: petitionHtml && petitionHtml !== "<p></p>" ? { html: petitionHtml } : {},
-        attachments: attachments.filter((a) => a.title.trim() && a.url.trim()),
-        category: category || null,
-        ends_at: endsAt ? new Date(endsAt).toISOString() : null,
-        privacy_policy_id: privacyPolicyId || null,
-        org_id: orgId || undefined,
-        show_goal: showGoal,
-        show_authority: showAuthority,
-        form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
-        show_qr: showQr,
+      if (isNew) {
+        const created = await api.post<AdminCampaign>("/v1/campaigns", _buildPayload());
+        router.push(`/admin/campanas/${created.id}`);
+        return;
+      }
+      await api.put(`/v1/campaigns/${campaign!.id}`, {
+        ..._buildPayload(),
         qr_code_data: qrGenerated ? qrData : undefined,
-        share_text: shareText.trim() || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -276,7 +306,7 @@ export default function CampanaEditorClient({
     setStatusSaving(true);
     setError(null);
     try {
-      await api.patch(`/v1/campaigns/${campaign.id}/status`, { status: newStatus });
+      await api.patch(`/v1/campaigns/${campaign!.id}/status`, { status: newStatus });
       setStatus(newStatus);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
@@ -300,7 +330,7 @@ export default function CampanaEditorClient({
     setArchiving(true);
     setError(null);
     try {
-      await api.patch(`/v1/campaigns/${campaign.id}/archive`, {});
+      await api.patch(`/v1/campaigns/${campaign!.id}/archive`, {});
       router.push("/admin/campanas");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al archivar";
@@ -324,23 +354,31 @@ export default function CampanaEditorClient({
         <nav className="flex items-center gap-1.5 text-[12px] mb-2" style={{ color: "var(--bmut)" }}>
           <Link href="/admin/campanas" className="hover:underline" style={{ color: "var(--bink)", fontWeight: 600 }}>Campañas</Link>
           <span>/</span>
-          <span className="font-semibold truncate max-w-[280px]" style={{ color: "var(--bink)" }}>{campaign.title}</span>
+          <span className="font-semibold truncate max-w-[280px]" style={{ color: "var(--bink)" }}>
+            {isNew ? "Nueva campaña" : campaign!.title}
+          </span>
         </nav>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h1 className="font-display font-bold text-[18px]" style={{ color: "var(--bink)" }}>Editar campaña</h1>
-            <span className="font-bold text-[11px] px-2.5 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
-              {STATUSES.find((s) => s.value === status)?.label ?? status}
-            </span>
+            <h1 className="font-display font-bold text-[18px]" style={{ color: "var(--bink)" }}>
+              {isNew ? "Nueva campaña" : "Editar campaña"}
+            </h1>
+            {!isNew && (
+              <span className="font-bold text-[11px] px-2.5 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                {STATUSES.find((s) => s.value === status)?.label ?? status}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <Link href={`/admin/campanas/${campaign.id}/firmas`} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bink)", background: "#D7F24C", border: "none" }}>
-              Ver firmas
-            </Link>
-            <a href={`/?slug=${campaign.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
-              Landing ↗
-            </a>
-          </div>
+          {!isNew && (
+            <div className="flex items-center gap-2">
+              <Link href={`/admin/campanas/${campaign!.id}/firmas`} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bink)", background: "#D7F24C", border: "none" }}>
+                Ver firmas
+              </Link>
+              <a href={`/?slug=${campaign!.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
+                Landing ↗
+              </a>
+            </div>
+          )}
         </div>
       </header>
 
@@ -365,7 +403,7 @@ export default function CampanaEditorClient({
             <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
               <SectionHeader title="Identidad" />
               <Field label="Nombre interno *" hint="Identificador en el admin. No se muestra en el front.">
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={500} required className="w-full bg-transparent text-[14px] outline-none" style={{ color: "var(--bink)" }} />
+                <input type="text" value={title} onChange={(e) => handleTitleChange(e.target.value)} maxLength={500} required className="w-full bg-transparent text-[14px] outline-none placeholder:opacity-40" placeholder="Ej: Yasuní 2026" style={{ color: "var(--bink)" }} />
               </Field>
               <Field label="Título de la petición" hint="Lo que verá el firmante como encabezado. Si se deja vacío usa el nombre interno.">
                 <input type="text" value={petitionTitle} onChange={(e) => setPetitionTitle(e.target.value)} placeholder={title || "Ej: ¡Alto al proyecto minero en el Yasuní!"} maxLength={500} className="w-full bg-transparent text-[14px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)" }} />
@@ -373,8 +411,9 @@ export default function CampanaEditorClient({
               <Field label="Slug (URL)" last>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[13px] flex-shrink-0" style={{ color: "var(--bmut)" }}>/?slug=</span>
-                  <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={100} pattern="[a-z0-9\-]+" className="flex-1 bg-transparent text-[13px] font-mono outline-none" style={{ color: "var(--bink)" }} />
+                  <input type="text" value={slug} onChange={(e) => { setSlug(e.target.value); setSlugManual(true); }} maxLength={100} pattern="[a-z0-9\-]+" className="flex-1 bg-transparent text-[13px] font-mono outline-none placeholder:opacity-40" placeholder="yasuni-2026" style={{ color: "var(--bink)" }} />
                 </div>
+                {isNew && <p className="text-[11.5px] mt-1" style={{ color: "var(--bmut)" }}>Solo letras minúsculas, números y guiones.</p>}
               </Field>
             </div>
 
@@ -456,10 +495,12 @@ export default function CampanaEditorClient({
 
             <div className="flex items-center gap-3">
               <button type="submit" disabled={saving} className="font-semibold text-[13px] px-5 py-2.5 rounded-[10px]" style={{ backgroundColor: saved ? "#16261F" : saving ? "rgba(215,242,76,0.5)" : "var(--bp)", color: "var(--bop)", cursor: saving ? "not-allowed" : "pointer" }}>
-                {saved ? "✓ Guardado" : saving ? "Guardando…" : "Guardar cambios"}
+                {isNew
+                  ? (saving ? "Creando…" : "Crear campaña")
+                  : (saved ? "✓ Guardado" : saving ? "Guardando…" : "Guardar cambios")}
               </button>
               <Link href="/admin/campanas" className="font-medium text-[13px] px-5 py-2.5 rounded-[10px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
-                Volver
+                {isNew ? "Cancelar" : "Volver"}
               </Link>
             </div>
           </form>
@@ -468,44 +509,69 @@ export default function CampanaEditorClient({
           <div className="flex flex-col gap-3">
 
             {/* Estado */}
-            <PanelSection title="Estado">
-              {activationWarning && (
-                <div className="mb-3 rounded-[10px] overflow-hidden" style={{ border: "1.5px solid #f59e0b" }}>
-                  <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "#f59e0b" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-                    <span className="text-[12px] font-bold text-white">No se puede activar</span>
+            <PanelSection title="Estado inicial">
+              {isNew ? (
+                <>
+                  <div
+                    className="flex items-start gap-2.5 rounded-[10px] px-3 py-3"
+                    style={{
+                      background: "color-mix(in srgb,#ca8a04 10%,transparent)",
+                      border: "1px solid color-mix(in srgb,#ca8a04 25%,transparent)",
+                    }}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: "#92400e" }} />
+                    <div>
+                      <p className="text-[13px] font-semibold" style={{ color: "#92400e" }}>Borrador</p>
+                      <p className="text-[11.5px] mt-0.5" style={{ color: "#92400e", opacity: 0.8 }}>
+                        Visible con banner · firmas de prueba
+                      </p>
+                    </div>
                   </div>
-                  <div className="px-3 py-2.5 flex flex-col gap-1.5" style={{ background: "#fffbeb" }}>
-                    {activationWarning.map((k) => (
-                      <div key={k} className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#d97706" }} />
-                        <span className="text-[12px] font-semibold" style={{ color: "#92400e" }}>
-                          Falta: {MISSING_LABELS[k] ?? k}
-                        </span>
+                  <p className="text-[11.5px] mt-3" style={{ color: "var(--bmut)" }}>
+                    La campaña inicia en modo Borrador. Actívala cuando estés listo.
+                  </p>
+                </>
+              ) : (
+                <>
+                  {activationWarning && (
+                    <div className="mb-3 rounded-[10px] overflow-hidden" style={{ border: "1.5px solid #f59e0b" }}>
+                      <div className="px-3 py-2 flex items-center gap-1.5" style={{ background: "#f59e0b" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        <span className="text-[12px] font-bold text-white">No se puede activar</span>
                       </div>
-                    ))}
+                      <div className="px-3 py-2.5 flex flex-col gap-1.5" style={{ background: "#fffbeb" }}>
+                        {activationWarning.map((k) => (
+                          <div key={k} className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#d97706" }} />
+                            <span className="text-[12px] font-semibold" style={{ color: "#92400e" }}>
+                              Falta: {MISSING_LABELS[k] ?? k}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    {STATUSES.map((s) => {
+                      const sc = STATUS_COLORS[s.value] ?? STATUS_COLORS.draft;
+                      const isActive = status === s.value;
+                      return (
+                        <button key={s.value} type="button" disabled={isActive || statusSaving} onClick={() => handleStatusChange(s.value)}
+                          className="w-full text-left px-3 py-2.5 rounded-[8px]"
+                          style={{ background: isActive ? sc.bg : "transparent", border: `1px solid ${isActive ? sc.color : "var(--bbord)"}`, opacity: statusSaving && !isActive ? 0.5 : 1, cursor: isActive || statusSaving ? "default" : "pointer" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: isActive ? sc.color : "var(--bbord)" }} />
+                            <span className="text-[13px] font-semibold" style={{ color: isActive ? sc.color : "var(--bink)" }}>{s.label}</span>
+                            {isActive && <span className="ml-auto text-[11px] font-bold" style={{ color: sc.color }}>Actual</span>}
+                          </div>
+                          <p className="text-[11px] mt-0.5 ml-4" style={{ color: "var(--bmut)" }}>{s.hint}</p>
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
+                </>
               )}
-              <div className="flex flex-col gap-2">
-                {STATUSES.map((s) => {
-                  const sc = STATUS_COLORS[s.value] ?? STATUS_COLORS.draft;
-                  const isActive = status === s.value;
-                  return (
-                    <button key={s.value} type="button" disabled={isActive || statusSaving} onClick={() => handleStatusChange(s.value)}
-                      className="w-full text-left px-3 py-2.5 rounded-[8px]"
-                      style={{ background: isActive ? sc.bg : "transparent", border: `1px solid ${isActive ? sc.color : "var(--bbord)"}`, opacity: statusSaving && !isActive ? 0.5 : 1, cursor: isActive || statusSaving ? "default" : "pointer" }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: isActive ? sc.color : "var(--bbord)" }} />
-                        <span className="text-[13px] font-semibold" style={{ color: isActive ? sc.color : "var(--bink)" }}>{s.label}</span>
-                        {isActive && <span className="ml-auto text-[11px] font-bold" style={{ color: sc.color }}>Actual</span>}
-                      </div>
-                      <p className="text-[11px] mt-0.5 ml-4" style={{ color: "var(--bmut)" }}>{s.hint}</p>
-                    </button>
-                  );
-                })}
-              </div>
             </PanelSection>
 
             {/* Organización */}
@@ -588,43 +654,49 @@ export default function CampanaEditorClient({
               )}
             </PanelSection>
 
-            {/* QR */}
-            <PanelSection title="Código QR">
-              <Toggle checked={showQr} onChange={setShowQr} label="Mostrar QR en la landing" />
-              {showQr && (
-                <div className="mt-3 flex flex-col items-center gap-2">
-                  {qrData ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrData} alt="QR" className="rounded-[8px]" style={{ width: 120, height: 120 }} />
-                      <p className="text-[11px] text-center" style={{ color: "var(--bmut)" }}>Guarda los cambios para publicar el QR</p>
-                    </>
-                  ) : (
-                    <button type="button" onClick={generateQr} className="w-full text-[12.5px] font-semibold py-2 rounded-[8px]" style={{ background: "var(--bbg)", border: "1px solid var(--bbord)", color: "var(--bink)" }}>
-                      Generar QR
-                    </button>
-                  )}
-                </div>
-              )}
-            </PanelSection>
+            {/* QR — solo en edición */}
+            {!isNew && (
+              <PanelSection title="Código QR">
+                <Toggle checked={showQr} onChange={setShowQr} label="Mostrar QR en la landing" />
+                {showQr && (
+                  <div className="mt-3 flex flex-col items-center gap-2">
+                    {qrData ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrData} alt="QR" className="rounded-[8px]" style={{ width: 120, height: 120 }} />
+                        <p className="text-[11px] text-center" style={{ color: "var(--bmut)" }}>Guarda los cambios para publicar el QR</p>
+                      </>
+                    ) : (
+                      <button type="button" onClick={generateQr} className="w-full text-[12.5px] font-semibold py-2 rounded-[8px]" style={{ background: "var(--bbg)", border: "1px solid var(--bbord)", color: "var(--bink)" }}>
+                        Generar QR
+                      </button>
+                    )}
+                  </div>
+                )}
+              </PanelSection>
+            )}
 
-            {/* ID */}
-            <div className="rounded-[14px] p-4" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
-              <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bmut)" }}>ID de campaña</p>
-              <p className="text-[11px] font-mono break-all select-all" style={{ color: "var(--bmut)" }}>{campaign.id}</p>
-            </div>
+            {/* ID — solo en edición */}
+            {!isNew && (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+                <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bmut)" }}>ID de campaña</p>
+                <p className="text-[11px] font-mono break-all select-all" style={{ color: "var(--bmut)" }}>{campaign!.id}</p>
+              </div>
+            )}
 
-            {/* Zona de peligro */}
-            <div className="rounded-[14px] p-4" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
-              <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-2" style={{ color: "var(--bmut)" }}>Zona de peligro</p>
-              <button type="button" disabled={isLocked || archiving} onClick={handleArchive}
-                className="w-full px-3 py-2 rounded-[8px] text-[13px] font-semibold text-left"
-                style={{ background: isLocked ? "var(--bbg)" : "color-mix(in srgb,#c2410c 8%,transparent)", border: `1px solid ${isLocked ? "var(--bbord)" : "color-mix(in srgb,#c2410c 25%,transparent)"}`, color: isLocked ? "var(--bmut)" : "#c2410c", cursor: isLocked ? "not-allowed" : "pointer" }}
-              >
-                {archiving ? "Archivando…" : "Archivar campaña"}
-              </button>
-              {isLocked && <p className="text-[11px] mt-1.5" style={{ color: "var(--bmut)" }}>Cambia el estado a Cerrada o Borrador antes de archivar.</p>}
-            </div>
+            {/* Zona de peligro — solo en edición */}
+            {!isNew && (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+                <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-2" style={{ color: "var(--bmut)" }}>Zona de peligro</p>
+                <button type="button" disabled={isLocked || archiving} onClick={handleArchive}
+                  className="w-full px-3 py-2 rounded-[8px] text-[13px] font-semibold text-left"
+                  style={{ background: isLocked ? "var(--bbg)" : "color-mix(in srgb,#c2410c 8%,transparent)", border: `1px solid ${isLocked ? "var(--bbord)" : "color-mix(in srgb,#c2410c 25%,transparent)"}`, color: isLocked ? "var(--bmut)" : "#c2410c", cursor: isLocked ? "not-allowed" : "pointer" }}
+                >
+                  {archiving ? "Archivando…" : "Archivar campaña"}
+                </button>
+                {isLocked && <p className="text-[11px] mt-1.5" style={{ color: "var(--bmut)" }}>Cambia el estado a Cerrada o Borrador antes de archivar.</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
