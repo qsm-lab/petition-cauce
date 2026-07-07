@@ -1,72 +1,78 @@
-# Estado actual — tras sesión 22 (2026-07-06)
+# Estado actual — sesión 24 en curso (2026-07-07)
 
-## Resumen de sesión 22
+## Resumen de sesión 24 (hasta la pausa de commits)
 
-Sesión de UX y calidad: implementación completa de `editor-branding` + mejoras progresivas al flujo de firma en la landing (StepSuccess, StepThanks), Open Graph, y correcciones de bugs.
+Sesión de trabajo local mientras el usuario ejecuta TEST-5/6/7 manualmente en el VPS.
+Orden ejecutado: desincronizaciones → specs LOPDP fase 3 → specs fase 2/4 → tests → repo-docs → validación local.
 
 ---
 
-## Lo que se implementó
+## Lo que se hizo
 
-### 1. `editor-branding` — completo
+### 1. Desincronizaciones corregidas
+- `feature_list.json`: `editor-branding` `pending` → `in_progress` (estaba implementado y en producción)
+- Spec retroactiva de `perfiles-org` creada (`specs/perfiles-org/`) — se implementó en sesiones 18-19 sin spec; R10 (regiones) y R11 (catálogo público) quedan como alcance restante
+- `tasks.md` de features done/implementadas: casillas marcadas según estado real
+- El commit `ci: checkout@v5` ya estaba hecho (`ed89932`) — pendiente resuelto
 
-**Backend:**
-- `apps/api/app/schemas/campaign.py` — `CampaignCreate` y `CampaignUpdate` extendidos con `branding`, `welcome_*`, `thank_you_*`, `social_links`; `_META_FIELDS` expandido de 7 a 19 campos
+### 2. Specs nuevas → `spec_ready` (esperan aprobación del usuario)
+| Spec | Contenido clave |
+|------|----------------|
+| `cifrado-reposo` | AES-256-GCM, `PII_ENCRYPTION_KEY` nueva, formato `enc:v1:`, migración idempotente. **Urgente antes de la primera campaña real** |
+| `retencion-datos` | APScheduler diario + lock Redis, ancla en evento `entrega`, anonimización preservando conteos, tabla `retention_runs` |
+| `derechos-arco` | Portal self-service `/mis-datos`, doble verificación email+cédula, anti-enumeración, tabla `arco_requests`. Frontend requiere Claude Design |
+| `enlace-corto-qr` | `/c/{code}` redirect, QR codifica enlace corto con `?source=qr`, descarga PNG 1024 |
+| `validacion-cedula` | **Retroactiva** — `verify_cedula` ya implementado; faltaban tests (hechos en esta sesión) |
 
-**Frontend:**
-- `BrandingColorPicker.tsx` (nuevo) — 3 presets (Bosque/Océano/Fuego), color picker nativo, hex manual, mini preview botón CTA con `autoOnPrimary()` WCAG
-- `CampanaEditorClient.tsx` — 3 secciones nuevas: **Identidad visual** (color primario + logo con preview + título/eslogan/descripción), **Pantalla de agradecimiento**, **Redes sociales** (6 URLs). Estado y payload unificados con guardar principal. `id="editor-form"` para el botón superior.
+Orden de implementación recomendado: cifrado-reposo → retencion-datos → derechos-arco (dependencias documentadas).
 
-### 2. UX admin — barra superior + tipografía
+### 3. Tests API (de 2 a 46 tests, todos pasan)
+- `requirements-dev.txt` nuevo (pytest, pytest-asyncio) + `Dockerfile.api.dev` los instala — **antes `make test` no podía correr (pytest no estaba instalado)**
+- `pytest.ini`: `asyncio_mode=auto`, loop scope `session` (arregla fallo de event loop en `test_campaign_not_found`), `pythonpath=.`
+- Nuevos: `test_cedula.py` (24 casos), `test_crypto.py` (HMAC), `test_anonymizer.py`, `test_form_config.py`
+- `make test` → **46 passed**
 
-- Botón "Guardar cambios" en barra sticky (top) — usa `form="editor-form"` + mismos estados `saving/saved`
-- "Ver firmas" → fondo oscuro (`--bink`) para diferenciarse del CTA lime
-- Título "Editar campaña" → `font-heading` (Work Sans Bold) a 22 px (antes Anton 18 px)
-- Headers de sección → 12.5 px, `font-heading bold`, `color: --bink` (antes 11 px muted)
-- Labels de campo → 12 px bold (antes 11 px)
-- Hints descriptivos → 12.5 px sin `opacity: 0.7`
+### 4. repo-docs
+- `README.md` creado (propósito, stack, setup local, seguridad/LOPDP)
+- LICENSE AGPL-3.0 agregada (decisión del usuario en sesión 24)
 
-### 3. Aviso de privacidad — modal en landing
+### 5. Validación local de features in_progress (API + SSR)
+| Verificado ✓ | Detalle |
+|--------------|---------|
+| resumen-admin | `/v1/dashboard/summary` correcto; `/admin/resumen` renderiza KPIs reales |
+| dashboard-firmas | Lista con stats/filtros/paginación; CSV sin PII; 401 sin JWT. Falta: 404 multi-org y checks de browser (T23, T25-T28) |
+| editor-campana | CRUD completo, 409 slug duplicado, org_id correcto — 15/15 |
+| editor-branding | Color Fuego → aparece en landing SSR y revierte; tsc 0 errores. Falta: miniatura logo y social links en browser (T13, T14) |
+| ciclo-vida-admin | PATCH lifecycle crea evento + notifica admins ✓ |
+| ciclo-vida-basico | 5 etapas presentes en landing SSR, etapa actual desde DB |
+| firmas-recientes / firma-visibilidad | Feed solo muestra la firma pública de 5 existentes |
+| landing/OG | OG completo (title, desc, image+dims, twitter card) |
 
-- `StepForm.tsx` — el enlace "aviso de privacidad" ahora abre un modal inline (overlay + X); fetch lazy del contenido desde API al primer clic; clic en overlay también cierra
-- `LifecyclePanelAdmin.tsx` — fix `overflow-wrap: break-word` en `<pre>` del aviso de privacidad (línea horizontal desbordada)
-- Página `/aviso-de-privacidad` sigue existente con el mismo fix de overflow
+Nota: la landing SSR cachea ~2 s los datos de campaña — esperar antes de verificar cambios.
 
-### 4. Hydration error — fechas y zona horaria
+### 6. Fix producción: landing 404 + patrón /c/[slug] (post-pausa)
+- **Bug 1 (código):** `domain_service.py` buscaba `tls_status == "activo"` pero el constraint de la migración 006 solo permite `'pending'|'active'|'error'` → ningún dominio podía resolver. Fix: `"active"`. SQL para el VPS ya entregado al usuario (INSERT en `domains` con `'active'`).
+- **Bug 2 (diseño):** en producción `?slug=` se ignoraba (solo resolución por dominio). Solución adoptada: **patrón forms-qsm `/c/<slug>`**:
+  - `app/c/[slug]/page.tsx` reescrito: renderiza la landing de petición por slug (antes: FormRenderer del flujo forms qsm, sin uso — `form_id` NULL en todas las campañas)
+  - Vestigios forms eliminados de `/c/`: `layout.tsx` (fondo QSM `#01004d`), `CBodyFix.tsx`, `loading.tsx` (rompía el status 404 por streaming), `[slug]/gracias/`
+  - `lib/campaign-og.ts` nuevo: metadata OG compartida entre `/` y `/c/[slug]`
+  - Editor admin: QR, botón "Landing ↗" y label del slug ahora usan `/c/<slug>`
+  - Middleware: `x-original-host` también en `/c/:path*`
+  - Multidominio intacto: `/` sigue resolviendo por Host para campañas con dominio propio
+- **Spec `enlace-corto-qr` ajustada por consistencia:** el enlace corto pasa de `/c/{code}` a **`/s/{code}`** (evita colisión con landings); redirect destino ahora `/c/<slug>?source=short`
+- Verificado: `/c/<slug>` 200 + OG canónico, slug inexistente 404, raíz sin regresión, tsc 0 errores, 46 tests pasan
 
-- Causa: `toLocaleDateString()` sin `timeZone` → servidor Docker (UTC) ≠ cliente (UTC-5 Ecuador)
-- Fix: `timeZone: "America/Guayaquil"` en 6 archivos: `LifecyclePanelAdmin`, `admin/campanas/page`, `admin/campanas/[id]/firmas/page`, `admin/resumen/page`, `admin/forms/archived/ArchivedFormsList`, `admin/campaigns/[id]/page`
+---
 
-### 5. StepSuccess — pantalla post-firma
+## Pausa de commits (punto actual)
 
-- Nombre del firmante: `{firstName}, por favor, confirmá tu correo`
-- Ícono: SVG sobre `<rect>` + `<polyline>` (antes emoji ✉)
-- Aviso spam: pastilla con fondo `rgba(22,38,31,0.06)` + ícono ⓘ SVG, texto 12.5 px al 65%
+Cambios listos para commit (el usuario commitea manualmente):
+1. Specs nuevas + retroactivas + feature_list.json + tasks.md actualizados
+2. Tests + infra de tests (requirements-dev, pytest.ini, Dockerfile.api.dev)
+3. README.md
+4. progress/
 
-### 6. StepThanks — pantalla de gracias
-
-- Ícono ✓ → corazón SVG sólido con animación `heartbeat` (late 2 veces al montar)
-- WhatsApp → logo SVG oficial (path real del ícono de WA)
-- Instagram añadido en la fila de botones secundarios
-- Newsletter: separado con `borderTop`, título bold 14 px, descripción legal 12 px muted
-- Copy de compartir: construido desde campos de identidad visual (`welcome_title` + `welcome_slogan` + `share_text`) con CTA `👉 Firma aquí: {url}`
-
-### 7. Contador post-firma corregido
-
-- Causa: `get_signature_count` solo contaba `confirmed`; al llegar a StepThanks la firma aún está en `pending_confirmation`
-- Fix backend: `get_total_signature_count()` (confirmed + pending_confirmation) → campo `total_count` en response público
-- Fix frontend: `getCampaignCount` usa `total_count ?? signature_count`
-
-### 8. Open Graph completo
-
-- `page.tsx` `generateMetadata`: `og:url`, `og:type`, `og:title`, `og:description`, `og:image` (1200×630 + alt), `twitter:card: "summary_large_image"`, `twitter:title/description/image`, `fb:app_id` desde `NEXT_PUBLIC_FB_APP_ID`
-- Descripción: `welcome_description` → `share_text` → fallback construido
-
-### 9. Campaña `prueba_001` creada
-
-- ID: `6def46c9-c089-4749-aa91-9d80e9a5a59b` — todos los campos meta llenos (branding, welcome, thank_you, social_links, attachments, form_config, QR)
-- Admin: `http://localhost:3002/admin/campanas/6def46c9-c089-4749-aa91-9d80e9a5a59b`
-- Landing: `http://localhost:3002/?slug=prueba-001`
+Licencia decidida: AGPL-3.0 (LICENSE agregada).
 
 ---
 
@@ -78,41 +84,8 @@ Sesión de UX y calidad: implementación completa de `editor-branding` + mejoras
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
 | URL landing campaña dev | `http://localhost:3002/?slug=campana-dev-001` |
-| URL prueba_001 | `http://localhost:3002/?slug=prueba-001` |
 | Campaña prueba_001 ID | `6def46c9-c089-4749-aa91-9d80e9a5a59b` |
 | Migración activa | `014` |
-
----
-
-## Email en dev
-
-`RESEND_API_KEY` vacía → `_send()` loguea en consola del contenedor API. Para probar envíos: configurar en `.env.dev`.
-
----
-
-## Estado de features
-
-| Feature | Estado | Notas |
-|---------|--------|-------|
-| `harness-setup` | **done** | |
-| `infra-fork` | **in_progress** | Local completo; TEST-5/7 pendientes en prod |
-| `ui-design-system` | **done** | V2 aplicado |
-| `modelo-base` | **done** | |
-| `lopdp-base` | **done** | |
-| `multidominio` | **done** | |
-| `anti-fraude-basico` | **done** | |
-| `landing-campana` | **done** | |
-| `formulario-firma` | **done** | |
-| `dashboard-firmas` | **in_progress** | Implementado; pendiente validación |
-| `editor-campana` | **in_progress** | Unificado + editor-branding completo ✓ |
-| `resumen-admin` | **in_progress** | Implementado; pendiente validación |
-| `perfiles-org` | **in_progress** | org detail + logo_url ✓ |
-| `ciclo-vida-basico` | **in_progress** | Indicador público visible |
-| `firma-visibilidad` | **in_progress** | Implementado en formulario |
-| `firmas-recientes` | **in_progress** | Implementado en landing |
-| `difusion-social` | **in_progress** | OG completo + copy enriquecido ✓ |
-| `ciclo-vida-admin` | **in_progress** | S21: completo, pendiente validación |
-| `editor-branding` | **in_progress** | S22: implementado, pendiente validación |
 
 ---
 
@@ -120,50 +93,32 @@ Sesión de UX y calidad: implementación completa de `editor-branding` + mejoras
 
 | Paso | Estado | Notas |
 |------|--------|-------|
-| Cloudflare (DNS, SSL, WAF, Turnstile) | **✓ hecho** | |
-| GitHub Secrets + CI/CD | **✓ hecho** | +2 deploys exitosos |
-| VPS: repo, .env, Docker, migraciones | **✓ hecho** | |
-| nginx + certbot | **✓ hecho** | `https://cauce.ecuadornotlc.org` activo |
-| Admin de producción | **✓ hecho** | `javier@zamarrito.com` / admin / activo |
-| TEST-5: flujo firma en prod | **pendiente** | |
-| TEST-6: HTTPS forzado | **✓ confirmado** | |
-| TEST-7: firma visible en admin | **pendiente** | |
-| Paso 6: primera campaña real | **pendiente** | Primero deployar cambios locales |
-
-**⚠ Migraciones en producción:** verificar que migración 014 esté aplicada antes de TEST-5:
-```bash
-docker compose exec petition-api alembic current
-# Debe mostrar: 014 (head)
-```
+| Cloudflare, CI/CD, VPS, nginx, admin | **✓** | |
+| TEST-5: flujo firma en prod | **en curso** | Usuario lo ejecuta manualmente |
+| TEST-6: HTTPS forzado | **✓** | |
+| TEST-7: firma visible en admin | **en curso** | Usuario lo ejecuta manualmente |
+| Paso 6: primera campaña real | **pendiente** | Tras TEST-5/7 — **implementar cifrado-reposo antes** |
 
 ---
 
-## Pendiente de review manual
+## Estado de features (cambios de esta sesión)
 
-1. `editor-branding` — abrir `prueba_001` en admin y verificar los 3 bloques nuevos (Identidad visual, Agradecimiento, Redes sociales)
-2. `ciclo-vida-admin` — probar flujo: cambio etapa → modal → confirmar → mensaje éxito
-3. Aviso de privacidad en landing — verificar que abre como modal al clicar en el formulario de firma
-4. StepSuccess / StepThanks — verificar nombre, corazón animado, contador > 0 tras firmar
-5. Deployar cambios sesiones 20-21-22 a producción (merge dev→main)
+| Feature | Estado | Cambio |
+|---------|--------|--------|
+| `cifrado-reposo` | **spec_ready** | nueva spec |
+| `retencion-datos` | **spec_ready** | nueva spec |
+| `derechos-arco` | **spec_ready** | nueva spec |
+| `enlace-corto-qr` | **spec_ready** | nueva spec |
+| `validacion-cedula` | **spec_ready** | spec retroactiva; implementación ya existía + tests hechos |
+| `editor-branding` | **in_progress** | corregido desde pending; validado en local |
+| `repo-docs` | **in_progress** | README + LICENSE AGPL-3.0 hechos; usuario valida |
+| resto | sin cambio | validaciones locales registradas en tasks.md |
 
 ---
 
-## Próxima sesión
+## Pendientes tras la pausa
 
-### Al inicio
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-### Preguntar al usuario al cierre de cada sesión
-- ¿Se ejecutó el deploy a producción (merge dev→main)?
-- ¿Se corrió el flujo de firma en prod (TEST-5 y TEST-7)?
-- ¿Se aplicó migración 014 en el VPS?
-- ¿`fb:app_id` configurado? (agregar `NEXT_PUBLIC_FB_APP_ID` en `.env.dev` y `.env`)
-
-### Continuar con (en orden de prioridad)
-1. Validar `editor-branding` + `ciclo-vida-admin` en browser
-2. Deployar sesiones 20-22 a producción
-3. Aplicar migración 014 en VPS y TEST-5/7
-4. Primera campaña real (Paso 6)
-5. Próximas features del backlog
+1. Usuario: revisar/aprobar specs y commitear
+2. Usuario: resultado de TEST-5/7 en producción
+3. Si specs aprobadas: implementar `cifrado-reposo` (bloqueante de primera campaña real)
+4. Checks de browser pendientes: dashboard-firmas T25-T28, editor-branding T13-T14, resumen-admin T6-T7

@@ -1,53 +1,69 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import FormRenderer from "@/components/form-renderer/FormRenderer";
 
-async function getCampaign(slug: string) {
-  const apiUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL;
-  const res = await fetch(`${apiUrl}/v1/public/c/${slug}`, { cache: "no-store" });
-  if (!res.ok) return null;
-  return res.json();
+import { getCampaignBySlug, getRecentSignatures } from "@/lib/campaign-api";
+import { campaignMetadata } from "@/lib/campaign-og";
+import { campaignStyleTag } from "@/lib/design-tokens";
+import CampaignPage from "../../(campaign)/CampaignPage";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3002";
+
+// Sin esto, un slug inexistente responde 200: notFound() se lanza antes de
+// tocar una API dinámica (headers) y el status ya salió en el stream.
+export const dynamic = "force-dynamic";
+
+// Landing de campaña por path (patrón heredado de forms-qsm: /c/<slug>).
+// El dominio compartido sirve N campañas sin filas en `domains`; las campañas
+// con dominio propio siguen resolviéndose por Host en `/` (multidominio).
+function buildCampaignUrl(slug: string, host: string): string {
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+    return `https://${host}/c/${slug}`;
+  }
+  return `${APP_URL}/c/${slug}`;
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const data = await getCampaign(params.slug);
-  if (!data) return {};
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const headersList = headers();
+  const host = headersList.get("x-original-host") || headersList.get("host") || "";
 
-  const { campaign, form } = data;
+  const campaign = await getCampaignBySlug(params.slug);
+  if (!campaign) return { title: "Cauce Petition" };
 
-  const title       = form?.title ?? campaign.welcome_title ?? campaign.title;
-  const description = form?.og_description ?? campaign.welcome_slogan ?? campaign.description ?? undefined;
-  const coverImage  = form?.cover_image_url ?? undefined;
-  const imageAlt    = form?.og_image_alt ?? campaign.welcome_slogan ?? title;
-  const pageUrl     = `https://forms.quitosinmineria.org/c/${campaign.slug}`;
-
-  const ogImages = coverImage
-    ? [{ url: coverImage, alt: imageAlt, width: 1200, height: 630 }]
-    : [];
-
-  return {
-    title: `${title} — Quito Sin Minería`,
-    description,
-    openGraph: {
-      type:        "website",
-      url:         pageUrl,
-      siteName:    "Quito Sin Minería",
-      title,
-      description,
-      ...(ogImages.length ? { images: ogImages } : {}),
-    },
-    twitter: {
-      card:        coverImage ? "summary_large_image" : "summary",
-      title,
-      description,
-      ...(coverImage ? { images: [{ url: coverImage, alt: imageAlt }] } : {}),
-    },
-  };
+  return campaignMetadata(campaign, buildCampaignUrl(campaign.slug, host));
 }
 
-export default async function PublicFormPage({ params }: { params: { slug: string } }) {
-  const data = await getCampaign(params.slug);
-  if (!data) notFound();
+export default async function CampaignBySlugPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const headersList = headers();
+  const host = headersList.get("x-original-host") || headersList.get("host") || "";
 
-  return <FormRenderer campaign={data.campaign} form={data.form} />;
+  const campaign = await getCampaignBySlug(params.slug);
+  if (!campaign) return notFound();
+
+  const recentSignatures = await getRecentSignatures(campaign.id, 10);
+
+  const campaignUrl = buildCampaignUrl(campaign.slug, host);
+
+  // Inject per-campaign theme tokens (overrides globals.css defaults)
+  const branding = (campaign.meta?.branding ?? {}) as Record<string, string>;
+  const styleTag = campaignStyleTag(branding);
+
+  return (
+    <>
+      {styleTag && <style dangerouslySetInnerHTML={{ __html: styleTag }} />}
+      <CampaignPage
+        campaign={campaign}
+        recentSignatures={recentSignatures}
+        campaignUrl={campaignUrl}
+      />
+    </>
+  );
 }

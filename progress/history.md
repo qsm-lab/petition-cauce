@@ -366,3 +366,30 @@
 - Infra VPS: D3/F8/Cloudflare/GitHub Secrets — antes del primer deploy
 
 **Próxima sesión:** Verificaciones V1/V3/V4 + commit, luego `modelo-base` o `landing-campana`.
+
+---
+
+## 2026-07-07 — Sesión 24: specs LOPDP fase 3 + tests + validación local
+
+> Nota: las sesiones 6–23 no se registraron en este archivo (desync detectado en
+> esta sesión); su detalle está en `progress/current.md` de cada momento y en el
+> log de git. Reconstrucción pendiente si se considera necesaria.
+
+Trabajo local mientras el usuario ejecutaba TEST-5/6/7 en el VPS.
+
+**Desincronizaciones:** `editor-branding` → in_progress; spec retroactiva de
+`perfiles-org`; tasks.md de features implementadas actualizados.
+
+**Specs nuevas (spec_ready):** `cifrado-reposo` (AES-256-GCM, urgente antes de
+la primera campaña real), `retencion-datos` (job APScheduler + anonimización),
+`derechos-arco` (portal self-service), `enlace-corto-qr`, `validacion-cedula`
+(retroactiva — ya estaba implementada).
+
+**Tests:** infraestructura pytest reparada (no estaba instalado en el contenedor);
+`pytest.ini` con loop de sesión; 4 suites nuevas → 46 tests pasan.
+
+**repo-docs:** README.md + LICENSE AGPL-3.0 creados.
+
+**Validación local:** resumen-admin, dashboard-firmas, editor-campana,
+editor-branding, ciclo-vida-admin/básico, firmas-recientes y OG verificados
+por API y SSR; hallazgos menores registrados en los tasks.md respectivos.

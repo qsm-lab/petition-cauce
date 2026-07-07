@@ -149,7 +149,7 @@
       "id": "editor-branding",
       "title": "Fase 2 — Editor de branding por campaña",
       "description": "Editor admin: colores, logo, copys, imágenes de landing. Vive en meta JSONB (patrón heredado de forms-qsm welcome_* y colores). Sin migraciones por campaña. Preview en tiempo real.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 2
@@ -167,7 +167,7 @@
       "id": "enlace-corto-qr",
       "title": "Fase 2 — Enlace corto + código QR por campaña",
       "description": "Enlace corto generado por campaña (slug corto o dominio propio). Código QR generado on-demand. Descargable desde el admin. Usado en el volante PDF.",
-      "status": "pending",
+      "status": "spec_ready",
       "sdd": true,
       "area": "fullstack",
       "phase": 2
@@ -194,7 +194,7 @@
       "id": "derechos-arco",
       "title": "Fase 3 — LOPDP: flujo ARCO + portabilidad + oposición (self-service)",
       "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma.",
-      "status": "pending",
+      "status": "spec_ready",
       "sdd": true,
       "area": "fullstack",
       "phase": 3
@@ -203,7 +203,7 @@
       "id": "retencion-datos",
       "title": "Fase 3 — LOPDP: job de retención y purga/anonimización",
       "description": "Job programado que purga o anonimiza datos de firmantes según la política de retención definida en privacy_config de cada campaña. Se ejecuta tras presentar el expediente o al expirar el plazo. Registra la acción en audit log.",
-      "status": "pending",
+      "status": "spec_ready",
       "sdd": true,
       "area": "backend",
       "phase": 3
@@ -212,7 +212,7 @@
       "id": "cifrado-reposo",
       "title": "Fase 3 — LOPDP: cifrado en reposo de PII",
       "description": "Cifrado de columnas PII (cedula_encrypted, email_encrypted) en tabla signatures. Columnas ya diseñadas para esto desde modelo-base. Usar AES-256-GCM con clave derivada de secreto del VPS. Transparente para el backend; búsquedas sobre hash normalizado.",
-      "status": "pending",
+      "status": "spec_ready",
       "sdd": true,
       "area": "backend",
       "phase": 3
@@ -248,7 +248,7 @@
       "id": "validacion-cedula",
       "title": "Fase 4 — Anti-fraude: validación completa cédula ecuatoriana",
       "description": "Validación del algoritmo de dígito verificador de cédula ecuatoriana (10 dígitos, módulo 10). Anti-fraude: rechaza cédulas matemáticamente inválidas. Complementa la deduplicación.",
-      "status": "pending",
+      "status": "spec_ready",
       "sdd": true,
       "area": "backend",
       "phase": 4
@@ -329,7 +329,7 @@
       "id": "repo-docs",
       "title": "Repo — README y licencia para GitHub",
       "description": "README.md en la raíz del repositorio: descripción del proyecto, propósito activista, stack técnico, instrucciones de setup local (docker compose dev), variables de entorno requeridas y referencia a CLAUDE.md. Licencia: definir y agregar LICENSE al repo (opciones: AGPL-3.0 para máxima copyleft en SaaS, o licencia personalizada que reserve uso comercial). No urgente — hacer antes del primer deploy público.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": false,
       "area": "harness",
       "phase": 0
