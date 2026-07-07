@@ -18,6 +18,7 @@ class Consent(Base):
     consented_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ip_hmac: Mapped[str | None] = mapped_column(String(128))
     subscribe_newsletter: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    notify_updates: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     signature = relationship("Signature", back_populates="consents")
