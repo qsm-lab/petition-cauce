@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from_email: str = "noreply@cauce.ec"
     api_public_url: str = "http://localhost:8011"
+    # Emails de admins de plataforma separados por coma (ej: "a@cauce.ec,b@cauce.ec")
+    platform_admin_emails: str = ""
 
 
 settings = Settings()
