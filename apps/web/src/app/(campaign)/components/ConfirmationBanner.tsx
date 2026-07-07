@@ -19,7 +19,13 @@ export default function ConfirmationBanner({ estado }: Props) {
 
   if (!visible) return null;
 
-  const ok = estado === "1";
+  const ok = estado === "1" || estado === "visibilidad";
+  const message =
+    estado === "1"
+      ? "¡Tu firma quedó confirmada! Gracias por sumar tu voz — compartí la campaña para que llegue más lejos."
+      : estado === "visibilidad"
+      ? "El cambio de visibilidad de tu firma quedó confirmado y aplicado."
+      : "El enlace de confirmación expiró. Volvé a firmar para recibir un enlace nuevo, o pedí el reenvío desde el formulario.";
 
   return (
     <div
@@ -31,11 +37,7 @@ export default function ConfirmationBanner({ estado }: Props) {
       }}
     >
       <span className="text-[15px] leading-none mt-0.5">{ok ? "✓" : "⚠"}</span>
-      <p className="flex-1 text-[13.5px] leading-snug font-medium">
-        {ok
-          ? "¡Tu firma quedó confirmada! Gracias por sumar tu voz — compartí la campaña para que llegue más lejos."
-          : "El enlace de confirmación expiró. Volvé a firmar para recibir un enlace nuevo, o pedí el reenvío desde el formulario."}
-      </p>
+      <p className="flex-1 text-[13.5px] leading-snug font-medium">{message}</p>
       <button
         onClick={() => setVisible(false)}
         aria-label="Cerrar aviso"

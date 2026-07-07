@@ -183,6 +183,13 @@ export default function CampanaEditorClient({
   const brandingMeta = (meta.branding ?? {}) as Record<string, string>;
   const [primaryColor, setPrimaryColor] = useState(brandingMeta.primary_color ?? "");
 
+  // — Ciclo de vida: etapas opcionales (Diálogo/Decisión)
+  const lcMeta = (meta.lifecycle_config ?? {}) as { dialogo?: boolean; decision?: boolean };
+  const [lifecycleConfig, setLifecycleConfig] = useState({
+    dialogo: lcMeta.dialogo !== false,
+    decision: lcMeta.decision !== false,
+  });
+
   // — Welcome copy
   const [welcomeTitle, setWelcomeTitle] = useState(campaign?.welcome_title ?? "");
   const [welcomeSlogan, setWelcomeSlogan] = useState(campaign?.welcome_slogan ?? "");
@@ -273,7 +280,11 @@ export default function CampanaEditorClient({
     goal_count: goalCount ? parseInt(goalCount, 10) : null,
     authority: authority.trim() || null,
     petition_body: petitionHtml && petitionHtml !== "<p></p>" ? { html: petitionHtml } : {},
-    attachments: attachments.filter((a) => a.title.trim() && a.url.trim()),
+    // URL es lo único obligatorio; título vacío recibe un default en vez de
+    // descartar la fila silenciosamente (causaba "no se guardó" al recargar)
+    attachments: attachments
+      .filter((a) => a.url.trim())
+      .map((a) => ({ title: a.title.trim() || "Documento", url: a.url.trim() })),
     category: category || null,
     ends_at: endsAt ? new Date(endsAt).toISOString() : null,
     privacy_policy_id: privacyPolicyId || null,
@@ -283,6 +294,7 @@ export default function CampanaEditorClient({
     form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
     show_qr: showQr,
     share_text: shareText.trim() || null,
+    lifecycle_config: lifecycleConfig,
     // Branding
     branding: isValidHex(primaryColor)
       ? { primary_color: primaryColor, on_primary_color: autoOnPrimary(primaryColor) }
@@ -727,11 +739,11 @@ export default function CampanaEditorClient({
               <div className="flex flex-col gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Tipo de firmante</p>
-                  <MultiCheck options={[{ value: "natural", label: "Natural" }, { value: "org", label: "Org." }]} selected={signerTypes} onChange={setSignerTypes} />
+                  <MultiCheck options={[{ value: "natural", label: "Natural" }, { value: "org", label: "Organización" }]} selected={signerTypes} onChange={setSignerTypes} />
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Ubicación</p>
-                  <MultiCheck options={[{ value: "nacional", label: "Ecuador" }, { value: "internacional", label: "Intl." }]} selected={locationModes} onChange={setLocationModes} />
+                  <MultiCheck options={[{ value: "nacional", label: "Ecuador" }, { value: "internacional", label: "Internacional" }]} selected={locationModes} onChange={setLocationModes} />
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Visibilidad</p>
@@ -783,6 +795,8 @@ export default function CampanaEditorClient({
                   initialEvents={campaign!.lifecycle_events ?? []}
                   orgName={campaign!.org_name ?? null}
                   orgHasContactEmail={campaign!.org_has_contact_email ?? false}
+                  lifecycleConfig={lifecycleConfig}
+                  onLifecycleConfigChange={setLifecycleConfig}
                 />
               </div>
             )}

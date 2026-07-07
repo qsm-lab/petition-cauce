@@ -5,7 +5,7 @@ import { type PublicCampaign, type RecentSignature } from "@/lib/campaign-api";
 import { getCategoryColor } from "@/lib/category-color";
 import Hero from "./components/Hero";
 import ActionBlock from "./components/ActionBlock";
-import LifecycleSteps from "./components/LifecycleSteps";
+import LifecycleSteps, { type LifecycleConfig } from "./components/LifecycleSteps";
 import PetitionBody from "./components/PetitionBody";
 import RecentSignatures from "./components/RecentSignatures";
 import ShareSection from "./components/ShareSection";
@@ -113,7 +113,7 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
           alignItems: "start",
         }}
       >
-        {/* Sidebar — order-1 mobile (first), order-2 desktop (right column) */}
+        {/* Sidebar — order-1 mobile (solo firma), order-2 desktop (columna derecha completa) */}
         <div
           className="order-1 md:order-2 md:sticky"
           style={{ display: "flex", flexDirection: "column", gap: 20, top: 20 }}
@@ -128,16 +128,19 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
             categoryColor={categoryColor}
             onSign={() => setSignOpen(true)}
           />
-          <OrgCard org={campaign.org} />
-          <ShareSection
-            title={campaign.petition_title}
-            url={campaignUrl}
-            status={campaign.status}
-            attachments={campaign.attachments}
-            showQr={campaign.show_qr}
-            qrCodeData={campaign.qr_code_data}
-            shareText={campaign.share_text}
-          />
+          {/* En móvil org + compartir van al final de la página (bloque order-3) */}
+          <div className="hidden md:flex" style={{ flexDirection: "column", gap: 20 }}>
+            <OrgCard org={campaign.org} />
+            <ShareSection
+              title={campaign.petition_title}
+              url={campaignUrl}
+              status={campaign.status}
+              attachments={campaign.attachments}
+              showQr={campaign.show_qr}
+              qrCodeData={campaign.qr_code_data}
+              shareText={campaign.share_text}
+            />
+          </div>
         </div>
 
         {/* Main column — order-2 mobile (second), order-1 desktop (left column) */}
@@ -145,7 +148,11 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
           className="order-2 md:order-1"
           style={{ display: "flex", flexDirection: "column", gap: 36, minWidth: 0 }}
         >
-          <LifecycleSteps currentStage={campaign.lifecycle_stage} categoryColor={categoryColor} />
+          <LifecycleSteps
+            currentStage={campaign.lifecycle_stage}
+            categoryColor={categoryColor}
+            lifecycleConfig={(campaign.meta?.lifecycle_config as LifecycleConfig) ?? undefined}
+          />
 
           {(campaign.asks.length > 0 || Object.keys(campaign.petition_body).length > 0) && (
             <PetitionBody
@@ -166,6 +173,20 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
           {regions.length > 0 && (
             <RegionBars regions={regions} categoryColor={categoryColor} />
           )}
+        </div>
+
+        {/* Móvil: organización y compartir al final de la página */}
+        <div className="order-3 md:hidden" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <OrgCard org={campaign.org} />
+          <ShareSection
+            title={campaign.petition_title}
+            url={campaignUrl}
+            status={campaign.status}
+            attachments={campaign.attachments}
+            showQr={campaign.show_qr}
+            qrCodeData={campaign.qr_code_data}
+            shareText={campaign.share_text}
+          />
         </div>
       </div>
 

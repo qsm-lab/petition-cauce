@@ -7,12 +7,19 @@ import LifecycleConfirmModal from "./LifecycleConfirmModal";
 
 const STAGE_NAMES = ["Lanzada", "Recolección", "Entrega", "Diálogo", "Decisión"];
 
+interface LifecycleConfig {
+  dialogo: boolean;
+  decision: boolean;
+}
+
 interface Props {
   campaignId: string;
   initialStage: number;
   initialEvents: LifecycleEventOut[];
   orgName: string | null;
   orgHasContactEmail: boolean;
+  lifecycleConfig?: LifecycleConfig;
+  onLifecycleConfigChange?: (config: LifecycleConfig) => void;
 }
 
 function formatDate(iso: string): string {
@@ -25,8 +32,12 @@ export default function LifecyclePanelAdmin({
   initialEvents,
   orgName,
   orgHasContactEmail,
+  lifecycleConfig = { dialogo: true, decision: true },
+  onLifecycleConfigChange,
 }: Props) {
   const [currentStage, setCurrentStage] = useState(initialStage);
+  // Índices visibles: 3=Diálogo y 4=Decisión son opcionales por campaña
+  const visibleStages = [0, 1, 2, ...(lifecycleConfig.dialogo ? [3] : []), ...(lifecycleConfig.decision ? [4] : [])];
   const [events, setEvents] = useState<LifecycleEventOut[]>(initialEvents);
   const [targetStage, setTargetStage] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
@@ -103,12 +114,13 @@ export default function LifecyclePanelAdmin({
         Ciclo de vida
       </p>
 
-      {/* Indicador visual de 5 etapas */}
+      {/* Indicador visual de etapas habilitadas */}
       <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 20 }}>
-        {STAGE_NAMES.map((label, i) => {
-          const done    = i < currentStage;
-          const current = i === currentStage;
-          const isLast  = i === STAGE_NAMES.length - 1;
+        {visibleStages.map((stageIdx, pos) => {
+          const label   = STAGE_NAMES[stageIdx];
+          const done    = stageIdx < currentStage;
+          const current = stageIdx === currentStage;
+          const isLast  = pos === visibleStages.length - 1;
           const dotBg     = done ? "#16261F" : current ? "var(--bp)" : "#fff";
           const dotColor  = done ? "#fff" : current ? "var(--bop)" : "#16261F";
           const dotBorder = done || current ? "none" : "2px solid rgba(22,38,31,0.25)";
@@ -124,7 +136,7 @@ export default function LifecyclePanelAdmin({
                     fontSize: 11, fontWeight: 700,
                   }}
                 >
-                  {done ? "✓" : i + 1}
+                  {done ? "✓" : pos + 1}
                 </div>
                 <div style={{ fontSize: 10, fontWeight: current ? 700 : 500, opacity: current ? 1 : 0.5, textAlign: "center", whiteSpace: "nowrap", color: "#16261F" }}>
                   {label}
@@ -138,17 +150,39 @@ export default function LifecyclePanelAdmin({
         })}
       </div>
 
+      {/* Etapas opcionales por campaña */}
+      <div style={{ display: "flex", gap: 14, marginBottom: 14, padding: "8px 10px", background: "var(--bbg)", borderRadius: 8 }}>
+        {([["dialogo", 3, "Diálogo"], ["decision", 4, "Decisión"]] as const).map(([key, idx, label]) => {
+          const locked = currentStage >= idx; // no se puede quitar una etapa alcanzada
+          return (
+            <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: locked ? "rgba(22,38,31,0.35)" : "#16261F", cursor: locked ? "not-allowed" : "pointer" }}>
+              <input
+                type="checkbox"
+                checked={lifecycleConfig[key]}
+                disabled={locked}
+                onChange={(e) => onLifecycleConfigChange?.({ ...lifecycleConfig, [key]: e.target.checked })}
+              />
+              Incluir {label}
+            </label>
+          );
+        })}
+      </div>
+      <p style={{ margin: "0 0 12px", fontSize: 11, color: "rgba(22,38,31,0.45)" }}>
+        Las etapas desmarcadas no aparecen en la landing. Se aplica al Guardar cambios.
+      </p>
+
       {/* Selector de etapa destino */}
       <p style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(22,38,31,0.55)" }}>Cambiar a:</p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-        {STAGE_NAMES.map((label, i) => {
-          const isSelected = targetStage === i;
-          const isCurrent  = i === currentStage;
+        {visibleStages.map((stageIdx) => {
+          const label = STAGE_NAMES[stageIdx];
+          const isSelected = targetStage === stageIdx;
+          const isCurrent  = stageIdx === currentStage;
           return (
             <button
               key={label}
               type="button"
-              onClick={() => !isCurrent && setTargetStage(isSelected ? null : i)}
+              onClick={() => !isCurrent && setTargetStage(isSelected ? null : stageIdx)}
               disabled={isCurrent}
               style={{
                 padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,

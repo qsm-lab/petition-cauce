@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAdminSignatures, type AdminSignatureItem } from "@/lib/admin-signatures-api";
 import FiltrosBar from "./FiltrosBar";
 import ExportCsvButton from "./ExportCsvButton";
+import VisibilityCell from "./VisibilityCell";
 
 // ─── Badges ─────────────────────────────────────────────────────────────────
 
@@ -16,19 +17,6 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }>
   pending_confirmation: { label: "Pendiente",  bg: "color-mix(in srgb,#b45309 12%,transparent)", color: "#b45309" },
   anulada:              { label: "Anulada",    bg: "color-mix(in srgb,#c2410c 10%,transparent)", color: "#c2410c" },
 };
-
-function VisBadge({ v }: { v: string }) {
-  const s = VISIBILITY_BADGE[v] ?? VISIBILITY_BADGE.anonima;
-  return (
-    <span
-      className="inline-flex items-center font-semibold text-[11px]"
-      style={{ background: s.bg, color: s.color, padding: "3px 8px", borderRadius: "99px" }}
-      aria-label={`Visibilidad: ${s.label}`}
-    >
-      {s.label}
-    </span>
-  );
-}
 
 function StatusBadge({ s: sv }: { s: string }) {
   const s = STATUS_BADGE[sv] ?? STATUS_BADGE.pending_confirmation;
@@ -253,7 +241,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
                           {sig.provincia ?? "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <VisBadge v={sig.visibility} />
+                          <VisibilityCell campaignId={params.id} signature={sig} />
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge s={sig.status} />

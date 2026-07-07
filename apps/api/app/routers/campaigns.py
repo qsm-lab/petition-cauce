@@ -23,8 +23,13 @@ from app.models.form import Form as FormModel
 router = APIRouter()
 
 
+def _org_scope(user: User):
+    """None para admin de plataforma (multi-org); org propia para otros roles."""
+    return None if user.role == "admin" else user.org_id
+
+
 async def _get_owned_campaign(campaign_id: str, current_user: User, db: AsyncSession) -> CampaignModel:
-    campaign = await CampaignService.get_campaign(db, campaign_id, org_id=current_user.org_id)
+    campaign = await CampaignService.get_campaign(db, campaign_id, org_id=_org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     return campaign
@@ -32,7 +37,7 @@ async def _get_owned_campaign(campaign_id: str, current_user: User, db: AsyncSes
 
 @router.get("", response_model=list[CampaignResponse])
 async def list_campaigns(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    return await CampaignService.list_campaigns(db, current_user.org_id)
+    return await CampaignService.list_campaigns(db, _org_scope(current_user))
 
 
 @router.get("/by-form/{form_id}", response_model=CampaignResponse)
@@ -59,7 +64,7 @@ async def create_campaign(data: CampaignCreate, current_user: User = Depends(get
 
 @router.get("/{campaign_id}", response_model=AdminCampaignDetailResponse)
 async def get_campaign(campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, current_user.org_id)
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     events_sorted = sorted(campaign.lifecycle_events, key=lambda e: e.registered_at, reverse=True)[:20]
@@ -142,7 +147,7 @@ async def update_welcome_config(campaign_id: str, data: WelcomeConfigUpdate, cur
 @router.patch("/{campaign_id}/archive")
 async def archive_campaign(campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
     try:
-        campaign = await CampaignService.archive_campaign(db, campaign_id, current_user.org_id, current_user.id)
+        campaign = await CampaignService.archive_campaign(db, campaign_id, _org_scope(current_user), current_user.id)
     except ValueError:
         raise HTTPException(status_code=409, detail={"error": "campaign_activa", "msg": "Desactiva la campaña antes de archivarla"})
     if not campaign:
@@ -157,11 +162,18 @@ async def update_lifecycle(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
-    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, current_user.org_id)
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     if campaign.archived_at is not None:
         raise HTTPException(status_code=409, detail="No se puede modificar el ciclo de vida de una campaña archivada")
+
+    # Etapas opcionales por campaña (meta.lifecycle_config): 3=Diálogo, 4=Decisión
+    lc_config = (campaign.meta or {}).get("lifecycle_config", {})
+    if (data.stage == 3 and lc_config.get("dialogo") is False) or (
+        data.stage == 4 and lc_config.get("decision") is False
+    ):
+        raise HTTPException(status_code=422, detail="Etapa deshabilitada para esta campaña")
 
     old_stage = campaign.lifecycle_stage
     event = await CampaignService.update_lifecycle_stage(db, campaign, data.stage, data.notes, current_user.id)
@@ -200,7 +212,7 @@ async def notify_signers(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
-    campaign = await CampaignService.get_campaign(db, campaign_id, org_id=current_user.org_id)
+    campaign = await CampaignService.get_campaign(db, campaign_id, org_id=_org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
     if campaign.archived_at is not None:

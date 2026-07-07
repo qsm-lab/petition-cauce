@@ -189,10 +189,11 @@ export default function ActionBlock({
         </div>
       </div>
 
-      {/* Floating CTA — mobile only, campaign must accept signatures and modal must be closed */}
+      {/* Floating CTA — solo móvil. El display va en clases (flex + md:hidden):
+          un display inline anularía el md:hidden */}
       {showFloat && canSign && (
         <div
-          className="md:hidden animate-pc-float-in"
+          className="flex items-center gap-3 md:hidden animate-pc-float-in"
           style={{
             position: "fixed",
             left: 0,
@@ -202,9 +203,6 @@ export default function ActionBlock({
             padding: "14px 16px calc(14px + env(safe-area-inset-bottom))",
             background: "#EDF4F1",
             borderTop: "1.5px solid #16261F",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
             boxShadow: "0 -4px 16px rgba(22,38,31,0.1)",
           }}
         >
