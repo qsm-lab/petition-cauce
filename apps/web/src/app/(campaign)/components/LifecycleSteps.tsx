@@ -37,7 +37,16 @@ export default function LifecycleSteps({ currentStage, categoryColor, lifecycleC
         Estado de la campaña
       </div>
 
-      <div style={{ display: "flex", alignItems: "flex-start" }}>
+      {/* Con etapas deshabilitadas el riel se acorta y se centra en su bloque */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          maxWidth: visible.length < 5 ? visible.length * 150 : undefined,
+          marginLeft: "auto",
+          marginRight: "auto",
+        }}
+      >
         {visible.map((stageIndex, pos) => {
           const label   = STAGES[stageIndex];
           const done    = stageIndex < currentStage;
