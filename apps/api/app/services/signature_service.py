@@ -224,3 +224,14 @@ async def get_signature_count(db: AsyncSession, campaign_id: uuid.UUID) -> int:
         )
     )
     return result.scalar() or 0
+
+
+async def get_total_signature_count(db: AsyncSession, campaign_id: uuid.UUID) -> int:
+    """Confirmed + pending_confirmation — usado en la pantalla de gracias post-firma."""
+    result = await db.execute(
+        select(func.count()).where(
+            Signature.campaign_id == campaign_id,
+            Signature.status.in_(["confirmed", "pending_confirmation"]),
+        )
+    )
+    return result.scalar() or 0

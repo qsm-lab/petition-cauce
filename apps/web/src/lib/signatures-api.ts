@@ -115,7 +115,7 @@ export async function getCampaignCount(
     const res = await fetch(`${PUBLIC_API}/v1/public-campaign/${campaignId}`);
     if (!res.ok) return null;
     const data = await res.json();
-    return { count: data.signature_count ?? 0, goal: data.goal_count ?? null };
+    return { count: data.total_count ?? data.signature_count ?? 0, goal: data.goal_count ?? null };
   } catch {
     return null;
   }

@@ -21,7 +21,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Guayaquil" });
 }
 
 export default async function ResumenPage() {
@@ -104,7 +104,7 @@ export default async function ResumenPage() {
         </div>
 
         {/* Dos columnas */}
-        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 260px" }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 320px" }}>
           {/* Campañas recientes */}
           <div
             className="rounded-[14px] overflow-hidden"
@@ -196,7 +196,7 @@ export default async function ResumenPage() {
                 Accesos rápidos
               </h2>
             </div>
-            <div className="p-4 flex flex-col gap-2">
+            <div className="p-5 flex flex-col gap-2">
               <Link
                 href="/admin/campanas/nueva"
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-[8px] text-[13px] font-semibold"

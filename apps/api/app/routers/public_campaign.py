@@ -18,6 +18,7 @@ from app.services.signature_service import (
     create_signature,
     get_recent_signatures,
     get_signature_count,
+    get_total_signature_count,
 )
 from app.services.turnstile_service import verify_turnstile
 
@@ -56,7 +57,7 @@ _DEFAULT_FORM_CONFIG = {
 }
 
 
-def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict:
+def _serialize(campaign: Campaign, org: Organization | None, count: int, total_count: int | None = None) -> dict:
     meta = campaign.meta or {}
     raw_fc = meta.get("form_config", {})
     form_config = {**_DEFAULT_FORM_CONFIG, **raw_fc}
@@ -88,6 +89,7 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int) -> dict
         "lifecycle_stage": campaign.lifecycle_stage,
         "goal_count": campaign.goal_count if show_goal else None,
         "signature_count": count,
+        "total_count": total_count if total_count is not None else count,
         "signer_type": campaign.signer_type,
         "form_config": form_config,
         "meta": meta,
@@ -109,7 +111,8 @@ async def get_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
     org = org_result.scalar_one_or_none()
     count = await get_signature_count(db, campaign.id)
-    return _serialize(campaign, org, count)
+    total = await get_total_signature_count(db, campaign.id)
+    return _serialize(campaign, org, count, total)
 
 
 @router.get("/{campaign_id}/privacy")
@@ -234,4 +237,5 @@ async def get_campaign_public(campaign_id: str, db: AsyncSession = Depends(get_d
     org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
     org = org_result.scalar_one_or_none()
     count = await get_signature_count(db, campaign.id)
-    return _serialize(campaign, org, count)
+    total = await get_total_signature_count(db, campaign.id)
+    return _serialize(campaign, org, count, total)
