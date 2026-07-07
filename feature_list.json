@@ -41,7 +41,7 @@
       "id": "ui-design-system",
       "title": "Fase 0 — Sistema de diseño UI: tokens, componentes base, flujo Claude Design",
       "description": "Establecer el sistema de diseño de la plataforma usando Claude Design (Adobe Express). Definir: paleta de colores multi-campaña (tokens base + sobreescritura por campaña vía meta JSONB), tipografías web auto-hosteadas, componentes base (botones, cards, formularios, badges de estado). Exportar HTML de Claude Design → traducir a componentes Next.js + Tailwind. Guardar en specs/ui-design-system/design-export.html. El sistema de diseño es neutro (no es el diseño de QSM) — cada campaña lo sobreescribe con su branding.",
-      "status": "pending",
+      "status": "done",
       "sdd": true,
       "area": "frontend",
       "phase": 0
@@ -68,7 +68,7 @@
       "id": "ciclo-vida-basico",
       "title": "Fase 1 — MVP: indicador de ciclo de vida público",
       "description": "Indicador visual de 5 etapas (lanzada → recolección → entrega → diálogo → decisión) mostrado en la landing pública. Etapa actual resaltada. Solo lectura pública; gestión admin en Fase 2.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "frontend",
       "phase": 1
@@ -86,7 +86,7 @@
       "id": "firma-visibilidad",
       "title": "Fase 1 — MVP: visibilidad de firma elegida por el firmante",
       "description": "Opciones al firmar: pública (nombre visible en feed), anónima (solo conteo), secreta (no aparece ni en feed). Default: anónima. Respetada en el feed público de firmas recientes y en el dashboard admin.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 1
@@ -95,7 +95,7 @@
       "id": "firmas-recientes",
       "title": "Fase 1 — MVP: feed de firmas recientes en vivo",
       "description": "Feed de firmas recientes en la landing pública. Solo muestra firmas con visibility=pública. Polling ligero o SSE. Prueba social que respeta la privacidad elegida.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 1
@@ -104,7 +104,7 @@
       "id": "difusion-social",
       "title": "Fase 1 — MVP: botones de compartir (kit de difusión básico)",
       "description": "Botones de compartir en landing pública: WhatsApp, Telegram, Facebook, X (Twitter), email. URLs con parámetro de tracking de origen (para Fase 5). Metadatos OG ya resueltos en landing-campana.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "frontend",
       "phase": 1
@@ -122,8 +122,26 @@
       "id": "dashboard-firmas",
       "title": "Fase 1 — MVP: dashboard admin de firmas",
       "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "resumen-admin",
+      "title": "Fase 1 — Panel de resumen admin",
+      "description": "Dashboard principal del admin: métricas de la campaña activa (total firmas, firmas hoy, tasa de conversión, objetivo), estado del ciclo de vida, accesos directos a secciones clave (editor, firmas, categorías, políticas, organizaciones). Protegido por JWT. Una vista por campaña activa.",
+      "status": "in_progress",
+      "sdd": false,
+      "area": "fullstack",
+      "phase": 1
+    },
+    {
+      "id": "editor-campana",
+      "title": "Fase 1 — Editor de campaña (admin, unificado nueva/editar)",
+      "description": "Editor unificado de campaña en el admin: mismo formulario para crear y editar. Secciones: portada (título, slug, imagen, objetivo), qué pedimos, texto de la petición, configuración del formulario (form_config), archivos adjuntos, política de privacidad. Modo creación: auto-slug, POST en submit, sidebar estático Borrador. Modo edición: slug editable, PATCH, sidebar con estado real, paneles QR/ID/zona de peligro.",
+      "status": "in_progress",
+      "sdd": false,
       "area": "fullstack",
       "phase": 1
     },
@@ -140,7 +158,7 @@
       "id": "perfiles-org",
       "title": "Fase 2 — Perfiles de organización + taxonomía",
       "description": "Perfil de organización cliente (nombre, logo, descripción, contacto). Taxonomía de campañas: temas (minería, agua, bosques, aire…) y regiones. Las campañas pertenecen a una organización y se clasifican. Habilita catálogo público multi-org.",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 2
@@ -167,7 +185,7 @@
       "id": "ciclo-vida-admin",
       "title": "Fase 2 — Gestión del ciclo de vida desde admin",
       "description": "Admin puede avanzar etapas del ciclo (lanzada→recolección→entrega→diálogo→decisión), registrar fechas y notas. Registrado en lifecycle_events. Refleja en el indicador público (ciclo-vida-basico).",
-      "status": "pending",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 2
@@ -306,6 +324,15 @@
       "sdd": true,
       "area": "frontend",
       "phase": 5
+    },
+    {
+      "id": "repo-docs",
+      "title": "Repo — README y licencia para GitHub",
+      "description": "README.md en la raíz del repositorio: descripción del proyecto, propósito activista, stack técnico, instrucciones de setup local (docker compose dev), variables de entorno requeridas y referencia a CLAUDE.md. Licencia: definir y agregar LICENSE al repo (opciones: AGPL-3.0 para máxima copyleft en SaaS, o licencia personalizada que reserve uso comercial). No urgente — hacer antes del primer deploy público.",
+      "status": "pending",
+      "sdd": false,
+      "area": "harness",
+      "phase": 0
     }
   ]
 }

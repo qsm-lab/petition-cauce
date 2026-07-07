@@ -2,6 +2,46 @@
 
 ---
 
+## 2026-07-06 — Sesión 22: editor-branding + UX landing + OG + bugs
+
+**`editor-branding` completo:** `BrandingColorPicker.tsx` (presets Bosque/Océano/Fuego, color picker, hex, preview botón CTA con `autoOnPrimary()`). `CampanaEditorClient` con 3 secciones nuevas: Identidad visual (color primario + logo + welcome copy), Agradecimiento (thank_you_title/body), Redes sociales (6 URLs). Backend: `CampaignCreate` y `CampaignUpdate` extendidos con 12 campos; `_META_FIELDS` de 7 → 19. Campaña `prueba_001` creada con todos los campos llenos (ID: `6def46c9`).
+
+**UX admin:** Botón "Guardar cambios" en barra sticky superior (`form="editor-form"`). "Ver firmas" diferenciado en color oscuro (`--bink`). Título editor: `font-heading` Work Sans Bold 22 px. Headers de sección: 12.5 px bold ink (antes 11 px muted). Labels: 12 px. Hints: 12.5 px visibles.
+
+**Hydration fix (timezone):** `toLocaleDateString()` sin `timeZone` causaba mismatch servidor UTC vs cliente UTC-5. Fix `timeZone: "America/Guayaquil"` en 6 archivos del admin.
+
+**Aviso de privacidad — modal inline:** enlace en StepForm ahora abre modal con overlay + X (fetch lazy desde API). Página `/aviso-de-privacidad` mantiene fix `overflow-wrap: break-word`.
+
+**StepSuccess:** nombre del firmante en título, ícono SVG envelope limpio, aviso spam como pastilla con ícono ⓘ.
+
+**StepThanks:** ícono ✓ → corazón SVG + animación `heartbeat` al montar. Logo WA SVG oficial. Instagram añadido. Newsletter separado con `borderTop` y tipografía más visible. Copy de compartir construido desde identidad visual (`welcome_title` + `welcome_slogan` + `share_text`) con CTA emoji y URL.
+
+**Contador post-firma:** `get_total_signature_count()` (confirmed + pending_confirmation) → `total_count` en API pública. Frontend usa `total_count` para StepThanks; contador público sigue con solo confirmed.
+
+**Open Graph:** `og:url/type/title/description/image` (1200×630), `twitter:card summary_large_image`, `fb:app_id` desde `NEXT_PUBLIC_FB_APP_ID`. Descripción usa `welcome_description` → `share_text` → fallback.
+
+**Sesión 23 — fix difusión social:** emojis incompatibles con WhatsApp (`🌿` Unicode 7.0) reemplazados por texto plano. FB/IG removidos de StepThanks (restricción de plataforma: no admiten texto pre-relleno). Botón `navigator.share` nativo (móvil) + botón "Copiar texto" con clipboard API. Copy editable desde campo "Texto de difusión" en admin.
+
+**Tamaño del proyecto al cierre de sesión 23:** ~21 500 líneas de código fuente (`.py` + `.ts` + `.tsx` + `.sql`, sin migraciones, specs ni historial).
+
+---
+
+## 2026-07-06 — Sesión 21: ciclo-vida-admin completo + layout admin segunda columna + infra-fork VPS confirmado
+
+**`infra-fork` — estado VPS confirmado por el usuario:** Cloudflare (DNS, SSL Full strict, Always HTTPS, WAF, widget Turnstile) ✓. GitHub Secrets configurados ✓. Más de 2 deploys exitosos via CI/CD ✓. VPS: repo clonado, `.env` creado, contenedores running, migraciones aplicadas, nginx + certbot ✓. Admin de producción: confirmado (`javier@zamarrito.com` / admin / activo). TEST-5 en adelante pendientes (flujo de firma en prod, firma visible en admin). Paso 6 (campaña real): pendiente — primero deployar cambios locales de sesiones 20-21.
+
+**`editor-branding` — specs actualizados y aprobados:** Corrección: funciones WelcomeConfigEditor y SocialLinksEditor ya existen en `/admin/campaigns/[id]/` (forms-qsm); el trabajo es portarlas al nuevo editor con design system Lime/Ink. El design system Claude Design sesión 19 es la base; solo se expone ajuste del color primario (`--bp`), no se rompe el sistema. Specs reducidos: 3 presets (Bosque/Océano/Fuego), 1 picker de color, copy fields, social links, sin Claude Design previo (extensión de pantalla existente). `.env.example` actualizado con `PLATFORM_ADMIN_EMAILS`.
+
+## 2026-07-06 — Sesión 21: ciclo-vida-admin completo + layout admin segunda columna
+
+**`ciclo-vida-admin` (Fase 2) — implementación completa:** specs SDD (requirements R1-R16, design.md, tasks.md) + backend (schemas, config, consent notify_updates, migration 014, email_service x3, campaign_service x3 funciones, 2 endpoints PATCH/POST) + frontend (admin-lifecycle-api.ts client-safe, LifecycleConfirmModal, LifecyclePanelAdmin, integración en CampanaEditorClient). Migración 014 aplicada. TypeScript: 0 errores.
+
+**Bugs resueltos:** 500 `CheckViolationError` (stage names en lowercase sin tildes); build error `next/headers` en Client Component (separación admin-lifecycle-api); modal no cerraba en éxito/error (modalError state, error inline en modal, cierra al confirmar); historial mostraba nombre DB raw (ahora usa `STAGE_NAMES[stage_index]`).
+
+**Layout:** segunda columna admin ampliada: editor campaña `300px→360px`, resumen admin `260px→320px`; padding PanelSection `p-4→p-5`. Email en dev: `RESEND_API_KEY` vacía → loguea en consola, no envía reales.
+
+---
+
 ## 2026-07-06 — Sesión 20: editor unificado nueva/editar campaña + fix categorías
 
 **Nueva campaña = editor completo:** `CampanaEditorClient` refactorizado para aceptar `campaign?: AdminCampaign | null`. Modo `isNew`: auto-slug desde el título, POST en submit, header "Nueva campaña", sidebar Borrador estático, sin paneles QR/ID/Zona de peligro. `nueva/page.tsx` convertida a server component que carga categorías, políticas y orgs igual que la página de edición. `CampaignCreate` en backend expandido con todos los campos opcionales de `CampaignUpdate`; `create_campaign` extrae campos meta antes de construir el modelo. 2 commits aplicados en `dev`.
