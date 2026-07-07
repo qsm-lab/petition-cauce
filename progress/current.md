@@ -73,6 +73,12 @@ Nota: la landing SSR cachea ~2 s los datos de campaña — esperar antes de veri
 - E2E verificado en dev: firma → confirm 302 → banner visible; idempotencia; caso expirado; tsc 0 errores; 46 tests
 - **Nota conocida**: la confirmación por GET puede ser disparada por escáneres de email corporativos (prefetch). Mitigación futura: página intermedia con botón (requiere diseño). Aceptado para MVP.
 
+### 8. Feature nueva: supresion-admin (spec_ready)
+- Caso: firmante pide borrar sus datos por canal no digital → admin ejecuta desde el dashboard de firmas
+- Análisis presentado al usuario: supresión inmediata vs ventana 15d vs 30d — **usuario eligió ventana de 15 días** (reversible y dentro del plazo LOPDP)
+- Spec en `specs/supresion-admin/`: Archivar → email al firmante → job purga PII al día 15 (reutiliza `anonymize_signature` de retencion-datos) → fila anonimizada sigue contando para siempre
+- Depende de retencion-datos. Orden fase 3: cifrado-reposo → retencion-datos → supresion-admin → derechos-arco
+
 ---
 
 ## Pausa de commits (punto actual)
