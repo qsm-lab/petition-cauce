@@ -9,9 +9,9 @@
 
 ## Frontend
 
-- [ ] **T5** Route handler `app/c/[code]/route.ts`: resolve + redirect 302 con `?source=short`; 404 amigable (R2, R3)
+- [ ] **T5** Route handler `app/s/[code]/route.ts`: resolve + redirect 302 con `?source=short`; 404 amigable (R2, R3)
 - [ ] **T6** Editor admin — panel QR: mostrar enlace corto con botón copiar (R4)
-- [ ] **T7** QR codifica `https://<dominio>/c/<code>?source=qr` (R5, R7)
+- [ ] **T7** QR codifica `https://<dominio>/s/<code>?source=qr` (R5, R7)
 - [ ] **T8** Botón "Descargar QR" PNG 1024px (R6)
 - [ ] **T9** Verificar/propagar `?source=` de la URL al payload del formulario de firma (R8)
 

@@ -12,7 +12,7 @@ volante-pdf de fase 2).
 
 ### Enlace corto
 - **R1** El sistema DEBERÁ generar un código corto único por campaña (6-8 chars, alfabeto sin ambiguos `0/O/1/l`), persistido en `campaigns`.
-- **R2** CUANDO se visite `/c/{short_code}` en cualquier dominio de la plataforma, el sistema DEBERÁ redirigir (302) a la landing de la campaña con `?source=short`.
+- **R2** CUANDO se visite `/s/{short_code}` en cualquier dominio de la plataforma, el sistema DEBERÁ redirigir (302) a la landing de la campaña con `?source=short`.
 - **R3** SI el código no existe o la campaña está archivada, ENTONCES el sistema DEBERÁ responder 404 con página amigable.
 - **R4** El código corto DEBERÁ ser estable (no cambia al editar la campaña) y visible en el panel del editor admin junto al QR.
 

@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Public campaign pages: pass original host header for campaign resolution
-  if (pathname === "/" || pathname.startsWith("/aviso-de-privacidad")) {
+  if (pathname === "/" || pathname.startsWith("/c/") || pathname.startsWith("/aviso-de-privacidad")) {
     const response = NextResponse.next();
     const host =
       request.headers.get("x-forwarded-host") ||
@@ -30,5 +30,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login", "/", "/aviso-de-privacidad"],
+  matcher: ["/admin/:path*", "/login", "/", "/c/:path*", "/aviso-de-privacidad"],
 };

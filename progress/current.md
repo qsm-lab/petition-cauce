@@ -50,6 +50,18 @@ Orden de implementación recomendado: cifrado-reposo → retencion-datos → der
 
 Nota: la landing SSR cachea ~2 s los datos de campaña — esperar antes de verificar cambios.
 
+### 6. Fix producción: landing 404 + patrón /c/[slug] (post-pausa)
+- **Bug 1 (código):** `domain_service.py` buscaba `tls_status == "activo"` pero el constraint de la migración 006 solo permite `'pending'|'active'|'error'` → ningún dominio podía resolver. Fix: `"active"`. SQL para el VPS ya entregado al usuario (INSERT en `domains` con `'active'`).
+- **Bug 2 (diseño):** en producción `?slug=` se ignoraba (solo resolución por dominio). Solución adoptada: **patrón forms-qsm `/c/<slug>`**:
+  - `app/c/[slug]/page.tsx` reescrito: renderiza la landing de petición por slug (antes: FormRenderer del flujo forms qsm, sin uso — `form_id` NULL en todas las campañas)
+  - Vestigios forms eliminados de `/c/`: `layout.tsx` (fondo QSM `#01004d`), `CBodyFix.tsx`, `loading.tsx` (rompía el status 404 por streaming), `[slug]/gracias/`
+  - `lib/campaign-og.ts` nuevo: metadata OG compartida entre `/` y `/c/[slug]`
+  - Editor admin: QR, botón "Landing ↗" y label del slug ahora usan `/c/<slug>`
+  - Middleware: `x-original-host` también en `/c/:path*`
+  - Multidominio intacto: `/` sigue resolviendo por Host para campañas con dominio propio
+- **Spec `enlace-corto-qr` ajustada por consistencia:** el enlace corto pasa de `/c/{code}` a **`/s/{code}`** (evita colisión con landings); redirect destino ahora `/c/<slug>?source=short`
+- Verificado: `/c/<slug>` 200 + OG canónico, slug inexistente 404, raíz sin regresión, tsc 0 errores, 46 tests pasan
+
 ---
 
 ## Pausa de commits (punto actual)

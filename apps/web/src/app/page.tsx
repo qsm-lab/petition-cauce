@@ -8,6 +8,7 @@ import {
   resolveDomain,
   getRecentSignatures,
 } from "@/lib/campaign-api";
+import { campaignMetadata } from "@/lib/campaign-og";
 import { campaignStyleTag, BOSQUE_LIGHT } from "@/lib/design-tokens";
 import CampaignPage from "./(campaign)/CampaignPage";
 
@@ -40,47 +41,7 @@ export async function generateMetadata({
 
   if (!campaign) return { title: "Cauce Petition" };
 
-  const meta = campaign.meta as Record<string, unknown>;
-  const pageUrl = buildCampaignUrl(campaign.slug, host);
-  const siteName = "Cauce Petition";
-
-  const ogTitle = (campaign.petition_title || campaign.title);
-  const welcomeDesc = meta?.welcome_description as string | undefined;
-  const shareText = campaign.share_text ?? undefined;
-  const ogDesc =
-    welcomeDesc ||
-    shareText ||
-    (campaign.authority
-      ? `Firma y apoya esta petición dirigida a ${campaign.authority}.`
-      : "Campaña de activismo ambiental en Ecuador. Suma tu voz.");
-
-  const heroImage = campaign.hero_image_url;
-  const imageAlt = ogTitle;
-
-  const fbAppId = process.env.NEXT_PUBLIC_FB_APP_ID ?? "";
-
-  return {
-    title: `${ogTitle} — ${siteName}`,
-    description: ogDesc,
-    metadataBase: new URL(APP_URL),
-    openGraph: {
-      type: "website",
-      url: pageUrl,
-      siteName,
-      title: ogTitle,
-      description: ogDesc,
-      ...(heroImage
-        ? { images: [{ url: heroImage, width: 1200, height: 630, alt: imageAlt }] }
-        : {}),
-    },
-    twitter: {
-      card: heroImage ? "summary_large_image" : "summary",
-      title: ogTitle,
-      description: ogDesc,
-      ...(heroImage ? { images: [{ url: heroImage, alt: imageAlt }] } : {}),
-    },
-    ...(fbAppId ? { other: { "fb:app_id": fbAppId } } : {}),
-  };
+  return campaignMetadata(campaign, buildCampaignUrl(campaign.slug, host));
 }
 
 export default async function Home({

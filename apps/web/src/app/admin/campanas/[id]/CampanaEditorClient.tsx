@@ -255,7 +255,7 @@ export default function CampanaEditorClient({
   async function generateQr() {
     try {
       const QRCode = (await import("qrcode")).default;
-      const campaignUrl = `${window.location.origin}/?slug=${campaign!.slug}`;
+      const campaignUrl = `${window.location.origin}/c/${campaign!.slug}`;
       const dataUrl = await QRCode.toDataURL(campaignUrl, { width: 200, margin: 1 });
       setQrData(dataUrl);
       setQrGenerated(true);
@@ -434,7 +434,7 @@ export default function CampanaEditorClient({
               <Link href={`/admin/campanas/${campaign!.id}/firmas`} className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-[8px]" style={{ color: "#fff", background: "var(--bink)", border: "none" }}>
                 Ver firmas
               </Link>
-              <a href={`/?slug=${campaign!.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
+              <a href={`/c/${campaign!.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
                 Landing ↗
               </a>
             </div>
@@ -470,7 +470,7 @@ export default function CampanaEditorClient({
               </Field>
               <Field label="Slug (URL)" last>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] flex-shrink-0" style={{ color: "var(--bmut)" }}>/?slug=</span>
+                  <span className="text-[13px] flex-shrink-0" style={{ color: "var(--bmut)" }}>/c/</span>
                   <input type="text" value={slug} onChange={(e) => { setSlug(e.target.value); setSlugManual(true); }} maxLength={100} pattern="[a-z0-9\-]+" className="flex-1 bg-transparent text-[13px] font-mono outline-none placeholder:opacity-40" placeholder="yasuni-2026" style={{ color: "var(--bink)" }} />
                 </div>
                 {isNew && <p className="text-[11.5px] mt-1" style={{ color: "var(--bmut)" }}>Solo letras minúsculas, números y guiones.</p>}
