@@ -182,6 +182,7 @@ class CampaignResponse(BaseModel):
     id: uuid.UUID
     form_id: uuid.UUID | None = None
     created_by: uuid.UUID
+    org_id: uuid.UUID
     title: str
     petition_title: str | None = None
     slug: str
@@ -190,6 +191,8 @@ class CampaignResponse(BaseModel):
     category: str | None = None
     goal_count: int | None = None
     authority: str | None = None
+    asks: list = []
+    privacy_policy_id: uuid.UUID | None = None
     petition_body: dict = {}
     hero_image_url: str | None = None
     starts_at: datetime | None

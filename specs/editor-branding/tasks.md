@@ -25,6 +25,6 @@
 
 - [x] **T11** Guardar campaña con color Fuego `#E63946` → abrir landing → verificar botón CTA rojo
 - [x] **T12** Guardar con preset Bosque → landing vuelve a Lime `#D7F24C`
-- [ ] **T13** URL de logo válida → miniatura visible en editor; vacío → sin error
+- [x] ~~**T13** URL de logo válida → miniatura visible en editor; vacío → sin error~~ — obsoleta: campo "Logo de la campaña" eliminado del editor en sesión 24 (`welcome_logo_url` no se usa en la landing; el único logo visible es el de la organización)
 - [ ] **T14** Social links guardados → aparecen en `StepThanks` de la landing
 - [x] **T15** TypeScript: 0 errores

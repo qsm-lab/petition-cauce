@@ -184,7 +184,6 @@ export default function CampanaEditorClient({
   const [primaryColor, setPrimaryColor] = useState(brandingMeta.primary_color ?? "");
 
   // — Welcome copy
-  const [welcomeLogoUrl, setWelcomeLogoUrl] = useState(campaign?.welcome_logo_url ?? "");
   const [welcomeTitle, setWelcomeTitle] = useState(campaign?.welcome_title ?? "");
   const [welcomeSlogan, setWelcomeSlogan] = useState(campaign?.welcome_slogan ?? "");
   const [welcomeDescription, setWelcomeDescription] = useState(campaign?.welcome_description ?? "");
@@ -289,7 +288,6 @@ export default function CampanaEditorClient({
       ? { primary_color: primaryColor, on_primary_color: autoOnPrimary(primaryColor) }
       : {},
     // Welcome copy
-    welcome_logo_url: welcomeLogoUrl.trim() || null,
     welcome_title: welcomeTitle.trim() || null,
     welcome_slogan: welcomeSlogan.trim() || null,
     welcome_description: welcomeDescription.trim() || null,
@@ -555,30 +553,6 @@ export default function CampanaEditorClient({
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-2" style={{ color: "var(--bmut)" }}>Color primario (botón CTA)</p>
                   <BrandingColorPicker value={primaryColor} onChange={setPrimaryColor} />
-                </div>
-
-                {/* Logo */}
-                <div style={{ borderTop: "1px solid var(--bbord)", paddingTop: 14 }}>
-                  <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bmut)" }}>Logo de la campaña</p>
-                  <div className="flex items-center gap-3">
-                    {welcomeLogoUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={welcomeLogoUrl}
-                        alt="Logo"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 6, border: "1px solid var(--bbord)", flexShrink: 0 }}
-                      />
-                    )}
-                    <input
-                      type="url"
-                      value={welcomeLogoUrl}
-                      onChange={(e) => setWelcomeLogoUrl(e.target.value)}
-                      placeholder="https://…/logo.png"
-                      className="flex-1 bg-transparent text-[13px] outline-none placeholder:opacity-40"
-                      style={{ color: "var(--bink)" }}
-                    />
-                  </div>
                 </div>
 
                 {/* Welcome copy */}
