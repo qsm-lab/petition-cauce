@@ -7,9 +7,9 @@ Fecha: 2026-06-27
 
 ## Prerequisitos (usuario, ANTES de que Claude implemente)
 
-- [ ] **CF-1** Pasos Cloudflare completados (WORKFLOW_LOCAL.md §5): DNS A record, SSL Full strict, WAF rule, Turnstile widget creado
-- [ ] **CF-2** Claves Turnstile (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`) anotadas para agregar a `.env`
-- [ ] **COPY** Copiar directorios base de forms-qsm al nuevo repo:
+- [x] **CF-1** Pasos Cloudflare completados (WORKFLOW_LOCAL.md §5): DNS A record, SSL Full strict, WAF rule, Turnstile widget creado
+- [x] **CF-2** Claves Turnstile (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`) anotadas para agregar a `.env`
+- [x] **COPY** Copiar directorios base de forms-qsm al nuevo repo:
   ```bash
   cd ~/Devs/proy_petition-cauce
   cp -r ~/Devs/proy_forms-qsm/apps .
@@ -21,10 +21,10 @@ Fecha: 2026-06-27
 
 ## Bloque A — Git (usuario ejecuta)
 
-- [ ] **A1** `git init` en `~/Devs/proy_petition-cauce/` (R1)
-- [ ] **A2** `git checkout -b dev` — crear branch dev como default (R2)
-- [ ] **A3** `git remote add origin git@github.com:qsm-lab/petition-cauce.git` (R1)
-- [ ] **A4** Verificar: `git remote -v` muestra `origin → git@github.com:qsm-lab/petition-cauce.git`
+- [x] **A1** `git init` en `~/Devs/proy_petition-cauce/` (R1)
+- [x] **A2** `git checkout -b dev` — crear branch dev como default (R2)
+- [x] **A3** `git remote add origin git@github.com:qsm-lab/petition-cauce.git` (R1)
+- [x] **A4** Verificar: `git remote -v` muestra `origin → git@github.com:qsm-lab/petition-cauce.git`
 
 ---
 
@@ -65,21 +65,21 @@ Fecha: 2026-06-27
 
 ## Bloque F — Verificación (usuario + Claude)
 
-- [ ] **F1** `make dev` levanta los 4 contenedores sin errores (R6, R9)
-- [ ] **F2** `docker ps` muestra nombres `petition-api-dev`, `petition-web-dev`, `petition-db-dev`, `petition-redis-dev`
-- [ ] **F3** Verificar sin colisión de puertos: `ss -tlnp | grep -E '3001|3002|8010|8011'` — solo 3002 y 8011 deben pertenecer a petition-cauce
-- [ ] **F4** `curl http://localhost:8011/health` responde 200 (FastAPI up)
-- [ ] **F5** `curl http://localhost:3002` responde con la app Next.js (aunque sea la de forms-qsm todavía)
-- [ ] **F6** Verificar que `petition_app` no es superusuario:
+- [x] **F1** `make dev` levanta los 4 contenedores sin errores (R6, R9)
+- [x] **F2** `docker ps` muestra nombres `petition-api-dev`, `petition-web-dev`, `petition-db-dev`, `petition-redis-dev`
+- [x] **F3** Verificar sin colisión de puertos: `ss -tlnp | grep -E '3001|3002|8010|8011'` — solo 3002 y 8011 deben pertenecer a petition-cauce
+- [x] **F4** `curl http://localhost:8011/health` responde 200 (FastAPI up)
+- [x] **F5** `curl http://localhost:3002` responde con la app Next.js (aunque sea la de forms-qsm todavía)
+- [x] **F6** Verificar que `petition_app` no es superusuario:
   ```sql
   SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'petition_app';
   -- rolsuper debe ser false
   ```
-- [ ] **F7** Verificar que el schema `petition_cause` existe:
+- [x] **F7** Verificar que el schema `petition_cause` existe:
   ```sql
   SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'petition_cause';
   ```
-- [ ] **F8** (En VPS) Primer push a `main` → verificar que Actions dispara y completa sin timeout
+- [x] **F8** (En VPS) Primer push a `main` → verificar que Actions dispara y completa sin timeout
 
 ---
 
