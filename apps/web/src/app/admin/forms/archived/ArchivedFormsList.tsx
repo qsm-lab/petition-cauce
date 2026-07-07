@@ -20,6 +20,7 @@ function formatDate(iso: string) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "America/Guayaquil",
   });
 }
 

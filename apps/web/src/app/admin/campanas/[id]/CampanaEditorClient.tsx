@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { AdminCampaign } from "@/lib/admin-campaigns-api";
+import LifecyclePanelAdmin from "./LifecyclePanelAdmin";
+import BrandingColorPicker, { autoOnPrimary, isValidHex } from "./BrandingColorPicker";
 import RichTextEditor from "@/components/RichTextEditor";
 import type { Category } from "@/lib/admin-categories-api";
 import type { PrivacyPolicy } from "@/lib/admin-privacy-api";
@@ -35,10 +37,10 @@ const MISSING_LABELS: Record<string, string> = {
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
-      <div className="px-4 py-2.5" style={{ background: "var(--bbg)", borderBottom: "1px solid var(--bbord)" }}>
-        <p className="font-bold text-[11px] uppercase tracking-[.06em]" style={{ color: "var(--bmut)" }}>{title}</p>
+      <div className="px-5 py-3" style={{ background: "var(--bbg)", borderBottom: "1px solid var(--bbord)" }}>
+        <p className="font-heading font-bold text-[12.5px] uppercase tracking-[.07em]" style={{ color: "var(--bink)" }}>{title}</p>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </div>
   );
 }
@@ -48,10 +50,10 @@ function Field({ label, hint, children, last = false }: {
 }) {
   return (
     <div className="px-5 py-4" style={last ? undefined : { borderBottom: "1px solid var(--bbord)" }}>
-      <label className="block text-[11px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bmut)" }}>
+      <label className="block text-[12px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bink)" }}>
         {label}
       </label>
-      {hint && <p className="text-[11.5px] mb-2" style={{ color: "var(--bmut)", opacity: 0.7 }}>{hint}</p>}
+      {hint && <p className="text-[12.5px] mb-2.5" style={{ color: "var(--bmut)" }}>{hint}</p>}
       {children}
     </div>
   );
@@ -60,7 +62,7 @@ function Field({ label, hint, children, last = false }: {
 function SectionHeader({ title }: { title: string }) {
   return (
     <div className="px-5 py-3" style={{ background: "var(--bbg)", borderBottom: "1px solid var(--bbord)" }}>
-      <p className="font-bold text-[11px] uppercase tracking-[.06em]" style={{ color: "var(--bmut)" }}>{title}</p>
+      <p className="font-heading font-bold text-[12.5px] uppercase tracking-[.07em]" style={{ color: "var(--bink)" }}>{title}</p>
     </div>
   );
 }
@@ -177,6 +179,29 @@ export default function CampanaEditorClient({
   // — Texto de difusión
   const [shareText, setShareText] = useState((meta.share_text as string) ?? "");
 
+  // — Branding
+  const brandingMeta = (meta.branding ?? {}) as Record<string, string>;
+  const [primaryColor, setPrimaryColor] = useState(brandingMeta.primary_color ?? "");
+
+  // — Welcome copy
+  const [welcomeLogoUrl, setWelcomeLogoUrl] = useState(campaign?.welcome_logo_url ?? "");
+  const [welcomeTitle, setWelcomeTitle] = useState(campaign?.welcome_title ?? "");
+  const [welcomeSlogan, setWelcomeSlogan] = useState(campaign?.welcome_slogan ?? "");
+  const [welcomeDescription, setWelcomeDescription] = useState(campaign?.welcome_description ?? "");
+
+  // — Thank you
+  const [thankYouTitle, setThankYouTitle] = useState(campaign?.thank_you_title ?? "");
+  const [thankYouBody, setThankYouBody] = useState(campaign?.thank_you_body ?? "");
+
+  // — Social links
+  const initSocial = (campaign?.social_links ?? {}) as Record<string, string>;
+  const [socialInstagram, setSocialInstagram] = useState(initSocial.instagram ?? "");
+  const [socialFacebook, setSocialFacebook] = useState(initSocial.facebook ?? "");
+  const [socialTiktok, setSocialTiktok] = useState(initSocial.tiktok ?? "");
+  const [socialWhatsapp, setSocialWhatsapp] = useState(initSocial.whatsapp ?? "");
+  const [socialNewsletter, setSocialNewsletter] = useState(initSocial.newsletter ?? "");
+  const [socialWebsite, setSocialWebsite] = useState(initSocial.website ?? "");
+
   // — Archivos descargables
   const [attachments, setAttachments] = useState<{ title: string; url: string }[]>(
     (meta.attachments as { title: string; url: string }[]) ?? []
@@ -259,6 +284,27 @@ export default function CampanaEditorClient({
     form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
     show_qr: showQr,
     share_text: shareText.trim() || null,
+    // Branding
+    branding: isValidHex(primaryColor)
+      ? { primary_color: primaryColor, on_primary_color: autoOnPrimary(primaryColor) }
+      : {},
+    // Welcome copy
+    welcome_logo_url: welcomeLogoUrl.trim() || null,
+    welcome_title: welcomeTitle.trim() || null,
+    welcome_slogan: welcomeSlogan.trim() || null,
+    welcome_description: welcomeDescription.trim() || null,
+    // Thank you
+    thank_you_title: thankYouTitle.trim() || null,
+    thank_you_body: thankYouBody.trim() || null,
+    // Social links
+    social_links: {
+      instagram:   socialInstagram.trim()   || null,
+      facebook:    socialFacebook.trim()    || null,
+      tiktok:      socialTiktok.trim()      || null,
+      whatsapp:    socialWhatsapp.trim()    || null,
+      newsletter:  socialNewsletter.trim()  || null,
+      website:     socialWebsite.trim()     || null,
+    },
   });
 
   // — Save
@@ -360,7 +406,7 @@ export default function CampanaEditorClient({
         </nav>
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h1 className="font-display font-bold text-[18px]" style={{ color: "var(--bink)" }}>
+            <h1 className="font-heading font-bold text-[22px]" style={{ color: "var(--bink)" }}>
               {isNew ? "Nueva campaña" : "Editar campaña"}
             </h1>
             {!isNew && (
@@ -371,7 +417,21 @@ export default function CampanaEditorClient({
           </div>
           {!isNew && (
             <div className="flex items-center gap-2">
-              <Link href={`/admin/campanas/${campaign!.id}/firmas`} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bink)", background: "#D7F24C", border: "none" }}>
+              <button
+                form="editor-form"
+                type="submit"
+                disabled={saving}
+                className="font-semibold text-[12.5px] px-3.5 py-1.5 rounded-[8px]"
+                style={{
+                  background: saved ? "#16261F" : saving ? "rgba(215,242,76,0.5)" : "var(--bp)",
+                  color: saved ? "#fff" : "var(--bop)",
+                  cursor: saving ? "not-allowed" : "pointer",
+                  border: "none",
+                }}
+              >
+                {saved ? "✓ Guardado" : saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+              <Link href={`/admin/campanas/${campaign!.id}/firmas`} className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-[8px]" style={{ color: "#fff", background: "var(--bink)", border: "none" }}>
                 Ver firmas
               </Link>
               <a href={`/?slug=${campaign!.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
@@ -383,10 +443,10 @@ export default function CampanaEditorClient({
       </header>
 
       <div className="p-6 animate-pc-rise">
-        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 300px" }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 360px" }}>
 
           {/* ── Formulario principal (izquierda) ── */}
-          <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <form id="editor-form" onSubmit={handleSave} className="flex flex-col gap-4">
 
             {/* Portada */}
             <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
@@ -473,7 +533,7 @@ export default function CampanaEditorClient({
             {/* Texto de difusión */}
             <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
               <SectionHeader title="Texto de difusión" />
-              <Field label="Copy para compartir" hint="Texto que se usará en WhatsApp, X y Email al compartir. Si se omite se genera automáticamente." last>
+              <Field label="Copy para compartir (WhatsApp, X, Email)" hint="Texto exacto que verán al compartir. Puedes usar emojis (evitar 🌿 🌺 en WhatsApp). Si se omite se construye desde título y eslogan." last>
                 <textarea
                   value={shareText}
                   onChange={(e) => setShareText(e.target.value)}
@@ -485,6 +545,92 @@ export default function CampanaEditorClient({
                 />
                 <p className="text-[11px] mt-1" style={{ color: "var(--bmut)" }}>{shareText.length}/300 · La URL se agrega automáticamente</p>
               </Field>
+            </div>
+
+            {/* Identidad visual */}
+            <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+              <SectionHeader title="Identidad visual" />
+              <div className="px-5 py-4 flex flex-col gap-4">
+                {/* Color primario */}
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-2" style={{ color: "var(--bmut)" }}>Color primario (botón CTA)</p>
+                  <BrandingColorPicker value={primaryColor} onChange={setPrimaryColor} />
+                </div>
+
+                {/* Logo */}
+                <div style={{ borderTop: "1px solid var(--bbord)", paddingTop: 14 }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-1.5" style={{ color: "var(--bmut)" }}>Logo de la campaña</p>
+                  <div className="flex items-center gap-3">
+                    {welcomeLogoUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={welcomeLogoUrl}
+                        alt="Logo"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 6, border: "1px solid var(--bbord)", flexShrink: 0 }}
+                      />
+                    )}
+                    <input
+                      type="url"
+                      value={welcomeLogoUrl}
+                      onChange={(e) => setWelcomeLogoUrl(e.target.value)}
+                      placeholder="https://…/logo.png"
+                      className="flex-1 bg-transparent text-[13px] outline-none placeholder:opacity-40"
+                      style={{ color: "var(--bink)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Welcome copy */}
+                <div style={{ borderTop: "1px solid var(--bbord)", paddingTop: 14 }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[.06em] mb-3" style={{ color: "var(--bmut)" }}>Textos de la landing</p>
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Título de bienvenida</label>
+                      <input type="text" value={welcomeTitle} onChange={(e) => setWelcomeTitle(e.target.value)} maxLength={120} placeholder="Ej: Defendemos el Yasuní" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Eslogan</label>
+                      <input type="text" value={welcomeSlogan} onChange={(e) => setWelcomeSlogan(e.target.value)} maxLength={200} placeholder="Ej: Cada firma cuenta" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Descripción / cuerpo</label>
+                      <textarea value={welcomeDescription} onChange={(e) => setWelcomeDescription(e.target.value)} maxLength={1000} rows={3} placeholder="Texto introductorio de la landing..." className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40 resize-none" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Agradecimiento */}
+            <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+              <SectionHeader title="Pantalla de agradecimiento" />
+              <Field label="Título post-firma" hint="Aparece en la pantalla de confirmación tras firmar.">
+                <input type="text" value={thankYouTitle} onChange={(e) => setThankYouTitle(e.target.value)} maxLength={120} placeholder="Ej: ¡Gracias por sumarte!" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)" }} />
+              </Field>
+              <Field label="Mensaje de agradecimiento" last>
+                <textarea value={thankYouBody} onChange={(e) => setThankYouBody(e.target.value)} maxLength={500} rows={3} placeholder="Ej: Tu firma ayuda a proteger el territorio..." className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40 resize-none" style={{ color: "var(--bink)" }} />
+              </Field>
+            </div>
+
+            {/* Redes sociales */}
+            <div className="rounded-[14px] overflow-hidden" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+              <SectionHeader title="Redes sociales" />
+              <div className="px-5 py-4 flex flex-col gap-3">
+                {([
+                  ["Sitio web",    socialWebsite,    setSocialWebsite,    "https://miorganizacion.org"],
+                  ["Instagram",    socialInstagram,  setSocialInstagram,  "https://instagram.com/…"],
+                  ["Facebook",     socialFacebook,   setSocialFacebook,   "https://facebook.com/…"],
+                  ["TikTok",       socialTiktok,     setSocialTiktok,     "https://tiktok.com/@…"],
+                  ["WhatsApp",     socialWhatsapp,   setSocialWhatsapp,   "https://wa.me/…"],
+                  ["Newsletter",   socialNewsletter, setSocialNewsletter, "https://…"],
+                ] as [string, string, (v: string) => void, string][]).map(([label, val, setter, ph]) => (
+                  <div key={label}>
+                    <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>{label}</label>
+                    <input type="url" value={val} onChange={(e) => setter(e.target.value)} placeholder={ph} className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {error && (
@@ -653,6 +799,19 @@ export default function CampanaEditorClient({
                 </Link>
               )}
             </PanelSection>
+
+            {/* Ciclo de vida — solo en edición */}
+            {!isNew && (
+              <div className="rounded-[14px] p-4" style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}>
+                <LifecyclePanelAdmin
+                  campaignId={campaign!.id}
+                  initialStage={campaign!.lifecycle_stage ?? 0}
+                  initialEvents={campaign!.lifecycle_events ?? []}
+                  orgName={campaign!.org_name ?? null}
+                  orgHasContactEmail={campaign!.org_has_contact_email ?? false}
+                />
+              </div>
+            )}
 
             {/* QR — solo en edición */}
             {!isNew && (

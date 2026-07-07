@@ -5,6 +5,9 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 
 from app.models.campaign import Campaign
+from app.models.consent import Consent
+from app.models.lifecycle_event import LifecycleEvent
+from app.models.organization import Organization
 from app.models.signature import Signature
 from app.models.form import Form
 from app.models.question import Question
@@ -231,6 +234,68 @@ class CampaignService:
         await db.commit()
         await db.refresh(campaign)
         return campaign
+
+    @staticmethod
+    async def get_campaign_with_lifecycle(
+        db: AsyncSession,
+        campaign_id: str,
+        org_id: uuid.UUID,
+    ) -> tuple[Campaign | None, Organization | None]:
+        result = await db.execute(
+            select(Campaign)
+            .where(Campaign.id == campaign_id, Campaign.org_id == org_id)
+            .options(
+                selectinload(Campaign.lifecycle_events)
+            )
+        )
+        campaign = result.scalar_one_or_none()
+        if not campaign:
+            return None, None
+        org_result = await db.execute(
+            select(Organization).where(Organization.id == campaign.org_id)
+        )
+        org = org_result.scalar_one_or_none()
+        return campaign, org
+
+    @staticmethod
+    async def update_lifecycle_stage(
+        db: AsyncSession,
+        campaign: Campaign,
+        new_stage: int,
+        notes: str | None,
+        user_id: uuid.UUID,
+    ) -> LifecycleEvent:
+        # Valores que acepta el CHECK constraint de la BD (sin tildes, minúsculas)
+        _STAGE_NAMES = ["lanzada", "recoleccion", "entrega", "dialogo", "decision"]
+        event = LifecycleEvent(
+            campaign_id=campaign.id,
+            stage=_STAGE_NAMES[new_stage],
+            stage_index=new_stage,
+            notes=notes,
+            registered_by=user_id,
+        )
+        campaign.lifecycle_stage = new_stage
+        db.add(event)
+        await db.commit()
+        await db.refresh(event)
+        await db.refresh(campaign)
+        return event
+
+    @staticmethod
+    async def get_signer_emails_for_notify(
+        db: AsyncSession,
+        campaign_id: uuid.UUID,
+    ) -> list[str]:
+        result = await db.execute(
+            select(Signature.email_encrypted)
+            .join(Consent, Consent.signature_id == Signature.id)
+            .where(
+                Consent.campaign_id == campaign_id,
+                Consent.notify_updates.is_(True),
+                Signature.status == "confirmed",
+            )
+        )
+        return [row[0] for row in result.all() if row[0]]
 
     @staticmethod
     async def get_qr(db: AsyncSession, campaign_id: str) -> dict:

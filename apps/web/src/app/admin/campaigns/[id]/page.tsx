@@ -65,10 +65,10 @@ export default async function CampaignDetailPage({ params }: Props) {
               <InfoRow label="Cuota máxima" value={String(campaign.max_responses)} />
             )}
             {campaign.starts_at && (
-              <InfoRow label="Inicio" value={new Date(campaign.starts_at).toLocaleDateString("es-EC")} />
+              <InfoRow label="Inicio" value={new Date(campaign.starts_at).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })} />
             )}
             {campaign.ends_at && (
-              <InfoRow label="Cierre" value={new Date(campaign.ends_at).toLocaleDateString("es-EC")} />
+              <InfoRow label="Cierre" value={new Date(campaign.ends_at).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })} />
             )}
           </dl>
         </div>

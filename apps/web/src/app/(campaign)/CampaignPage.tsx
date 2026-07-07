@@ -177,6 +177,10 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
           campaignUrl={campaignUrl}
           formConfig={campaign.form_config}
           categoryColor={categoryColor}
+          shareText={campaign.share_text}
+          heroImageUrl={campaign.hero_image_url}
+          welcomeTitle={(campaign.meta?.welcome_title as string) ?? null}
+          welcomeSlogan={(campaign.meta?.welcome_slogan as string) ?? null}
           onClose={() => setSignOpen(false)}
         />
       )}
