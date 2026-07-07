@@ -176,8 +176,9 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
         </div>
 
         {/* Móvil: organización y compartir al final de la página.
-            El display va solo en clases: un display inline anularía el md:hidden */}
-        <div className="order-3 md:hidden flex flex-col" style={{ gap: 20 }}>
+            El display va solo en clases: un display inline anularía el md:hidden.
+            paddingBottom deja aire para que el CTA flotante no tape los documentos */}
+        <div className="order-3 md:hidden flex flex-col" style={{ gap: 20, paddingBottom: 96 }}>
           <OrgCard org={campaign.org} />
           <ShareSection
             title={campaign.petition_title}
@@ -187,6 +188,7 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
             showQr={campaign.show_qr}
             qrCodeData={campaign.qr_code_data}
             shareText={campaign.share_text}
+            prominentDocs
           />
         </div>
       </div>

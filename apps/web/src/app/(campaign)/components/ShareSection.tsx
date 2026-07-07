@@ -11,6 +11,8 @@ interface Props {
   showQr?: boolean;
   qrCodeData?: string | null;
   shareText?: string | null;
+  /** Documentos como tarjetas destacadas (usado en el bloque final móvil) */
+  prominentDocs?: boolean;
 }
 
 const IcoDownload = () => (
@@ -29,6 +31,7 @@ export default function ShareSection({
   showQr = false,
   qrCodeData,
   shareText,
+  prominentDocs = false,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const isClosed = status === "closed";
@@ -187,41 +190,76 @@ export default function ShareSection({
 
       {/* Documentos */}
       {attachments.length > 0 && (
-        <div style={{ borderTop: "1px solid rgba(22,38,31,0.15)", paddingTop: 12 }}>
+        <div
+          style={{
+            borderTop: "1px solid rgba(22,38,31,0.15)",
+            paddingTop: prominentDocs ? 18 : 12,
+            marginTop: prominentDocs ? 6 : 0,
+          }}
+        >
           <p
             style={{
-              fontSize: 11.5,
+              fontSize: prominentDocs ? 13 : 11.5,
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
-              color: "rgba(22,38,31,0.5)",
-              margin: "0 0 8px",
+              color: prominentDocs ? "#16261F" : "rgba(22,38,31,0.5)",
+              margin: prominentDocs ? "0 0 12px" : "0 0 8px",
             }}
           >
             Documentos adjuntos
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {attachments.map((att, i) => (
-              <a
-                key={i}
-                href={att.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#16261F",
-                  textDecoration: "none",
-                  ...disabledStyle,
-                }}
-              >
-                <IcoDownload />
-                {att.title}
-              </a>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: prominentDocs ? 10 : 8 }}>
+            {attachments.map((att, i) =>
+              prominentDocs ? (
+                <a
+                  key={i}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    fontSize: 14.5,
+                    fontWeight: 700,
+                    color: "#16261F",
+                    textDecoration: "none",
+                    background: "var(--bbg, #EDF4F1)",
+                    border: "1.5px solid #16261F",
+                    borderRadius: 14,
+                    padding: "14px 16px",
+                    ...disabledStyle,
+                  }}
+                >
+                  <IcoDownload />
+                  <span style={{ flex: 1 }}>{att.title}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(22,38,31,0.55)", flexShrink: 0 }}>
+                    Descargar →
+                  </span>
+                </a>
+              ) : (
+                <a
+                  key={i}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "#16261F",
+                    textDecoration: "none",
+                    ...disabledStyle,
+                  }}
+                >
+                  <IcoDownload />
+                  {att.title}
+                </a>
+              )
+            )}
           </div>
         </div>
       )}

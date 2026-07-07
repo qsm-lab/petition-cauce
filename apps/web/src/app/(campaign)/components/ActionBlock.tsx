@@ -206,28 +206,19 @@ export default function ActionBlock({
             boxShadow: "0 -4px 16px rgba(22,38,31,0.1)",
           }}
         >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#16261F" }}>
-              {count.toLocaleString("es-EC")} firmas
-            </div>
-            {effectiveGoal && (
-              <div style={{ fontSize: 11, color: "rgba(22,38,31,0.55)" }}>
-                de {effectiveGoal.toLocaleString("es-EC")}
-              </div>
-            )}
-          </div>
           <button
             onClick={onSign}
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 700,
               color: "var(--bop, #16261F)",
               background: "var(--bp, #D7F24C)",
               border: "none",
               borderRadius: 26,
-              padding: "14px 22px",
+              padding: "15px 22px",
               cursor: "pointer",
+              width: "100%",
             }}
           >
             {ctaLabel}
