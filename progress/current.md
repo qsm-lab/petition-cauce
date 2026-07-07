@@ -62,6 +62,17 @@ Nota: la landing SSR cachea ~2 s los datos de campaña — esperar antes de veri
 - **Spec `enlace-corto-qr` ajustada por consistencia:** el enlace corto pasa de `/c/{code}` a **`/s/{code}`** (evita colisión con landings); redirect destino ahora `/c/<slug>?source=short`
 - Verificado: `/c/<slug>` 200 + OG canónico, slug inexistente 404, raíz sin regresión, tsc 0 errores, 46 tests pasan
 
+### 7. Verificación de firma por email (post-/c/)
+- Turnstile prod: rectificado por el usuario en el dashboard de Cloudflare (err 110200 = hostname faltante en el widget; sitekey en prod: `0x4AAAAAADsMg474eUfwuPsk`)
+- `confirm_signature` ahora es **idempotente** (el token no se borra al confirmar: segundo clic o prefetch del cliente de correo no falla) y retorna `status` + `slug`
+- `GET /confirm/{token}` ya no devuelve JSON crudo: **redirect 302** a `/c/<slug>?confirmada=1|expirada` (token inexistente → raíz)
+- `ConfirmationBanner.tsx` nuevo en la landing: banner confirmada/expirada, descartable, limpia el query param
+- Copy StepSuccess corregido: "vence en 30 minutos" → "24 horas" (TTL real del backend)
+- `.env.example`: agregadas `RESEND_FROM_EMAIL` (debe ser del dominio verificado en Resend) y `API_PUBLIC_URL` (sin ella los emails llevan enlaces a localhost)
+- **Acción usuario en VPS `.env`**: definir `RESEND_FROM_EMAIL` y `API_PUBLIC_URL=https://cauce.ecuadornotlc.org/api` (solo API, no requiere rebuild del web)
+- E2E verificado en dev: firma → confirm 302 → banner visible; idempotencia; caso expirado; tsc 0 errores; 46 tests
+- **Nota conocida**: la confirmación por GET puede ser disparada por escáneres de email corporativos (prefetch). Mitigación futura: página intermedia con botón (requiere diseño). Aceptado para MVP.
+
 ---
 
 ## Pausa de commits (punto actual)

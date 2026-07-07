@@ -225,10 +225,19 @@ async def resend_confirmation_email(
 
 @router.get("/confirm/{token}")
 async def confirm_sig(token: str, db: AsyncSession = Depends(get_db)):
+    """Confirma la firma y redirige a la landing (el enlace se abre desde el email)."""
+    from fastapi.responses import RedirectResponse
+    from app.config import settings
+
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
     result = await confirm_signature(db, token)
-    if not result:
-        raise HTTPException(status_code=404, detail="Token inválido o expirado")
-    return result
+
+    if not result or not result.get("slug"):
+        return RedirectResponse(f"{app_url}/", status_code=302)
+
+    slug = result["slug"]
+    estado = "1" if result["status"] == "confirmed" else "expirada"
+    return RedirectResponse(f"{app_url}/c/{slug}?confirmada={estado}", status_code=302)
 
 
 @router.get("/{campaign_id}")

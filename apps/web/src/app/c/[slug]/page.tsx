@@ -6,6 +6,7 @@ import { getCampaignBySlug, getRecentSignatures } from "@/lib/campaign-api";
 import { campaignMetadata } from "@/lib/campaign-og";
 import { campaignStyleTag } from "@/lib/design-tokens";
 import CampaignPage from "../../(campaign)/CampaignPage";
+import ConfirmationBanner from "../../(campaign)/components/ConfirmationBanner";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3002";
 
@@ -39,8 +40,10 @@ export async function generateMetadata({
 
 export default async function CampaignBySlugPage({
   params,
+  searchParams,
 }: {
   params: { slug: string };
+  searchParams: { confirmada?: string };
 }) {
   const headersList = headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
@@ -59,6 +62,9 @@ export default async function CampaignBySlugPage({
   return (
     <>
       {styleTag && <style dangerouslySetInnerHTML={{ __html: styleTag }} />}
+      {searchParams.confirmada && (
+        <ConfirmationBanner estado={searchParams.confirmada} />
+      )}
       <CampaignPage
         campaign={campaign}
         recentSignatures={recentSignatures}

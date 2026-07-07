@@ -130,29 +130,37 @@ async def create_signature(
 
 
 async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
-    """Confirma firma por token. Retorna {count, goal} o None si el token no existe/expiró."""
+    """Confirma firma por token. Retorna {status, slug, count, goal} o None si el token no existe.
+
+    Idempotente: el token se conserva tras confirmar para que un segundo clic
+    (o el prefetch del cliente de correo) no termine en error.
+    status: "confirmed" | "expired".
+    """
     result = await db.execute(
-        select(Signature).where(
-            Signature.confirmation_token == token,
-            Signature.status == "pending_confirmation",
-        )
+        select(Signature).where(Signature.confirmation_token == token)
     )
     sig = result.scalar_one_or_none()
     if not sig:
         return None
 
-    now = datetime.now(timezone.utc)
-    if sig.confirmation_token_expires_at:
-        exp = sig.confirmation_token_expires_at
-        if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        if now > exp:
-            return None
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == sig.campaign_id)
+    )
+    campaign = campaign_result.scalar_one_or_none()
+    slug = campaign.slug if campaign else None
 
-    sig.status = "confirmed"
-    sig.confirmed_at = now
-    sig.confirmation_token = None
-    await db.flush()
+    now = datetime.now(timezone.utc)
+
+    if sig.status == "pending_confirmation":
+        if sig.confirmation_token_expires_at:
+            exp = sig.confirmation_token_expires_at
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if now > exp:
+                return {"status": "expired", "slug": slug, "count": 0, "goal": None}
+        sig.status = "confirmed"
+        sig.confirmed_at = now
+        await db.flush()
 
     count_result = await db.execute(
         select(func.count()).where(
@@ -162,13 +170,13 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     )
     count = count_result.scalar() or 0
 
-    campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == sig.campaign_id)
-    )
-    campaign = campaign_result.scalar_one_or_none()
-
     await db.commit()
-    return {"count": count, "goal": campaign.goal_count if campaign else None}
+    return {
+        "status": "confirmed",
+        "slug": slug,
+        "count": count,
+        "goal": campaign.goal_count if campaign else None,
+    }
 
 
 async def get_recent_signatures(

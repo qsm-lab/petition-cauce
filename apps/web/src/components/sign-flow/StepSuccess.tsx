@@ -113,7 +113,7 @@ export default function StepSuccess({ name, email, resendState, onContinue, onRe
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span style={{ fontSize: 12.5, color: "rgba(22,38,31,0.65)", lineHeight: 1.5, fontFamily: FONT_BODY }}>
-          Si no lo ves, revisá la carpeta de spam. El enlace vence en 30 minutos.
+          Si no lo ves, revisá la carpeta de spam. El enlace vence en 24 horas.
         </span>
       </div>
     </div>
