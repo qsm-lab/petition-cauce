@@ -104,6 +104,20 @@ Orden de implementación fase 3 acordado: **cifrado-reposo → retencion-datos �
 
 ---
 
+## Sesión 25 (2026-07-08) — cifrado-reposo implementado
+
+- Specs de fase 3 + enlace-corto-qr **aprobadas por el usuario**
+- **`cifrado-reposo` implementado completo (T0-T15)**: AES-256-GCM en `crypto.py` (`encrypt_pii`/`decrypt_pii`/`PIIDecryptError`, formato `enc:v1:`), clave obligatoria con validación de arranque, cifrado al crear firma, descifrado en notify (tolerante a filas corruptas), migración `015` idempotente (probada con downgrade/upgrade + fila legada), `cryptography==49.0.0` fijada
+- Tests: 57 pasan (8 nuevos de PII). Imagen dev reconstruida (pytest-asyncio 0.26 persistente)
+- E2E verificado: firma → `enc:v1:` en DB → confirmación 302 → notify-signers descifra (`sent_count: 1`) → datos de prueba eliminados
+- `PII_ENCRYPTION_KEY` agregada a `.env.dev` por el usuario (el API no arranca sin ella — validado en vivo)
+- **Feature `in_progress`** — usuario valida y decide `done`
+
+### ⚠️ Orden de deploy de cifrado-reposo (crítico)
+1. Usuario: generar clave **nueva y distinta** para el `.env` del VPS (`openssl rand -hex 32` → `PII_ENCRYPTION_KEY=`)
+2. Commit + push → deploy (el API de prod NO arranca sin la clave)
+3. En el VPS: `alembic upgrade head` (migración 015 cifra las firmas existentes)
+
 ## Pendientes para próxima sesión
 
 1. Usuario: aprobar specs de fase 3 (+ `enlace-corto-qr`) para arrancar implementación

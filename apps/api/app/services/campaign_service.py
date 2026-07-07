@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 
+from app.crypto import PIIDecryptError, decrypt_pii
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.lifecycle_event import LifecycleEvent
@@ -287,7 +288,7 @@ class CampaignService:
         campaign_id: uuid.UUID,
     ) -> list[str]:
         result = await db.execute(
-            select(Signature.email_encrypted)
+            select(Signature.id, Signature.email_encrypted)
             .join(Consent, Consent.signature_id == Signature.id)
             .where(
                 Consent.campaign_id == campaign_id,
@@ -295,7 +296,15 @@ class CampaignService:
                 Signature.status == "confirmed",
             )
         )
-        return [row[0] for row in result.all() if row[0]]
+        emails: list[str] = []
+        for sig_id, enc in result.all():
+            if not enc:
+                continue
+            try:
+                emails.append(decrypt_pii(enc, ref=str(sig_id)))
+            except PIIDecryptError:
+                continue  # ya logueado en decrypt_pii; no aborta el envío al resto
+        return emails
 
     @staticmethod
     async def get_qr(db: AsyncSession, campaign_id: str) -> dict:

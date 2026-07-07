@@ -221,7 +221,7 @@
       "id": "cifrado-reposo",
       "title": "Fase 3 — LOPDP: cifrado en reposo de PII",
       "description": "Cifrado de columnas PII (cedula_encrypted, email_encrypted) en tabla signatures. Columnas ya diseñadas para esto desde modelo-base. Usar AES-256-GCM con clave derivada de secreto del VPS. Transparente para el backend; búsquedas sobre hash normalizado.",
-      "status": "spec_ready",
+      "status": "in_progress",
       "sdd": true,
       "area": "backend",
       "phase": 3
