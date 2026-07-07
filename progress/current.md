@@ -79,6 +79,13 @@ Nota: la landing SSR cachea ~2 s los datos de campaña — esperar antes de veri
 - Spec en `specs/supresion-admin/`: Archivar → email al firmante → job purga PII al día 15 (reutiliza `anonymize_signature` de retencion-datos) → fila anonimizada sigue contando para siempre
 - Depende de retencion-datos. Orden fase 3: cifrado-reposo → retencion-datos → supresion-admin → derechos-arco
 
+### 9. Fixes editor de campaña ↔ landing (coherencia admin/front)
+- **`CampaignResponse` no declaraba `asks`, `privacy_policy_id` ni `org_id`** → el editor se hidrataba vacío al recargar ("Lo que pedimos" en blanco, política "Sin asignar") aunque los datos estaban en DB y la landing los mostraba. Peligro real: guardar en ese estado habría borrado los asks. Fix: 3 campos agregados al schema.
+- **Selector de organización**: ya existía en el sidebar del editor pero nunca se veía — `page.tsx` (editar y nueva) consultaba `/v1/organizaciones` en vez de `/v1/admin/organizaciones` → lista siempre vacía. Fix: ruta corregida; el panel aparece encima de Categoría/QR.
+- **Color de branding sin efecto en el CTA**: los botones tenían `#D7F24C` hardcodeado. Tokenizados a `var(--bp)`/`var(--bop)` en: ActionBlock (CTA + flotante), StepForm (submit), StepSuccess, StepError.
+- **"Logo de la campaña" eliminado del editor**: `welcome_logo_url` no se usa en ninguna parte de la landing (el único logo visible es el de la organización). Campo backend se conserva por compat.
+- Verificado: roundtrip asks admin↔público, botón consume `var(--bp)` con Fuego, tsc 0, 46 tests.
+
 ---
 
 ## Pausa de commits (punto actual)

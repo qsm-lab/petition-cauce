@@ -8,7 +8,7 @@ export default async function NuevaCampanaPage() {
   const [categories, policies, orgs] = await Promise.all([
     apiServer<Category[]>("/v1/admin/categories").then((r) => r ?? []),
     apiServer<PrivacyPolicy[]>("/v1/admin/privacy-policies").then((r) => r ?? []),
-    apiServer<AdminOrg[]>("/v1/organizaciones").then((r) => r ?? []),
+    apiServer<AdminOrg[]>("/v1/admin/organizaciones").then((r) => r ?? []),
   ]);
 
   return (

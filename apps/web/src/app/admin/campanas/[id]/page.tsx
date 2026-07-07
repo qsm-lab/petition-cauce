@@ -15,7 +15,7 @@ export default async function CampanaDetailPage({ params }: PageProps) {
     getAdminCampaign(params.id),
     apiServer<Category[]>("/v1/admin/categories").then((r) => r ?? []),
     apiServer<PrivacyPolicy[]>("/v1/admin/privacy-policies").then((r) => r ?? []),
-    apiServer<AdminOrg[]>("/v1/organizaciones").then((r) => r ?? []),
+    apiServer<AdminOrg[]>("/v1/admin/organizaciones").then((r) => r ?? []),
   ]);
 
   if (!campaign) {
