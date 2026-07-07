@@ -175,8 +175,9 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
           )}
         </div>
 
-        {/* Móvil: organización y compartir al final de la página */}
-        <div className="order-3 md:hidden" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Móvil: organización y compartir al final de la página.
+            El display va solo en clases: un display inline anularía el md:hidden */}
+        <div className="order-3 md:hidden flex flex-col" style={{ gap: 20 }}>
           <OrgCard org={campaign.org} />
           <ShareSection
             title={campaign.petition_title}

@@ -131,6 +131,8 @@ Orden de implementación fase 3 acordado: **cifrado-reposo → retencion-datos �
 
 Verificado E2E en dev todo el flujo; tsc 0; 57 tests pasan. **Deploy: correr `alembic upgrade head` en el VPS (migraciones 016 y 017).**
 
+**Post-fix (mismo patrón x3):** un `display` inline anula las clases Tailwind responsive — corregidos: CTA flotante (ActionBlock), bloque org/compartir móvil (CampaignPage, se duplicaba en desktop) e imagen hero móvil (Hero.tsx). Regla registrada en memoria: display nunca en style inline si hay clase `md:*` de display.
+
 ## Pendientes para próxima sesión
 
 1. Usuario: aprobar specs de fase 3 (+ `enlace-corto-qr`) para arrancar implementación

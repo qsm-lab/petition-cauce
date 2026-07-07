@@ -21,7 +21,7 @@ export default function Hero({ campaign, categoryColor }: Props) {
       {desktopSrc ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mobileSrc ?? desktopSrc} alt="" className="md:hidden w-full h-full object-cover" style={{ display: "block" }} />
+          <img src={mobileSrc ?? desktopSrc} alt="" className="block md:hidden w-full h-full object-cover" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={desktopSrc} alt="" className="hidden md:block w-full h-full object-cover" />
         </>
