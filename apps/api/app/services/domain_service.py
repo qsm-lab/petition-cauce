@@ -35,7 +35,7 @@ async def resolve_domain(db: AsyncSession, host: str) -> dict | None:
     result = await db.execute(
         select(Domain, Campaign)
         .join(Campaign, Domain.campaign_id == Campaign.id)
-        .where(Domain.host == host, Domain.tls_status == "activo")
+        .where(Domain.host == host, Domain.tls_status == "active")
     )
     row = result.first()
     if not row:
