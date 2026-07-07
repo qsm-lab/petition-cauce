@@ -22,6 +22,10 @@ interface Props {
   campaignUrl: string;
   formConfig: FormConfig;
   categoryColor: string;
+  shareText?: string | null;
+  heroImageUrl?: string | null;
+  welcomeTitle?: string | null;
+  welcomeSlogan?: string | null;
   onClose: () => void;
 }
 
@@ -64,6 +68,10 @@ export default function SignFlow({
   campaignUrl,
   formConfig,
   categoryColor,
+  shareText,
+  heroImageUrl,
+  welcomeTitle,
+  welcomeSlogan,
   onClose,
 }: Props) {
   const [step, setStep]           = useState<Step>(0);
@@ -182,6 +190,7 @@ export default function SignFlow({
         {step === 0 && (
           <StepForm
             initial={form}
+            campaignId={campaignId}
             campaignTitle={campaignTitle}
             formConfig={formConfig}
             categoryColor={categoryColor}
@@ -191,6 +200,7 @@ export default function SignFlow({
         {step === 1 && <StepSending />}
         {step === 2 && (
           <StepSuccess
+            name={form.name}
             email={form.email}
             resendState={resendState}
             onContinue={handleContinue}
@@ -216,6 +226,10 @@ export default function SignFlow({
             campaignUrl={campaignUrl}
             campaignTitle={campaignTitle}
             categoryColor={categoryColor}
+            shareText={shareText}
+            heroImageUrl={heroImageUrl}
+            welcomeTitle={welcomeTitle}
+            welcomeSlogan={welcomeSlogan}
             onSubscribe={() => { /* TODO: newsletter consent */ }}
           />
         )}

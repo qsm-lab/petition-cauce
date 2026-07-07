@@ -34,6 +34,7 @@ export interface FormValues {
 
 interface Props {
   initial: FormValues;
+  campaignId: string;
   campaignTitle: string;
   formConfig: FormConfig;
   categoryColor: string;
@@ -61,10 +62,34 @@ const labelStyle: React.CSSProperties = {
   color: "#16261F",
 };
 
-export default function StepForm({ initial, campaignTitle, formConfig, categoryColor, onSubmit }: Props) {
+export default function StepForm({ initial, campaignId, campaignTitle, formConfig, categoryColor, onSubmit }: Props) {
   const [vals, setVals] = useState<FormValues>(initial);
   const set = <K extends keyof FormValues>(k: K, v: FormValues[K]) =>
     setVals((prev) => ({ ...prev, [k]: v }));
+
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [privacyText, setPrivacyText] = useState<string | null>(null);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+
+  async function openPrivacy() {
+    setShowPrivacy(true);
+    if (privacyText !== null) return;
+    setPrivacyLoading(true);
+    try {
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8011";
+      const res = await fetch(`${API}/v1/public-campaign/${campaignId}/privacy`);
+      if (res.ok) {
+        const data = await res.json();
+        setPrivacyText(data.aviso_privacidad ?? "Aviso de privacidad no disponible.");
+      } else {
+        setPrivacyText("Aviso de privacidad no disponible para esta campaña.");
+      }
+    } catch {
+      setPrivacyText("No se pudo cargar el aviso de privacidad.");
+    } finally {
+      setPrivacyLoading(false);
+    }
+  }
 
   const showSignerType   = formConfig.signer_types.length > 1;
   const showLocationToggle = formConfig.location_modes.length > 1;
@@ -117,6 +142,7 @@ export default function StepForm({ initial, campaignTitle, formConfig, categoryC
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Eyebrow */}
       <div
@@ -310,9 +336,13 @@ export default function StepForm({ initial, campaignTitle, formConfig, categoryC
         />
         <span style={{ fontSize: 13, lineHeight: 1.5, color: "#16261F" }}>
           Acepto el tratamiento de mis datos según el{" "}
-          <a href="/aviso-de-privacidad" target="_blank" style={{ color: "#16261F", textDecoration: "underline" }}>
+          <button
+            type="button"
+            onClick={openPrivacy}
+            style={{ color: "#16261F", textDecoration: "underline", background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "inherit", fontFamily: "inherit" }}
+          >
             aviso de privacidad
-          </a>.
+          </button>.
         </span>
       </label>
 
@@ -349,5 +379,75 @@ export default function StepForm({ initial, campaignTitle, formConfig, categoryC
         Firmar esta petición
       </button>
     </form>
+
+    {/* Modal aviso de privacidad */}
+    {showPrivacy && (
+      <div
+        onClick={() => setShowPrivacy(false)}
+        style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "16px",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "relative",
+            background: "var(--bsurf, #fff)",
+            borderRadius: 16,
+            width: "100%", maxWidth: 640, maxHeight: "85vh",
+            display: "flex", flexDirection: "column",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            border: "1px solid var(--bbord, #e5e7eb)",
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--bbord, #e5e7eb)", flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--bink, #16261F)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Aviso de privacidad
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPrivacy(false)}
+              style={{
+                width: 28, height: 28, borderRadius: "50%",
+                border: "none", cursor: "pointer",
+                background: "var(--bbg, #f3f4f6)",
+                color: "var(--bink, #16261F)",
+                fontSize: 14, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Contenido */}
+          <div style={{ overflowY: "auto", padding: "20px 24px", flex: 1 }}>
+            {privacyLoading ? (
+              <p style={{ color: "var(--bmut, #6b7280)", fontSize: 13 }}>Cargando…</p>
+            ) : (
+              <pre style={{
+                whiteSpace: "pre-wrap",
+                overflowWrap: "break-word",
+                wordBreak: "break-word",
+                fontSize: 12.5,
+                lineHeight: 1.7,
+                color: "var(--bink, #16261F)",
+                fontFamily: "inherit",
+                margin: 0,
+              }}>
+                {privacyText}
+              </pre>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

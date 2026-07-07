@@ -40,21 +40,46 @@ export async function generateMetadata({
 
   if (!campaign) return { title: "Cauce Petition" };
 
+  const meta = campaign.meta as Record<string, unknown>;
+  const pageUrl = buildCampaignUrl(campaign.slug, host);
+  const siteName = "Cauce Petition";
+
+  const ogTitle = (campaign.petition_title || campaign.title);
+  const welcomeDesc = meta?.welcome_description as string | undefined;
+  const shareText = campaign.share_text ?? undefined;
+  const ogDesc =
+    welcomeDesc ||
+    shareText ||
+    (campaign.authority
+      ? `Firma y apoya esta petición dirigida a ${campaign.authority}.`
+      : "Campaña de activismo ambiental en Ecuador. Suma tu voz.");
+
+  const heroImage = campaign.hero_image_url;
+  const imageAlt = ogTitle;
+
+  const fbAppId = process.env.NEXT_PUBLIC_FB_APP_ID ?? "";
+
   return {
-    title: `${campaign.title} — Cauce Petition`,
-    description: campaign.authority
-      ? `Petición dirigida a ${campaign.authority}`
-      : "Campaña de activismo ambiental en Ecuador",
+    title: `${ogTitle} — ${siteName}`,
+    description: ogDesc,
+    metadataBase: new URL(APP_URL),
     openGraph: {
       type: "website",
-      title: campaign.title,
-      description: campaign.authority
-        ? `Firma y apoya esta petición dirigida a ${campaign.authority}.`
-        : "Firma y apoya esta campaña.",
-      ...(campaign.hero_image_url
-        ? { images: [{ url: campaign.hero_image_url }] }
+      url: pageUrl,
+      siteName,
+      title: ogTitle,
+      description: ogDesc,
+      ...(heroImage
+        ? { images: [{ url: heroImage, width: 1200, height: 630, alt: imageAlt }] }
         : {}),
     },
+    twitter: {
+      card: heroImage ? "summary_large_image" : "summary",
+      title: ogTitle,
+      description: ogDesc,
+      ...(heroImage ? { images: [{ url: heroImage, alt: imageAlt }] } : {}),
+    },
+    ...(fbAppId ? { other: { "fb:app_id": fbAppId } } : {}),
   };
 }
 

@@ -62,7 +62,7 @@ export default async function AvisoPrivacidad({
         {privacy ? (
           <pre
             className="whitespace-pre-wrap text-[13px] leading-relaxed font-body"
-            style={{ color: "var(--bink)", fontFamily: "var(--fb)" }}
+            style={{ color: "var(--bink)", fontFamily: "var(--fb)", overflowWrap: "break-word", wordBreak: "break-word", overflowX: "hidden" }}
           >
             {privacy.aviso_privacidad}
           </pre>
