@@ -1,5 +1,14 @@
 import { apiServer } from "@/lib/api-server";
 
+export interface LifecycleEventOut {
+  id: string;
+  stage: string;
+  stage_index: number;
+  notes: string | null;
+  registered_at: string;
+  registered_by: string | null;
+}
+
 export interface AdminCampaign {
   id: string;
   title: string;
@@ -29,6 +38,11 @@ export interface AdminCampaign {
   thank_you_body: string | null;
   social_links: Record<string, string>;
   share_text: string | null;
+  // ciclo de vida
+  lifecycle_stage: number;
+  lifecycle_events: LifecycleEventOut[];
+  org_name: string | null;
+  org_has_contact_email: boolean;
 }
 
 export interface AdminCampaignListItem {
@@ -70,3 +84,4 @@ export async function getAdminCampaign(id: string): Promise<AdminCampaign | null
 export async function getDashboardSummary(): Promise<DashboardSummary | null> {
   return apiServer<DashboardSummary>("/v1/dashboard/summary");
 }
+
