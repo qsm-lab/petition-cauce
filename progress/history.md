@@ -1,5 +1,89 @@
 # Historial de sesiones — proy_petition-cauce
 
+
+---
+
+## 2026-07-08 — Sesión 25: cifrado-reposo en producción + rectificaciones y pulido
+
+**cifrado-reposo implementado y desplegado**: AES-256-GCM (`enc:v1:`), clave
+obligatoria, migración 015 idempotente; verificado en prod (firmas reales
+cifradas). TEST-5 cerrado: flujo de firma completo funcionando en producción.
+
+**8 rectificaciones admin/front** (specs/detalle en current.md): aviso de
+privacidad conectado a la política asignada, emails con branding de la org y
+título público, RLS multi-org para el admin de plataforma (migración 016),
+orden móvil, adjuntos sin descarte silencioso, ciclo de vida con Diálogo/
+Decisión opcionales, CTA flotante solo móvil, y cambio de visibilidad
+solicitado por admin con confirmación por email del titular (migración 017).
+
+**Patrón de bug recurrente corregido (x3) y registrado en memoria**: display
+inline anula clases Tailwind responsive (md:hidden).
+
+**Pulido UI final**: orden del ActionBlock con hover en CTA, contador centrado,
+riel de etapas centrado, icono real de WhatsApp, documentos adjuntos
+destacados en móvil y CTA flotante simplificado.
+
+**Estado al cierre**: 57 tests; migración 017 en prod; primera campaña real
+activa con firmas confirmadas. Siguiente: retencion-datos → supresion-admin →
+derechos-arco.
+
+---
+
+## 2026-07-07 — Sesión 24: specs LOPDP fase 3 + tests + validación local
+
+Trabajo local mientras el usuario ejecutaba TEST-5/6/7 en el VPS.
+
+**Desincronizaciones:** `editor-branding` → in_progress; spec retroactiva de
+`perfiles-org`; tasks.md de features implementadas actualizados.
+
+**Specs nuevas (spec_ready):** `cifrado-reposo` (AES-256-GCM, urgente antes de
+la primera campaña real), `retencion-datos` (job APScheduler + anonimización),
+`derechos-arco` (portal self-service), `enlace-corto-qr`, `validacion-cedula`
+(retroactiva — ya estaba implementada).
+
+**Tests:** infraestructura pytest reparada (no estaba instalado en el contenedor);
+`pytest.ini` con loop de sesión; 4 suites nuevas → 46 tests pasan.
+
+**repo-docs:** README.md + LICENSE AGPL-3.0 creados.
+
+**Validación local:** resumen-admin, dashboard-firmas, editor-campana,
+editor-branding, ciclo-vida-admin/básico, firmas-recientes y OG verificados
+por API y SSR; hallazgos menores registrados en los tasks.md respectivos.
+
+**Producción — primera campaña real (`soberania-tlc-ecu-usa`), fixes sobre la marcha:**
+- Landing 404: doble causa — `domain_service` filtraba `tls_status='activo'`
+  (el constraint solo permite `'active'`) y tabla `domains` vacía. Fix +
+  adopción del **patrón forms-qsm `/c/<slug>`**: landing por path en cualquier
+  dominio, vestigios del flujo forms eliminados de `/c/`, OG unificado en
+  `lib/campaign-og.ts`, spec `enlace-corto-qr` movida a `/s/{code}` por
+  consistencia. Multidominio por Host intacto en `/`.
+- Turnstile err 110200: hostname faltante en el widget — rectificado por el
+  usuario en Cloudflare.
+- Verificación de firma por email: `confirm_signature` idempotente + redirect
+  302 a `/c/<slug>?confirmada=1|expirada` (antes JSON crudo) + banner en la
+  landing + copy 24 h. `.env.example`: `RESEND_FROM_EMAIL` y `API_PUBLIC_URL`
+  documentadas (faltaban — emails con remitente inválido y enlaces a localhost).
+- Coherencia editor↔landing (4 bugs): `CampaignResponse` sin `asks`/
+  `privacy_policy_id`/`org_id` (editor se hidrataba vacío; guardar habría
+  borrado los asks), ruta de organizaciones equivocada (selector oculto),
+  CTA con lime hardcodeado (tokenizado a `var(--bp)`), campo "logo de campaña"
+  eliminado del editor (sin uso en la landing).
+
+**Feature nueva `supresion-admin` (spec_ready):** supresión LOPDP desde el
+dashboard de firmas; usuario eligió ventana de 15 días (archivar → email →
+purga; reversible). La fila anonimizada sigue contando en la campaña.
+
+**Contenido legal:** borradores de aviso al firmante (extenso + breve + label
+del checkbox) y aviso a la organización para la política de la Plataforma por
+la Soberanía Alimentaria.
+
+**Estado al cierre:** TEST-6/7 ✓; TEST-5 casi (falta clic del email en prod con
+`RESEND_FROM_EMAIL`/`API_PUBLIC_URL` en el VPS). 6 specs en spec_ready. Orden
+fase 3: cifrado-reposo → retencion-datos → supresion-admin → derechos-arco.
+
+**Próxima sesión:** aprobar specs → implementar `cifrado-reposo` (bloqueante
+antes de recolectar firmas reales); completar TEST-5 en prod.
+
 ---
 
 ## 2026-07-06 — Sesión 22: editor-branding + UX landing + OG + bugs
@@ -366,64 +450,3 @@
 - Infra VPS: D3/F8/Cloudflare/GitHub Secrets — antes del primer deploy
 
 **Próxima sesión:** Verificaciones V1/V3/V4 + commit, luego `modelo-base` o `landing-campana`.
-
----
-
-## 2026-07-07 — Sesión 24: specs LOPDP fase 3 + tests + validación local
-
-> Nota: las sesiones 6–23 no se registraron en este archivo (desync detectado en
-> esta sesión); su detalle está en `progress/current.md` de cada momento y en el
-> log de git. Reconstrucción pendiente si se considera necesaria.
-
-Trabajo local mientras el usuario ejecutaba TEST-5/6/7 en el VPS.
-
-**Desincronizaciones:** `editor-branding` → in_progress; spec retroactiva de
-`perfiles-org`; tasks.md de features implementadas actualizados.
-
-**Specs nuevas (spec_ready):** `cifrado-reposo` (AES-256-GCM, urgente antes de
-la primera campaña real), `retencion-datos` (job APScheduler + anonimización),
-`derechos-arco` (portal self-service), `enlace-corto-qr`, `validacion-cedula`
-(retroactiva — ya estaba implementada).
-
-**Tests:** infraestructura pytest reparada (no estaba instalado en el contenedor);
-`pytest.ini` con loop de sesión; 4 suites nuevas → 46 tests pasan.
-
-**repo-docs:** README.md + LICENSE AGPL-3.0 creados.
-
-**Validación local:** resumen-admin, dashboard-firmas, editor-campana,
-editor-branding, ciclo-vida-admin/básico, firmas-recientes y OG verificados
-por API y SSR; hallazgos menores registrados en los tasks.md respectivos.
-
-**Producción — primera campaña real (`soberania-tlc-ecu-usa`), fixes sobre la marcha:**
-- Landing 404: doble causa — `domain_service` filtraba `tls_status='activo'`
-  (el constraint solo permite `'active'`) y tabla `domains` vacía. Fix +
-  adopción del **patrón forms-qsm `/c/<slug>`**: landing por path en cualquier
-  dominio, vestigios del flujo forms eliminados de `/c/`, OG unificado en
-  `lib/campaign-og.ts`, spec `enlace-corto-qr` movida a `/s/{code}` por
-  consistencia. Multidominio por Host intacto en `/`.
-- Turnstile err 110200: hostname faltante en el widget — rectificado por el
-  usuario en Cloudflare.
-- Verificación de firma por email: `confirm_signature` idempotente + redirect
-  302 a `/c/<slug>?confirmada=1|expirada` (antes JSON crudo) + banner en la
-  landing + copy 24 h. `.env.example`: `RESEND_FROM_EMAIL` y `API_PUBLIC_URL`
-  documentadas (faltaban — emails con remitente inválido y enlaces a localhost).
-- Coherencia editor↔landing (4 bugs): `CampaignResponse` sin `asks`/
-  `privacy_policy_id`/`org_id` (editor se hidrataba vacío; guardar habría
-  borrado los asks), ruta de organizaciones equivocada (selector oculto),
-  CTA con lime hardcodeado (tokenizado a `var(--bp)`), campo "logo de campaña"
-  eliminado del editor (sin uso en la landing).
-
-**Feature nueva `supresion-admin` (spec_ready):** supresión LOPDP desde el
-dashboard de firmas; usuario eligió ventana de 15 días (archivar → email →
-purga; reversible). La fila anonimizada sigue contando en la campaña.
-
-**Contenido legal:** borradores de aviso al firmante (extenso + breve + label
-del checkbox) y aviso a la organización para la política de la Plataforma por
-la Soberanía Alimentaria.
-
-**Estado al cierre:** TEST-6/7 ✓; TEST-5 casi (falta clic del email en prod con
-`RESEND_FROM_EMAIL`/`API_PUBLIC_URL` en el VPS). 6 specs en spec_ready. Orden
-fase 3: cifrado-reposo → retencion-datos → supresion-admin → derechos-arco.
-
-**Próxima sesión:** aprobar specs → implementar `cifrado-reposo` (bloqueante
-antes de recolectar firmas reales); completar TEST-5 en prod.

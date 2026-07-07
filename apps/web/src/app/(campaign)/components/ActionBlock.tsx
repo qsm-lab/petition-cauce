@@ -76,6 +76,62 @@ export default function ActionBlock({
           gap: 16,
         }}
       >
+        {/* CTA button — primero, con animación sutil al hover */}
+        <button
+          onClick={canSign ? onSign : undefined}
+          disabled={!canSign}
+          className="transition-all duration-200 ease-out enabled:hover:scale-[1.03] enabled:hover:shadow-[0_6px_18px_rgba(22,38,31,0.18)] enabled:active:scale-[0.99]"
+          style={{
+            fontFamily: FONT_BODY,
+            fontSize: 18,
+            fontWeight: 700,
+            color: canSign ? "var(--bop, #16261F)" : "rgba(22,38,31,0.4)",
+            background: canSign ? "var(--bp, #D7F24C)" : "rgba(22,38,31,0.1)",
+            border: "none",
+            borderRadius: 30,
+            padding: "18px 24px",
+            cursor: canSign ? "pointer" : "not-allowed",
+            width: "100%",
+            opacity: isClosed ? 0.5 : 1,
+          }}
+        >
+          {ctaLabel}
+        </button>
+
+        {/* Counter — centrado al bloque */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, lineHeight: 1, color: "#16261F" }}>
+            {count.toLocaleString("es-EC")}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "rgba(22,38,31,0.78)" }}>
+            {effectiveGoal
+              ? `de ${effectiveGoal.toLocaleString("es-EC")} firmas objetivo`
+              : count === 1 ? "firma confirmada" : "firmas confirmadas"}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {effectiveGoal && (
+          <div
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${pct}% del objetivo alcanzado`}
+            style={{ height: 10, borderRadius: 6, background: "rgba(22,38,31,0.1)" }}
+          >
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 6,
+                background: categoryColor,
+                width: `${pctW}%`,
+                transition: "width 1.1s cubic-bezier(.22,1,.36,1)",
+              }}
+            />
+          </div>
+        )}
+
         {/* Authority chip — full width */}
         {showAuthority && authority && (
           <div
@@ -128,62 +184,6 @@ export default function ActionBlock({
           </div>
         )}
 
-        {/* Counter */}
-        <div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, lineHeight: 1, color: "#16261F" }}>
-            {count.toLocaleString("es-EC")}
-          </div>
-          {effectiveGoal && (
-            <div style={{ fontSize: 15, fontWeight: 500, color: "rgba(22,38,31,0.78)" }}>
-              de {effectiveGoal.toLocaleString("es-EC")} firmas objetivo
-            </div>
-          )}
-        </div>
-
-        {/* Progress bar */}
-        {effectiveGoal && (
-          <div
-            role="progressbar"
-            aria-valuenow={pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`${pct}% del objetivo alcanzado`}
-            style={{ height: 10, borderRadius: 6, background: "rgba(22,38,31,0.1)" }}
-          >
-            <div
-              style={{
-                height: "100%",
-                borderRadius: 6,
-                background: categoryColor,
-                width: `${pctW}%`,
-                transition: "width 1.1s cubic-bezier(.22,1,.36,1)",
-              }}
-            />
-          </div>
-        )}
-
-        {/* CTA button */}
-        <button
-          onClick={canSign ? onSign : undefined}
-          disabled={!canSign}
-          style={{
-            fontFamily: FONT_BODY,
-            fontSize: 18,
-            fontWeight: 700,
-            color: canSign ? "var(--bop, #16261F)" : "rgba(22,38,31,0.4)",
-            background: canSign ? "var(--bp, #D7F24C)" : "rgba(22,38,31,0.1)",
-            border: "none",
-            borderRadius: 30,
-            padding: "18px 24px",
-            cursor: canSign ? "pointer" : "not-allowed",
-            width: "100%",
-            opacity: isClosed ? 0.5 : 1,
-            transition: "opacity .2s",
-          }}
-        >
-          {ctaLabel}
-        </button>
-
         <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(22,38,31,0.72)", lineHeight: 1.55, textAlign: "center" }}>
           Confirmamos tu firma por correo. Por defecto es privada — vos elegís cómo aparece.
         </div>
@@ -206,28 +206,19 @@ export default function ActionBlock({
             boxShadow: "0 -4px 16px rgba(22,38,31,0.1)",
           }}
         >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#16261F" }}>
-              {count.toLocaleString("es-EC")} firmas
-            </div>
-            {effectiveGoal && (
-              <div style={{ fontSize: 11, color: "rgba(22,38,31,0.55)" }}>
-                de {effectiveGoal.toLocaleString("es-EC")}
-              </div>
-            )}
-          </div>
           <button
             onClick={onSign}
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 700,
               color: "var(--bop, #16261F)",
               background: "var(--bp, #D7F24C)",
               border: "none",
               borderRadius: 26,
-              padding: "14px 22px",
+              padding: "15px 22px",
               cursor: "pointer",
+              width: "100%",
             }}
           >
             {ctaLabel}

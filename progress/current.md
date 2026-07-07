@@ -71,10 +71,10 @@ Todos los cambios commiteados y desplegados (último: `8f93023`).
 | Paso | Estado | Notas |
 |------|--------|-------|
 | Cloudflare, CI/CD, VPS, nginx, admin | **✓** | |
-| TEST-5: flujo firma en prod | **casi ✓** | Firma + modal + email en curso; falta confirmar clic del email en prod con `RESEND_FROM_EMAIL`/`API_PUBLIC_URL` en el `.env` del VPS |
+| TEST-5: flujo firma en prod | **✓** | Firma confirmada por email en producción (sesión 25) |
 | TEST-6: HTTPS forzado | **✓** | |
 | TEST-7: firma visible en admin | **✓** | Verificado en dashboard (screenshot sesión 24) |
-| Paso 6: primera campaña real | **en curso** | `soberania-tlc-ecu-usa` montándose — **implementar cifrado-reposo antes de recolectar firmas reales** |
+| Paso 6: primera campaña real | **en curso** | `soberania-tlc-ecu-usa` activa (1 firma); migraciones 015-017 aplicadas en prod, PII cifrada verificada (`enc:v1:`). Pendiente config de datos: política de privacidad con texto + org Plataforma Soberanía Alimentaria con logo |
 
 ## Acciones pendientes del usuario en el VPS (`.env`)
 
@@ -130,6 +130,17 @@ Orden de implementación fase 3 acordado: **cifrado-reposo → retencion-datos �
 8. **Cambio de visibilidad desde admin** (pedido verbal del titular): migración `017` (`pending_visibility`, token 24h); `PATCH .../signatures/{id}/visibility` envía email de confirmación (plantilla #2) SIN aplicar el cambio; `GET /confirm-visibility/{token}` lo aplica (a no-pública borra `name`), token de un solo uso, redirect `?confirmada=visibilidad` con banner; anónima→pública sin nombre → 409; UI en la tabla de firmas (VisibilityCell, badge "por confirmar").
 
 Verificado E2E en dev todo el flujo; tsc 0; 57 tests pasan. **Deploy: correr `alembic upgrade head` en el VPS (migraciones 016 y 017).**
+
+**Post-fix (mismo patrón x3):** un `display` inline anula las clases Tailwind responsive — corregidos: CTA flotante (ActionBlock), bloque org/compartir móvil (CampaignPage, se duplicaba en desktop) e imagen hero móvil (Hero.tsx). Regla registrada en memoria: display nunca en style inline si hay clase `md:*` de display.
+
+## Sesión 25 (cierre) — pulido UI de la landing
+
+- ActionBlock reordenado: CTA (hover scale+sombra) → contador centrado ("N firmas confirmadas" si no hay meta) → progreso → "Dirigida a" → leyenda
+- Riel de etapas se centra y acorta cuando hay etapas deshabilitadas
+- Icono real de WhatsApp (SVG) en compartir
+- Solo móvil: documentos adjuntos como tarjetas destacadas ("Descargar →", borde ink), `paddingBottom: 96px` para que el CTA flotante no los tape, y CTA flotante sin contador (botón a ancho completo). Desktop sin cambios.
+- Deploy de sesión 25 verificado en prod: migraciones 015-017 aplicadas, PII cifrada (`enc:v1:`), TEST-5 cerrado
+- Pendiente usuario en admin prod: texto del aviso en la política asignada + logo de la org Plataforma Soberanía Alimentaria
 
 ## Pendientes para próxima sesión
 
