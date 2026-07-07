@@ -54,4 +54,10 @@ async def get_db_with_org(
         text("SELECT set_config('app.current_org_id', :org_id, false)"),
         {"org_id": str(current_user.org_id)},
     )
+    # Rol 'admin' = operador de la plataforma (Encargado): las políticas RLS
+    # *_platform_admin (migración 016) le dan visibilidad multi-org.
+    await db.execute(
+        text("SELECT set_config('app.is_platform_admin', :flag, false)"),
+        {"flag": "true" if current_user.role == "admin" else "false"},
+    )
     return db

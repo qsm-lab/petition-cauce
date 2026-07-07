@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
@@ -37,6 +38,22 @@ class Settings(BaseSettings):
 
     # HMAC_SECRET_KEY — obligatoria; usar valor distinto al de proy_forms-qsm
     hmac_secret_key: str
+
+    # PII_ENCRYPTION_KEY — obligatoria; 64 hex chars (32 bytes, AES-256-GCM).
+    # Generar con: openssl rand -hex 32. Distinta de HMAC_SECRET_KEY y de forms-qsm.
+    pii_encryption_key: str
+
+    @field_validator("pii_encryption_key")
+    @classmethod
+    def _validate_pii_key(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) != 64:
+            raise ValueError(
+                "PII_ENCRYPTION_KEY debe tener 64 caracteres hex (32 bytes). "
+                "Generar con: openssl rand -hex 32"
+            )
+        int(v, 16)  # lanza ValueError si no es hex
+        return v
     login_max_attempts: int = 5
     login_lockout_minutes: int = 15
 

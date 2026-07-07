@@ -10,7 +10,8 @@ router = APIRouter()
 
 @router.get("/summary")
 async def dashboard_summary(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org)):
-    return await CampaignService.get_dashboard_summary(db, current_user.org_id)
+    org_scope = None if current_user.role == "admin" else current_user.org_id
+    return await CampaignService.get_dashboard_summary(db, org_scope)
 
 
 @router.get("/campaigns/{campaign_id}/stats")

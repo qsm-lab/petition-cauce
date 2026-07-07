@@ -48,6 +48,8 @@ class CampaignCreate(BaseModel):
 _META_FIELDS = {
     "show_authority", "show_goal", "form_config", "hero_image_mobile_url",
     "attachments", "show_qr", "share_text",
+    # Ciclo de vida: etapas opcionales {"dialogo": bool, "decision": bool}
+    "lifecycle_config",
     # Branding
     "branding",
     # Welcome copy
@@ -90,6 +92,8 @@ class CampaignUpdate(BaseModel):
     share_text: str | None = None
     # Branding (meta.branding — tokens de color para la landing)
     branding: dict | None = None
+    # Etapas opcionales del ciclo de vida
+    lifecycle_config: dict | None = None
     # Welcome copy
     welcome_logo_url: str | None = None
     welcome_title: str | None = None

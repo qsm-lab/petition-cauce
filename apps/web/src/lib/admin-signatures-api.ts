@@ -5,6 +5,7 @@ export interface AdminSignatureItem {
   name: string | null;
   provincia: string | null;
   visibility: "publica" | "anonima" | "secreta";
+  pending_visibility: "publica" | "anonima" | "secreta" | null;
   status: "confirmed" | "pending_confirmation" | "anulada";
   confirmed_at: string | null;
   created_at: string;

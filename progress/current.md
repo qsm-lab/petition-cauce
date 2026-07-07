@@ -104,6 +104,33 @@ Orden de implementación fase 3 acordado: **cifrado-reposo → retencion-datos �
 
 ---
 
+## Sesión 25 (2026-07-08) — cifrado-reposo implementado
+
+- Specs de fase 3 + enlace-corto-qr **aprobadas por el usuario**
+- **`cifrado-reposo` implementado completo (T0-T15)**: AES-256-GCM en `crypto.py` (`encrypt_pii`/`decrypt_pii`/`PIIDecryptError`, formato `enc:v1:`), clave obligatoria con validación de arranque, cifrado al crear firma, descifrado en notify (tolerante a filas corruptas), migración `015` idempotente (probada con downgrade/upgrade + fila legada), `cryptography==49.0.0` fijada
+- Tests: 57 pasan (8 nuevos de PII). Imagen dev reconstruida (pytest-asyncio 0.26 persistente)
+- E2E verificado: firma → `enc:v1:` en DB → confirmación 302 → notify-signers descifra (`sent_count: 1`) → datos de prueba eliminados
+- `PII_ENCRYPTION_KEY` agregada a `.env.dev` por el usuario (el API no arranca sin ella — validado en vivo)
+- **Feature `in_progress`** — usuario valida y decide `done`
+
+### ⚠️ Orden de deploy de cifrado-reposo (crítico)
+1. Usuario: generar clave **nueva y distinta** para el `.env` del VPS (`openssl rand -hex 32` → `PII_ENCRYPTION_KEY=`)
+2. Commit + push → deploy (el API de prod NO arranca sin la clave)
+3. En el VPS: `alembic upgrade head` (migración 015 cifra las firmas existentes)
+
+## Sesión 25 (cont.) — 8 rectificaciones admin/front tras primera campaña real
+
+1. **Aviso de privacidad no conectaba**: el endpoint público y el snapshot del consentimiento leían la tabla legacy `privacy_config`, no la política asignada (`privacy_policy_id`). Ahora prefieren `privacy_policies.aviso_firmante` (fallback legacy). `legal_basis` del consent sale de la política.
+2. **Email de verificación**: plantilla base `_signer_action_html` (logo de la org, saludo por nombre, título público `petition_title`); usada por confirmación, reenvío y cambio de visibilidad.
+3. **Multi-org**: migración `016` agrega políticas RLS `*_platform_admin` (6 tablas); `get_db_with_org` setea `app.is_platform_admin`; servicios/routers aceptan `org_id=None` para rol admin (`_org_scope`). Reasignar campaña a otra org persiste y el público muestra la org correcta.
+4. **Orden móvil**: OrgCard + ShareSection van al final de la página en móvil (bloque `order-3 md:hidden`; en desktop siguen en el sidebar con `hidden md:flex`).
+5. **Labels** "Org."→"Organización", "Intl."→"Internacional". **Adjuntos**: `_buildPayload` descartaba silenciosamente filas con título O URL vacíos → ahora URL es lo único obligatorio (título default "Documento").
+6. **Ciclo de vida opcional**: `meta.lifecycle_config {dialogo, decision}`; toggles en LifecyclePanelAdmin (bloqueados si la etapa ya se alcanzó); landing y panel ocultan etapas deshabilitadas y renumeran; PATCH lifecycle rechaza etapa deshabilitada (422).
+7. **CTA flotante en desktop**: el `style={{display:"flex"}}` inline pisaba el `md:hidden` → display movido a clases. Desktop usa el sidebar sticky.
+8. **Cambio de visibilidad desde admin** (pedido verbal del titular): migración `017` (`pending_visibility`, token 24h); `PATCH .../signatures/{id}/visibility` envía email de confirmación (plantilla #2) SIN aplicar el cambio; `GET /confirm-visibility/{token}` lo aplica (a no-pública borra `name`), token de un solo uso, redirect `?confirmada=visibilidad` con banner; anónima→pública sin nombre → 409; UI en la tabla de firmas (VisibilityCell, badge "por confirmar").
+
+Verificado E2E en dev todo el flujo; tsc 0; 57 tests pasan. **Deploy: correr `alembic upgrade head` en el VPS (migraciones 016 y 017).**
+
 ## Pendientes para próxima sesión
 
 1. Usuario: aprobar specs de fase 3 (+ `enlace-corto-qr`) para arrancar implementación

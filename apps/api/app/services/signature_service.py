@@ -8,9 +8,11 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models.campaign import Campaign
 from app.models.consent import Consent
+from app.models.organization import Organization
 from app.models.privacy_config import PrivacyConfig
+from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
-from app.crypto import compute_hmac, verify_cedula
+from app.crypto import compute_hmac, encrypt_pii, verify_cedula
 from app.schemas.signature import SignatureCreate
 from app.services.email_service import send_confirmation_email
 
@@ -65,21 +67,30 @@ async def create_signature(
     token = uuid.uuid4().hex
     expires_at = datetime.now(timezone.utc) + timedelta(hours=_TOKEN_TTL_HOURS)
 
-    pc_result = await db.execute(
-        select(PrivacyConfig).where(PrivacyConfig.campaign_id == campaign.id)
-    )
-    pc = pc_result.scalar_one_or_none()
-    text_snapshot = pc.aviso_privacidad if pc else ""
-    aviso_version = str(pc.version) if pc else "1"
+    # Snapshot del aviso realmente mostrado: política asignada primero, legacy después.
+    text_snapshot, aviso_version, legal_basis = "", "1", "consentimiento_expreso"
+    if campaign.privacy_policy_id:
+        pp_result = await db.execute(
+            select(PrivacyPolicy).where(PrivacyPolicy.id == campaign.privacy_policy_id)
+        )
+        pp = pp_result.scalar_one_or_none()
+        if pp:
+            text_snapshot, aviso_version, legal_basis = pp.aviso_firmante, str(pp.version), pp.base_legal
+    if not text_snapshot:
+        pc_result = await db.execute(
+            select(PrivacyConfig).where(PrivacyConfig.campaign_id == campaign.id)
+        )
+        pc = pc_result.scalar_one_or_none()
+        if pc:
+            text_snapshot, aviso_version, legal_basis = pc.aviso_privacidad, str(pc.version), pc.base_legal
 
-    # Fase 1: email/cedula stored as-is in _encrypted fields; AES-256-GCM added in Fase 3
     sig = Signature(
         campaign_id=campaign.id,
         org_id=campaign.org_id,
         name=data.name.strip() if data.visibility == "publica" else None,
-        email_encrypted=email_normalized,
+        email_encrypted=encrypt_pii(email_normalized),
         email_hash=email_hash,
-        cedula_encrypted=data.cedula,
+        cedula_encrypted=encrypt_pii(data.cedula) if data.cedula else None,
         cedula_hash=cedula_hash,
         provincia=data.provincia if data.location_mode == "nacional" else None,
         country=data.country if data.location_mode == "internacional" else None,
@@ -107,7 +118,7 @@ async def create_signature(
         org_id=campaign.org_id,
         text_snapshot=text_snapshot,
         version=aviso_version,
-        legal_basis="consentimiento_expreso",
+        legal_basis=legal_basis,
         ip_hmac=ip_hmac,
         subscribe_newsletter=data.subscribe_newsletter,
     )
@@ -118,10 +129,17 @@ async def create_signature(
     await db.refresh(sig)
 
     try:
+        org_result = await db.execute(
+            select(Organization).where(Organization.id == campaign.org_id)
+        )
+        org = org_result.scalar_one_or_none()
         await send_confirmation_email(
             to_email=email_normalized,
             token=sig.confirmation_token,
-            campaign_title=campaign.title,
+            campaign_title=campaign.petition_title or campaign.title,
+            signer_name=data.name or "",
+            org_name=org.name if org else "",
+            org_logo_url=(org.logo_url or "") if org else "",
         )
     except Exception:
         logger.warning("[email] failed to send confirmation for sig %s", sig.id)

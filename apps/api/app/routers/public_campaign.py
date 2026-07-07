@@ -10,6 +10,7 @@ from app.limiter import limiter
 from app.models.campaign import Campaign
 from app.models.organization import Organization
 from app.models.privacy_config import PrivacyConfig
+from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
 from app.schemas.signature import ResendConfirmationRequest, SignatureCreate
 from app.services.email_service import send_confirmation_email
@@ -118,6 +119,25 @@ async def get_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
 @router.get("/{campaign_id}/privacy")
 async def get_privacy(campaign_id: str, db: AsyncSession = Depends(get_db)):
     campaign = await _get_active_campaign(db, campaign_id)
+
+    # Fuente principal: la política asignada en el admin (privacy_policies).
+    if campaign.privacy_policy_id:
+        pp_result = await db.execute(
+            select(PrivacyPolicy).where(
+                PrivacyPolicy.id == campaign.privacy_policy_id,
+                PrivacyPolicy.archived_at.is_(None),
+            )
+        )
+        pp = pp_result.scalar_one_or_none()
+        if pp:
+            return {
+                "aviso_privacidad": pp.aviso_firmante,
+                "version": pp.version,
+                "base_legal": pp.base_legal,
+                "data_contact_email": pp.data_contact_email,
+            }
+
+    # Fallback legacy: privacy_config por campaña (modelo-base).
     pc_result = await db.execute(
         select(PrivacyConfig).where(PrivacyConfig.campaign_id == campaign.id)
     )
@@ -212,10 +232,17 @@ async def resend_confirmation_email(
     # Always 204 — never reveal whether the email exists
     if sig and sig.confirmation_token:
         try:
+            org_result = await db.execute(
+                select(Organization).where(Organization.id == campaign.org_id)
+            )
+            org = org_result.scalar_one_or_none()
             await send_confirmation_email(
                 to_email=email_normalized,
                 token=sig.confirmation_token,
-                campaign_title=campaign.title,
+                campaign_title=campaign.petition_title or campaign.title,
+                signer_name=sig.name or "",
+                org_name=org.name if org else "",
+                org_logo_url=(org.logo_url or "") if org else "",
             )
         except Exception:
             pass
@@ -238,6 +265,47 @@ async def confirm_sig(token: str, db: AsyncSession = Depends(get_db)):
     slug = result["slug"]
     estado = "1" if result["status"] == "confirmed" else "expirada"
     return RedirectResponse(f"{app_url}/c/{slug}?confirmada={estado}", status_code=302)
+
+
+@router.get("/confirm-visibility/{token}")
+async def confirm_visibility_change(token: str, db: AsyncSession = Depends(get_db)):
+    """Aplica el cambio de visibilidad solicitado por admin, confirmado por el titular."""
+    from datetime import datetime, timezone as tz
+
+    from fastapi.responses import RedirectResponse
+    from app.config import settings
+
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+
+    result = await db.execute(
+        select(Signature).where(Signature.visibility_change_token == token)
+    )
+    sig = result.scalar_one_or_none()
+    if not sig or not sig.pending_visibility:
+        return RedirectResponse(f"{app_url}/", status_code=302)
+
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == sig.campaign_id)
+    )
+    campaign = campaign_result.scalar_one_or_none()
+    slug = campaign.slug if campaign else ""
+
+    now = datetime.now(tz.utc)
+    exp = sig.visibility_change_expires_at
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=tz.utc)
+    if exp is not None and now > exp:
+        return RedirectResponse(f"{app_url}/c/{slug}?confirmada=expirada", status_code=302)
+
+    sig.visibility = sig.pending_visibility
+    if sig.visibility != "publica":
+        sig.name = None  # el nombre solo se conserva para firmas públicas
+    sig.pending_visibility = None
+    sig.visibility_change_token = None
+    sig.visibility_change_expires_at = None
+    await db.commit()
+
+    return RedirectResponse(f"{app_url}/c/{slug}?confirmada=visibilidad", status_code=302)
 
 
 @router.get("/{campaign_id}")

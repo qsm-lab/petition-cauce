@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, true
 from sqlalchemy.orm import selectinload
 
+from app.crypto import PIIDecryptError, decrypt_pii
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.lifecycle_event import LifecycleEvent
@@ -18,12 +19,12 @@ from app.schemas.form import FormResponse
 
 class CampaignService:
     @staticmethod
-    async def list_campaigns(db: AsyncSession, org_id: uuid.UUID) -> list[Campaign]:
-        result = await db.execute(
-            select(Campaign)
-            .where(Campaign.org_id == org_id)
-            .order_by(Campaign.created_at.desc())
-        )
+    async def list_campaigns(db: AsyncSession, org_id: uuid.UUID | None) -> list[Campaign]:
+        # org_id None = admin de plataforma (multi-org); RLS respalda el acceso
+        stmt = select(Campaign).order_by(Campaign.created_at.desc())
+        if org_id is not None:
+            stmt = stmt.where(Campaign.org_id == org_id)
+        result = await db.execute(stmt)
         return result.scalars().all()
 
     @staticmethod
@@ -138,12 +139,13 @@ class CampaignService:
     async def archive_campaign(
         db: AsyncSession,
         campaign_id: str,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> Campaign | None:
-        result = await db.execute(
-            select(Campaign).where(Campaign.id == campaign_id, Campaign.org_id == org_id)
-        )
+        stmt = select(Campaign).where(Campaign.id == campaign_id)
+        if org_id is not None:
+            stmt = stmt.where(Campaign.org_id == org_id)
+        result = await db.execute(stmt)
         campaign = result.scalar_one_or_none()
         if not campaign:
             return None
@@ -239,15 +241,18 @@ class CampaignService:
     async def get_campaign_with_lifecycle(
         db: AsyncSession,
         campaign_id: str,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None,
     ) -> tuple[Campaign | None, Organization | None]:
-        result = await db.execute(
+        stmt = (
             select(Campaign)
-            .where(Campaign.id == campaign_id, Campaign.org_id == org_id)
+            .where(Campaign.id == campaign_id)
             .options(
                 selectinload(Campaign.lifecycle_events)
             )
         )
+        if org_id is not None:
+            stmt = stmt.where(Campaign.org_id == org_id)
+        result = await db.execute(stmt)
         campaign = result.scalar_one_or_none()
         if not campaign:
             return None, None
@@ -287,7 +292,7 @@ class CampaignService:
         campaign_id: uuid.UUID,
     ) -> list[str]:
         result = await db.execute(
-            select(Signature.email_encrypted)
+            select(Signature.id, Signature.email_encrypted)
             .join(Consent, Consent.signature_id == Signature.id)
             .where(
                 Consent.campaign_id == campaign_id,
@@ -295,7 +300,15 @@ class CampaignService:
                 Signature.status == "confirmed",
             )
         )
-        return [row[0] for row in result.all() if row[0]]
+        emails: list[str] = []
+        for sig_id, enc in result.all():
+            if not enc:
+                continue
+            try:
+                emails.append(decrypt_pii(enc, ref=str(sig_id)))
+            except PIIDecryptError:
+                continue  # ya logueado en decrypt_pii; no aborta el envío al resto
+        return emails
 
     @staticmethod
     async def get_qr(db: AsyncSession, campaign_id: str) -> dict:
@@ -304,17 +317,19 @@ class CampaignService:
         return {"slug": campaign.slug, "qr_code_data": campaign.qr_code_data}
 
     @staticmethod
-    async def list_with_counts(db: AsyncSession, org_id: uuid.UUID) -> list[dict]:
-        result = await db.execute(
+    async def list_with_counts(db: AsyncSession, org_id: uuid.UUID | None) -> list[dict]:
+        stmt = (
             select(Campaign, func.count(Signature.id).label("confirmed_signatures"))
             .outerjoin(Signature, and_(
                 Signature.campaign_id == Campaign.id,
                 Signature.status == "confirmed",
             ))
-            .where(Campaign.org_id == org_id)
             .group_by(Campaign.id)
             .order_by(Campaign.created_at.desc())
         )
+        if org_id is not None:
+            stmt = stmt.where(Campaign.org_id == org_id)
+        result = await db.execute(stmt)
         return [
             {
                 "id": str(campaign.id),
@@ -330,23 +345,27 @@ class CampaignService:
         ]
 
     @staticmethod
-    async def get_dashboard_summary(db: AsyncSession, org_id: uuid.UUID) -> dict:
+    async def get_dashboard_summary(db: AsyncSession, org_id: uuid.UUID | None) -> dict:
+        # org_id None = admin de plataforma: métricas de todas las organizaciones
+        sig_org = (Signature.org_id == org_id) if org_id is not None else true()
+        camp_org = (Campaign.org_id == org_id) if org_id is not None else true()
+
         sig_result = await db.execute(
             select(func.count(Signature.id))
-            .where(Signature.org_id == org_id, Signature.status == "confirmed")
+            .where(sig_org, Signature.status == "confirmed")
         )
         total_confirmed = sig_result.scalar_one()
 
         status_result = await db.execute(
             select(Campaign.status, func.count(Campaign.id))
-            .where(Campaign.org_id == org_id, Campaign.archived_at.is_(None))
+            .where(camp_org, Campaign.archived_at.is_(None))
             .group_by(Campaign.status)
         )
         by_status = {row[0]: row[1] for row in status_result.all()}
 
         goal_result = await db.execute(
             select(func.sum(Campaign.goal_count))
-            .where(Campaign.org_id == org_id, Campaign.status == "active")
+            .where(camp_org, Campaign.status == "active")
         )
         total_goal = goal_result.scalar_one()
 
@@ -356,7 +375,7 @@ class CampaignService:
                 Signature.campaign_id == Campaign.id,
                 Signature.status == "confirmed",
             ))
-            .where(Campaign.org_id == org_id)
+            .where(camp_org)
             .group_by(Campaign.id)
             .order_by(Campaign.created_at.desc())
             .limit(5)

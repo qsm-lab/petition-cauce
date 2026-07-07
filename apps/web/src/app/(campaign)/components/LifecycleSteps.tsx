@@ -1,11 +1,27 @@
 const STAGES = ["Lanzada", "Recolección", "Entrega", "Diálogo", "Decisión"];
 
+export interface LifecycleConfig {
+  dialogo?: boolean;
+  decision?: boolean;
+}
+
 interface Props {
   currentStage: number;
   categoryColor: string;
+  lifecycleConfig?: LifecycleConfig;
 }
 
-export default function LifecycleSteps({ currentStage, categoryColor }: Props) {
+/** Índices de etapas visibles según la configuración de la campaña (3=Diálogo, 4=Decisión opcionales). */
+export function visibleStageIndices(config?: LifecycleConfig): number[] {
+  const indices = [0, 1, 2];
+  if (config?.dialogo !== false) indices.push(3);
+  if (config?.decision !== false) indices.push(4);
+  return indices;
+}
+
+export default function LifecycleSteps({ currentStage, categoryColor, lifecycleConfig }: Props) {
+  const visible = visibleStageIndices(lifecycleConfig);
+
   return (
     <div>
       <div
@@ -22,10 +38,11 @@ export default function LifecycleSteps({ currentStage, categoryColor }: Props) {
       </div>
 
       <div style={{ display: "flex", alignItems: "flex-start" }}>
-        {STAGES.map((label, i) => {
-          const done    = i < currentStage;
-          const current = i === currentStage;
-          const isLast  = i === STAGES.length - 1;
+        {visible.map((stageIndex, pos) => {
+          const label   = STAGES[stageIndex];
+          const done    = stageIndex < currentStage;
+          const current = stageIndex === currentStage;
+          const isLast  = pos === visible.length - 1;
 
           const dotBg     = done ? "#16261F" : current ? categoryColor : "#ffffff";
           const dotColor  = done || current ? "#FBF0E6" : "#16261F";
@@ -60,7 +77,7 @@ export default function LifecycleSteps({ currentStage, categoryColor }: Props) {
                     fontWeight: 700,
                   }}
                 >
-                  {done ? "✓" : i + 1}
+                  {done ? "✓" : pos + 1}
                 </div>
                 <div
                   style={{

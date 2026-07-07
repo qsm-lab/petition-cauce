@@ -14,7 +14,7 @@ class AdminSignatureService:
     async def list_signatures(
         db: AsyncSession,
         campaign_id: uuid.UUID,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None,
         campaign_title: str,
         campaign_slug: str,
         page: int = 1,
@@ -23,7 +23,9 @@ class AdminSignatureService:
         visibility: str | None = None,
         status: str | None = None,
     ) -> dict:
-        base = [Signature.campaign_id == campaign_id, Signature.org_id == org_id]
+        base = [Signature.campaign_id == campaign_id]
+        if org_id is not None:
+            base.append(Signature.org_id == org_id)
 
         # Stats son siempre totales de campaña, independientes de filtros opcionales
         stats_q = await db.execute(
@@ -67,6 +69,7 @@ class AdminSignatureService:
                     "name": sig.name,
                     "provincia": sig.provincia,
                     "visibility": sig.visibility,
+                    "pending_visibility": sig.pending_visibility,
                     "status": sig.status,
                     "confirmed_at": sig.confirmed_at.isoformat() if sig.confirmed_at else None,
                     "created_at": sig.created_at.isoformat(),
@@ -86,13 +89,15 @@ class AdminSignatureService:
     async def export_csv(
         db: AsyncSession,
         campaign_id: uuid.UUID,
-        org_id: uuid.UUID,
+        org_id: uuid.UUID | None,
         slug: str,
         provincia: str | None = None,
         visibility: str | None = None,
         status: str | None = None,
     ) -> StreamingResponse:
-        filters = [Signature.campaign_id == campaign_id, Signature.org_id == org_id]
+        filters = [Signature.campaign_id == campaign_id]
+        if org_id is not None:
+            filters.append(Signature.org_id == org_id)
         if provincia:
             filters.append(Signature.provincia == provincia)
         if visibility:

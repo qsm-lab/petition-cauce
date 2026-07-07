@@ -29,6 +29,10 @@ class Signature(Base):
     confirmation_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     ip_hmac: Mapped[str | None] = mapped_column(String(128))
+    # Cambio de visibilidad iniciado por admin, pendiente de confirmación del titular
+    pending_visibility: Mapped[str | None] = mapped_column(String(10))
+    visibility_change_token: Mapped[str | None] = mapped_column(String(128))
+    visibility_change_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
