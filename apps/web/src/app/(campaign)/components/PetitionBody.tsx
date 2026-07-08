@@ -70,11 +70,14 @@ export default function PetitionBody({ asks, petitionBody, categoryColor }: Prop
       )}
 
       {(richHtml || paragraphs.length > 0) && (
+        // Móvil: full-bleed (cancela el padding 24px de la página) para dar más
+        // ancho al texto; desktop conserva la tarjeta con bordes redondeados
         <div
+          className="-mx-6 rounded-none px-6 md:mx-0 md:rounded-[20px] md:px-7"
           style={{
             background: "#16261F",
-            borderRadius: 20,
-            padding: "28px 28px 32px",
+            paddingTop: 28,
+            paddingBottom: 32,
           }}
         >
           <h2

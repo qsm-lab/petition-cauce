@@ -45,7 +45,7 @@ export default function StepSuccess({ name, email, resendState, onContinue, onRe
 
       {/* Título personalizado */}
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, marginBottom: 10, color: "#16261F", lineHeight: 1.2 }}>
-        {firstName}, por favor,{"\n"}confirmá tu correo
+        {firstName}, por favor,{"\n"}confirme su correo
       </div>
 
       <div style={{ fontSize: 15, color: "rgba(22,38,31,0.7)", lineHeight: 1.5, marginBottom: 6, fontFamily: FONT_BODY }}>
@@ -63,7 +63,7 @@ export default function StepSuccess({ name, email, resendState, onContinue, onRe
           fontWeight: 700,
           color: "var(--bop, #16261F)",
           background: "var(--bp, #D7F24C)",
-          border: "none",
+          border: "1.5px solid #16261F",
           borderRadius: 30,
           padding: 16,
           cursor: "pointer",
@@ -113,7 +113,7 @@ export default function StepSuccess({ name, email, resendState, onContinue, onRe
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span style={{ fontSize: 12.5, color: "rgba(22,38,31,0.65)", lineHeight: 1.5, fontFamily: FONT_BODY }}>
-          Si no lo ves, revisá la carpeta de spam. El enlace vence en 24 horas.
+          Si no lo ve, revise la carpeta de spam. El enlace vence en 24 horas.
         </span>
       </div>
     </div>

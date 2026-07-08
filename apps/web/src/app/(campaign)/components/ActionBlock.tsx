@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SignHandIcon from "@/components/ui/SignHandIcon";
 
 interface Props {
   count: number;
@@ -88,14 +89,14 @@ export default function ActionBlock({
           ref={ctaRef}
           onClick={canSign ? onSign : undefined}
           disabled={!canSign}
-          className="transition-all duration-200 ease-out enabled:hover:scale-[1.03] enabled:hover:shadow-[0_6px_18px_rgba(22,38,31,0.18)] enabled:active:scale-[0.99]"
+          className="group transition-all duration-200 ease-out enabled:hover:scale-[1.03] enabled:hover:shadow-[0_6px_18px_rgba(22,38,31,0.18)] enabled:active:scale-[0.99]"
           style={{
             fontFamily: FONT_BODY,
             fontSize: 18,
             fontWeight: 700,
             color: canSign ? "var(--bop, #16261F)" : "rgba(22,38,31,0.4)",
             background: canSign ? "var(--bp, #D7F24C)" : "rgba(22,38,31,0.1)",
-            border: "none",
+            border: "1.5px solid #16261F",
             borderRadius: 30,
             padding: "18px 24px",
             cursor: canSign ? "pointer" : "not-allowed",
@@ -103,7 +104,10 @@ export default function ActionBlock({
             opacity: isClosed ? 0.5 : 1,
           }}
         >
-          {ctaLabel}
+          <span className="inline-flex items-center justify-center">
+            <SignHandIcon />
+            {ctaLabel}
+          </span>
         </button>
 
         {/* Contenido colapsable en desktop: comprimido queda solo el botón.
@@ -164,7 +168,7 @@ export default function ActionBlock({
               boxSizing: "border-box",
             }}
           >
-            {/* Flag icon */}
+            {/* Edificio gubernamental */}
             <span
               style={{
                 width: 32,
@@ -175,11 +179,26 @@ export default function ActionBlock({
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                position: "relative",
               }}
             >
-              <span style={{ width: 2, height: 16, background: "#FBF0E6", position: "absolute", left: 11, top: 7, borderRadius: 1 }} />
-              <span style={{ width: 11, height: 8, background: "#FBF0E6", position: "absolute", left: 13, top: 7, borderRadius: "0 3px 3px 0" }} />
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#FBF0E6"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="3" y1="22" x2="21" y2="22" />
+                <line x1="6" y1="18" x2="6" y2="11" />
+                <line x1="10" y1="18" x2="10" y2="11" />
+                <line x1="14" y1="18" x2="14" y2="11" />
+                <line x1="18" y1="18" x2="18" y2="11" />
+                <polygon points="12 2 20 7 4 7" fill="#FBF0E6" stroke="none" />
+              </svg>
             </span>
             <div style={{ minWidth: 0 }}>
               <div
@@ -202,16 +221,18 @@ export default function ActionBlock({
         )}
 
         <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(22,38,31,0.72)", lineHeight: 1.55, textAlign: "center" }}>
-          Confirmamos tu firma por correo. Por defecto es privada — vos elegís cómo aparece.
+          Confirmamos su firma por correo. Por defecto es pública — usted elige cómo aparece.
         </div>
         </div>{/* fin contenido colapsable */}
       </div>
 
       {/* Floating CTA — solo móvil. El display va en clases (flex + md:hidden):
-          un display inline anularía el md:hidden */}
-      {showFloat && canSign && (
+          un display inline anularía el md:hidden. Siempre montado: entra y sale
+          deslizándose con transform (animable en ambos sentidos). */}
+      {canSign && (
         <div
-          className="flex items-center gap-3 md:hidden animate-pc-float-in"
+          className="flex items-center gap-3 md:hidden"
+          aria-hidden={!showFloat}
           style={{
             position: "fixed",
             left: 0,
@@ -219,20 +240,25 @@ export default function ActionBlock({
             bottom: 0,
             zIndex: 50,
             padding: "14px 16px calc(14px + env(safe-area-inset-bottom))",
-            background: "#EDF4F1",
+            background: "#2B4EEA",
             borderTop: "1.5px solid #16261F",
-            boxShadow: "0 -4px 16px rgba(22,38,31,0.1)",
+            boxShadow: "0 -4px 16px rgba(22,38,31,0.18)",
+            transform: showFloat ? "translateY(0)" : "translateY(110%)",
+            opacity: showFloat ? 1 : 0,
+            transition: "transform 0.45s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease",
+            pointerEvents: showFloat ? "auto" : "none",
           }}
         >
           <button
             onClick={onSign}
+            tabIndex={showFloat ? 0 : -1}
             style={{
               fontFamily: FONT_BODY,
               fontSize: 16,
               fontWeight: 700,
               color: "var(--bop, #16261F)",
               background: "var(--bp, #D7F24C)",
-              border: "none",
+              border: "1.5px solid #16261F",
               borderRadius: 26,
               padding: "15px 22px",
               cursor: "pointer",

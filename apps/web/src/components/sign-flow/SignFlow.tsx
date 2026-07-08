@@ -30,10 +30,11 @@ interface Props {
 }
 
 function buildInitForm(formConfig: FormConfig): FormValues {
-  const defaultVis = formConfig.visibility_options.includes("anonima")
-    ? "anon"
-    : formConfig.visibility_options[0] === "publica"
+  // Por defecto la firma es pública (regla de plataforma); fallback al orden configurado
+  const defaultVis = formConfig.visibility_options.includes("publica")
     ? "pub"
+    : formConfig.visibility_options.includes("anonima")
+    ? "anon"
     : "sec";
   return {
     signer_type: "natural",
@@ -52,13 +53,13 @@ function buildInitForm(formConfig: FormConfig): FormValues {
 
 function errorMessage(err: SignatureError): string {
   switch (err.type) {
-    case "ya_firmaste":    return "Ya registramos una firma tuya en esta campaña.";
-    case "cedula_invalida": return "La cédula ingresada no es válida. Revísala e inténtalo de nuevo.";
+    case "ya_firmaste":    return "Ya registramos una firma suya en esta campaña.";
+    case "cedula_invalida": return "La cédula ingresada no es válida. Revísela e inténtelo de nuevo.";
     case "cedula_requerida": return "La cédula es obligatoria para esta campaña.";
-    case "turnstile_failed": return "La verificación anti-bot no pasó. Actualiza la página e intenta de nuevo.";
-    case "rate_limit":    return "Demasiados intentos. Esperá unos minutos e inténtalo de nuevo.";
-    case "network":       return "No pudimos conectar. Revisá tu conexión e inténtalo de nuevo.";
-    default:              return "Algo salió mal. Inténtalo de nuevo.";
+    case "turnstile_failed": return "La verificación anti-bot no pasó. Actualice la página e intente de nuevo.";
+    case "rate_limit":    return "Demasiados intentos. Espere unos minutos e inténtelo de nuevo.";
+    case "network":       return "No pudimos conectar. Revise su conexión e inténtelo de nuevo.";
+    default:              return "Algo salió mal. Inténtelo de nuevo.";
   }
 }
 
