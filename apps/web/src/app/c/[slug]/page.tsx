@@ -7,6 +7,7 @@ import { campaignMetadata } from "@/lib/campaign-og";
 import { campaignStyleTag } from "@/lib/design-tokens";
 import CampaignPage from "../../(campaign)/CampaignPage";
 import ConfirmationBanner from "../../(campaign)/components/ConfirmationBanner";
+import ConfirmedSharePopup from "../../(campaign)/components/ConfirmedSharePopup";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3002";
 
@@ -43,7 +44,7 @@ export default async function CampaignBySlugPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { confirmada?: string };
+  searchParams: { confirmada?: string; nombre?: string };
 }) {
   const headersList = headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
@@ -62,9 +63,20 @@ export default async function CampaignBySlugPage({
   return (
     <>
       {styleTag && <style dangerouslySetInnerHTML={{ __html: styleTag }} />}
-      {searchParams.confirmada && (
+      {/* Firma recién confirmada → popup de compartir; otros estados → banner */}
+      {searchParams.confirmada === "1" ? (
+        <ConfirmedSharePopup
+          name={searchParams.nombre}
+          title={campaign.petition_title}
+          url={campaignUrl}
+          status={campaign.status}
+          showQr={campaign.show_qr}
+          qrCodeData={campaign.qr_code_data}
+          shareText={campaign.share_text}
+        />
+      ) : searchParams.confirmada ? (
         <ConfirmationBanner estado={searchParams.confirmada} />
-      )}
+      ) : null}
       <CampaignPage
         campaign={campaign}
         recentSignatures={recentSignatures}
