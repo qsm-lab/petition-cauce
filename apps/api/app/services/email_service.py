@@ -1,5 +1,6 @@
 import logging
 from typing import Sequence
+from urllib.parse import quote
 
 import httpx
 
@@ -8,6 +9,31 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _CONFIRM_PATH = "/v1/public-campaign/confirm/"
+
+# Mismo texto del footer de la plataforma — transparencia en cada email (2.4)
+_PLATFORM_FOOTER_HTML = (
+    "<p style='margin:16px 0 0;font-size:11px;color:#9aaa92;text-align:center;line-height:1.5;'>"
+    "Plataforma sin fines de lucro hecha en Ecuador · +Cauces.org · Todos los derechos reservados 2026"
+    "</p>"
+)
+
+# Qué implica cada visibilidad — reiterado en el email de confirmación (LOPDP)
+_VISIBILITY_EXPLANATIONS = {
+    "publica": (
+        "Elegiste firma <strong>pública</strong>: tu nombre aparecerá en el listado "
+        "público de apoyos y en el documento de entrega de la campaña."
+    ),
+    "anonima": (
+        "Elegiste firma <strong>anónima</strong>: tu firma se suma al conteo y al "
+        "documento de entrega, pero tu nombre no se muestra públicamente."
+    ),
+    "secreta": (
+        "Elegiste firma <strong>secreta</strong>: tu firma solo se suma al conteo. "
+        "No se muestra públicamente ni se incluirá en el documento de la campaña "
+        "cuando su finalidad sea la entrega oficial de firmas a una autoridad, "
+        "ente del Estado o entidad privada."
+    ),
+}
 
 
 def _signer_action_html(
@@ -55,6 +81,7 @@ def _signer_action_html(
           </p>
         </td></tr>
       </table>
+      {_PLATFORM_FOOTER_HTML}
     </td></tr>
   </table>
 </body>
@@ -115,6 +142,7 @@ def _lifecycle_base_html(campaign_title: str, old_stage: str, new_stage: str, no
           {changed_by_block}
         </td></tr>
       </table>
+      {_PLATFORM_FOOTER_HTML}
     </td></tr>
   </table>
 </body>
@@ -175,6 +203,7 @@ async def send_lifecycle_signer_notification(
           <p style="margin:0;font-size:15px;color:#4a5644;line-height:1.6;">{message}</p>
         </td></tr>
       </table>
+      {_PLATFORM_FOOTER_HTML}
     </td></tr>
   </table>
 </body>
@@ -194,6 +223,9 @@ async def send_confirmation_email(
     signer_name: str = "",
     org_name: str = "",
     org_logo_url: str = "",
+    visibility: str = "",
+    privacy_url: str = "",
+    org_contact_email: str = "",
 ) -> None:
     """`campaign_title` debe ser el título público (petition_title), no el interno."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
@@ -206,11 +238,31 @@ async def send_confirmation_email(
         )
         return
 
+    # La nota corresponde SOLO a la visibilidad elegida por el firmante
+    # (la de secreta únicamente si así la eligió originalmente)
+    vis_block = ""
+    if visibility in _VISIBILITY_EXPLANATIONS:
+        vis_block = f"<br><br>{_VISIBILITY_EXPLANATIONS[visibility]}"
+        if org_contact_email:
+            vis_block += (
+                " Si más adelante deseas cambiar el tipo de visibilidad de tu firma "
+                "(por ejemplo, pasarla a anónima), puedes solicitarlo escribiendo a "
+                f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+                f"{org_contact_email}</a>."
+            )
+    privacy_block = ""
+    if privacy_url:
+        privacy_block = (
+            f"<br><br>Puedes leer el <a href=\"{privacy_url}\" "
+            "style='color:#3d6b35;font-weight:600;'>aviso de privacidad</a> de la campaña."
+        )
+
     html = _signer_action_html(
         heading="Confirma tu firma",
         body_html=(
             f"Gracias por apoyar <strong>{campaign_title}</strong>.<br>"
             "Haz clic en el botón para activar tu firma. El enlace es válido por 24 horas."
+            f"{vis_block}{privacy_block}"
         ),
         cta_label="Confirmar mi firma →",
         cta_url=confirm_url,
@@ -220,6 +272,91 @@ async def send_confirmation_email(
         org_logo_url=org_logo_url,
     )
     await _send(to_email, f"Confirma tu firma: {campaign_title}", html)
+
+
+async def send_thanks_share_email(
+    to_email: str,
+    campaign_title: str,
+    campaign_url: str,
+    signer_name: str = "",
+    org_name: str = "",
+    org_logo_url: str = "",
+    share_text: str = "",
+    qr_code_data: str = "",
+) -> None:
+    """Segundo email tras confirmar la firma: agradecimiento + difusión (botones y QR)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] thanks email | to=%s | campaign=%s", to_email, campaign_title)
+        return
+
+    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    greeting = (
+        f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>"
+        f"{first_name}, tu firma ya cuenta.</p>"
+        if first_name
+        else "<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Tu firma ya cuenta.</p>"
+    )
+    logo_block = (
+        f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
+        f"style=\"display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;margin:0 0 12px;\">"
+        if org_logo_url else ""
+    )
+    org_label = org_name or "Petición Cauce"
+
+    clean_share = (share_text or "").replace("�", "").strip()
+    share_msg = f"{clean_share}\n\n{campaign_url}" if clean_share else f"{campaign_title} — firma aquí: {campaign_url}"
+    wa_url = f"https://wa.me/?text={quote(share_msg)}"
+    fb_url = f"https://www.facebook.com/sharer/sharer.php?u={quote(campaign_url)}"
+    x_url = f"https://twitter.com/intent/tweet?text={quote(share_msg)}"
+
+    btn = "display:inline-block;text-decoration:none;font-size:14px;font-weight:700;padding:12px 22px;border-radius:100px;margin:0 6px 8px 0;"
+    share_buttons = (
+        f"<a href=\"{wa_url}\" style=\"{btn}background:#25D366;color:#fff;\">WhatsApp</a>"
+        f"<a href=\"{fb_url}\" style=\"{btn}background:#1877F2;color:#fff;\">Facebook</a>"
+        f"<a href=\"{x_url}\" style=\"{btn}background:#1a2516;color:#fff;\">X</a>"
+    )
+
+    # Nota: los data URIs no se muestran en todos los clientes de correo (Gmail
+    # los bloquea); en esos casos el email degrada a los botones y el enlace.
+    qr_block = (
+        "<div style='margin:20px 0 4px;'>"
+        f"<img src=\"{qr_code_data}\" alt=\"Código QR de la campaña\" width=\"140\" height=\"140\" "
+        "style=\"display:block;width:140px;height:140px;\">"
+        "<p style='margin:6px 0 0;font-size:12px;color:#9aaa92;'>Escanea o comparte este código QR.</p>"
+        "</div>"
+        if qr_code_data else ""
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          {logo_block}
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">{org_label}</p>
+          <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1a2516;line-height:1.2;">¡Gracias por confirmar tu firma!</h1>
+          {greeting}
+          <p style="margin:0 0 20px;font-size:15px;color:#4a5644;line-height:1.6;">
+            Tu apoyo a <strong>{campaign_title}</strong> quedó registrado.
+            Ahora ayúdanos a que llegue más lejos: comparte la campaña con tu gente.
+          </p>
+          <div>{share_buttons}</div>
+          {qr_block}
+          <p style="margin:20px 0 0;font-size:13px;color:#7a8a72;line-height:1.5;">
+            También puedes copiar y compartir el enlace directo:<br>
+            <a href="{campaign_url}" style="color:#3d6b35;font-weight:600;word-break:break-all;">{campaign_url}</a>
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"¡Gracias por tu firma! Ayuda a difundir: {campaign_title}", html)
 
 
 async def send_visibility_change_email(

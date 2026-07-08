@@ -6,7 +6,23 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
+from app.crypto import PIIDecryptError, decrypt_pii
 from app.models.signature import Signature
+
+
+def _mask_cedula(cedula: str) -> str:
+    """2 primeros + 3 últimos dígitos visibles; el resto en X (ej. 17XXXXX601)."""
+    if len(cedula) <= 5:
+        return "X" * len(cedula)
+    return cedula[:2] + "X" * (len(cedula) - 5) + cedula[-3:]
+
+
+def _mask_email(email: str) -> str:
+    """3 primeros caracteres + dominio visibles (ej. jguXXXXXXX@gmail.com)."""
+    local, _, domain = email.partition("@")
+    if not domain:
+        return "X" * len(email)
+    return local[:3] + "X" * max(len(local) - 3, 0) + "@" + domain
 
 
 class AdminSignatureService:
@@ -112,11 +128,27 @@ class AdminSignatureService:
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["id", "nombre", "provincia", "visibilidad", "estado", "confirmada_el", "registrada_el"])
+        writer.writerow([
+            "id", "nombre", "cedula_parcial", "email_parcial", "provincia",
+            "visibilidad", "estado", "confirmada_el", "registrada_el",
+        ])
         for sig in signatures:
+            # PII solo enmascarada: el export completo requiere el flujo de
+            # descarga especial de fin de campaña (autorización reforzada)
+            cedula_parcial = ""
+            email_parcial = ""
+            try:
+                if sig.cedula_encrypted:
+                    cedula_parcial = _mask_cedula(decrypt_pii(sig.cedula_encrypted, ref=str(sig.id)))
+                if sig.email_encrypted:
+                    email_parcial = _mask_email(decrypt_pii(sig.email_encrypted, ref=str(sig.id)))
+            except PIIDecryptError:
+                pass
             writer.writerow([
                 str(sig.id),
                 sig.name or "",
+                cedula_parcial,
+                email_parcial,
                 sig.provincia or "",
                 sig.visibility,
                 sig.status,

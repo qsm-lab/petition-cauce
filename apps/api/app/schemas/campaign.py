@@ -36,6 +36,8 @@ class CampaignCreate(BaseModel):
     welcome_title: str | None = None
     welcome_title_size: str | None = None
     welcome_slogan: str | None = None
+    welcome_slogan_2: str | None = None
+    welcome_slogan_3: str | None = None
     welcome_slogan_size: str | None = None
     welcome_description: str | None = None
     welcome_title_color: str | None = None
@@ -54,7 +56,8 @@ _META_FIELDS = {
     "branding",
     # Welcome copy
     "welcome_logo_url", "welcome_title", "welcome_title_size",
-    "welcome_slogan", "welcome_slogan_size", "welcome_description",
+    "welcome_slogan", "welcome_slogan_2", "welcome_slogan_3",
+    "welcome_slogan_size", "welcome_description",
     "welcome_title_color", "welcome_slogan_color",
     # Thank you
     "thank_you_title", "thank_you_body",
@@ -99,6 +102,8 @@ class CampaignUpdate(BaseModel):
     welcome_title: str | None = None
     welcome_title_size: str | None = None
     welcome_slogan: str | None = None
+    welcome_slogan_2: str | None = None
+    welcome_slogan_3: str | None = None
     welcome_slogan_size: str | None = None
     welcome_description: str | None = None
     welcome_title_color: str | None = None
