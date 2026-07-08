@@ -84,6 +84,19 @@
   to   { transform: translateY(0); opacity: 1; }
 }
 
+/* Eslogan del hero — ciclo 9s: fade-in 0.5s, 3s en pantalla, 5.5s oculto */
+@keyframes cauce-slogan-loop {
+  0%    { opacity: 0; transform: translateY(14px); }
+  5.6%  { opacity: 1; transform: translateY(0); }
+  33.3% { opacity: 1; transform: translateY(0); }
+  38.9% { opacity: 0; transform: translateY(-14px); }
+  100%  { opacity: 0; transform: translateY(14px); }
+}
+.cauce-slogan-loop {
+  opacity: 0;
+  animation: cauce-slogan-loop 9s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

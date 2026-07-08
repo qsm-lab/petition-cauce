@@ -23,6 +23,38 @@ const IcoDownload = () => (
   </svg>
 );
 
+const IcoFacebook = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.026 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.971h-1.514c-1.491 0-1.955.931-1.955 1.887v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+  </svg>
+);
+
+const IcoX = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+
+const IcoMail = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="4" width="20" height="16" rx="2"/>
+    <path d="m22 7-10 7L2 7"/>
+  </svg>
+);
+
+const IcoCopy = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="9" y="9" width="13" height="13" rx="2"/>
+    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+  </svg>
+);
+
+const IcoCheck = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
 export default function ShareSection({
   title,
   url,
@@ -48,17 +80,17 @@ export default function ShareSection({
     } catch { /* silent */ }
   }
 
+  // flex/padding/radius van en clases: en desktop los botones son círculos solo-icono
   const secondaryBtn: React.CSSProperties = {
-    flex: 1,
     fontSize: 14,
     fontWeight: 600,
     color: "#16261F",
     background: "#fff",
     border: "1.5px solid #16261F",
-    borderRadius: 24,
-    padding: 12,
     cursor: "pointer",
   };
+  // Círculos solo-icono en ambos breakpoints
+  const secondaryBtnClass = "flex items-center justify-center w-12 h-12 rounded-full";
 
   const disabledStyle: React.CSSProperties = isClosed
     ? { opacity: 0.5, pointerEvents: "none", cursor: "not-allowed" }
@@ -110,38 +142,63 @@ export default function ShareSection({
         Compartir por WhatsApp
       </a>
 
-      {/* Facebook / X / Email */}
-      <div style={{ display: "flex", gap: 8 }}>
+      {/* Facebook / X / Email (+ copiar en desktop) — móvil: pills con texto;
+          desktop: círculos solo-icono, centrados */}
+      <div className="flex items-center justify-center gap-2 md:gap-3">
         <a
           href={`https://www.facebook.com/sharer/sharer.php?u=${encoded}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
+          aria-label="Compartir en Facebook"
+          title="Compartir en Facebook"
+          className={secondaryBtnClass}
+          style={{ ...secondaryBtn, textDecoration: "none", ...disabledStyle }}
         >
-          Facebook
+          <IcoFacebook />
         </a>
         <a
           href={`https://twitter.com/intent/tweet?text=${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
+          aria-label="Compartir en X"
+          title="Compartir en X"
+          className={secondaryBtnClass}
+          style={{ ...secondaryBtn, textDecoration: "none", ...disabledStyle }}
         >
-          X
+          <IcoX />
         </a>
         <a
           href={`mailto:?subject=${encodeURIComponent(title)}&body=${text}`}
-          style={{ ...secondaryBtn, textDecoration: "none", textAlign: "center" as const, ...disabledStyle }}
+          aria-label="Compartir por email"
+          title="Compartir por email"
+          className={secondaryBtnClass}
+          style={{ ...secondaryBtn, textDecoration: "none", ...disabledStyle }}
         >
-          Email
+          <IcoMail />
         </a>
+        {/* Copiar enlace — solo desktop (en móvil está la fila de URL) */}
+        <button
+          onClick={copyUrl}
+          disabled={isClosed}
+          aria-label="Copiar enlace de la campaña"
+          title={copied ? "¡Copiado!" : "Copiar enlace"}
+          className="hidden md:flex items-center justify-center w-12 h-12 rounded-full"
+          style={{
+            ...secondaryBtn,
+            color: copied ? "#1a7f37" : "#16261F",
+            borderColor: copied ? "#1a7f37" : "#16261F",
+            ...disabledStyle,
+          }}
+        >
+          {copied ? <IcoCheck /> : <IcoCopy />}
+        </button>
       </div>
 
-      {/* URL copiable */}
+      {/* URL copiable — solo móvil (en desktop la reemplaza el icono de copiar) */}
       <div
+        className="flex md:hidden items-center"
         style={{
-          display: "flex",
           gap: 8,
-          alignItems: "center",
           background: "#FBF0E6",
           borderRadius: 12,
           padding: "8px 8px 8px 14px",
