@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-
-const PROVINCIAS = ["Azuay", "Pichincha", "Guayas", "Loja", "Cañar", "Otra"];
+import { PROVINCIAS } from "@/lib/provincias";
 
 interface FiltrosBarProps {
   currentProvincia: string;
