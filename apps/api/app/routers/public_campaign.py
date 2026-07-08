@@ -99,6 +99,9 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int, total_c
             "name": org.name if org else "",
             "initial": (org.name or "?")[0].upper() if org else "?",
             "logo_url": org.logo_url if org else None,
+            # Datos institucionales del Responsable (no PII de firmantes) — OrgCard expandible
+            "description": org.description if org else None,
+            "contact_email": org.contact_email if org else None,
         },
     }
 

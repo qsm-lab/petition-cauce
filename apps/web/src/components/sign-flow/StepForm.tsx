@@ -3,14 +3,7 @@
 import { useState } from "react";
 import TurnstileWidget from "@/components/form-renderer/TurnstileWidget";
 import type { FormConfig } from "@/lib/campaign-api";
-
-const PROVINCIAS = [
-  "Azuay", "Bolívar", "Cañar", "Carchi", "Chimborazo", "Cotopaxi",
-  "El Oro", "Esmeraldas", "Galápagos", "Guayas", "Imbabura", "Loja",
-  "Los Ríos", "Manabí", "Morona Santiago", "Napo", "Orellana",
-  "Pastaza", "Pichincha", "Santa Elena", "Santo Domingo de los Tsáchilas",
-  "Sucumbíos", "Tungurahua", "Zamora Chinchipe", "Otra",
-];
+import { PROVINCIAS } from "@/lib/provincias";
 
 const ALL_VIS_OPTIONS = [
   { value: "pub"  as const, db: "publica"  as const, label: "Pública" },

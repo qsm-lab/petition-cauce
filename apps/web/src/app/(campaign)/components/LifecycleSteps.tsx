@@ -25,6 +25,7 @@ export default function LifecycleSteps({ currentStage, categoryColor, lifecycleC
   return (
     <div>
       <div
+        className="text-center"
         style={{
           fontSize: 12,
           fontWeight: 700,
@@ -37,12 +38,12 @@ export default function LifecycleSteps({ currentStage, categoryColor, lifecycleC
         Estado de la campaña
       </div>
 
-      {/* Con etapas deshabilitadas el riel se acorta y se centra en su bloque */}
+      {/* Riel siempre centrado y acotado; se acorta si hay etapas deshabilitadas */}
       <div
         style={{
           display: "flex",
           alignItems: "flex-start",
-          maxWidth: visible.length < 5 ? visible.length * 150 : undefined,
+          maxWidth: Math.min(visible.length * 140, 640),
           marginLeft: "auto",
           marginRight: "auto",
         }}
@@ -60,7 +61,9 @@ export default function LifecycleSteps({ currentStage, categoryColor, lifecycleC
           return (
             <div
               key={label}
-              style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}
+              // La última etapa no lleva conector: sin flex-grow, o el riel
+              // queda cargado a la izquierda con espacio muerto a la derecha
+              style={{ display: "flex", alignItems: "center", flex: isLast ? "0 0 auto" : 1, minWidth: 0 }}
             >
               <div
                 style={{
@@ -72,25 +75,20 @@ export default function LifecycleSteps({ currentStage, categoryColor, lifecycleC
                 }}
               >
                 <div
+                  className="flex items-center justify-center w-7 h-7 text-[11.5px] md:w-8 md:h-8 md:text-[13px]"
                   style={{
-                    width: 32,
-                    height: 32,
                     borderRadius: "50%",
                     background: dotBg,
                     border: dotBorder,
                     color: dotColor,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 13,
                     fontWeight: 700,
                   }}
                 >
                   {done ? "✓" : pos + 1}
                 </div>
                 <div
+                  className="text-[10px] md:text-[12px]"
                   style={{
-                    fontSize: 12,
                     fontWeight: current ? 700 : 500,
                     opacity: current ? 1 : 0.55,
                     textAlign: "center",

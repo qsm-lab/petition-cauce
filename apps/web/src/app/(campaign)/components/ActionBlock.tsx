@@ -11,6 +11,8 @@ interface Props {
   status: string;
   categoryColor: string;
   onSign: () => void;
+  /** Desktop: colapsa todo salvo el botón (la tarjeta viaja por el sidebar) */
+  compressed?: boolean;
 }
 
 const SIGNABLE = new Set(["draft", "active", "online"]);
@@ -24,10 +26,13 @@ export default function ActionBlock({
   status,
   categoryColor,
   onSign,
+  compressed = false,
 }: Props) {
   const [pctW, setPctW] = useState(0);
+  // El botón de firmar salió de vista → mostrar CTA flotante (móvil y desktop)
   const [showFloat, setShowFloat] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
 
   const effectiveGoal = showGoal ? goal : null;
   const pct = effectiveGoal && effectiveGoal > 0
@@ -48,12 +53,14 @@ export default function ActionBlock({
   }, [pct]);
 
   useEffect(() => {
-    if (!blockRef.current) return;
+    // Se observa el BOTÓN, no la tarjeta: en pantallas de 13-14" el botón sale
+    // de vista mucho antes que el resto de la tarjeta
+    if (!ctaRef.current) return;
     const io = new IntersectionObserver(
       ([entry]) => setShowFloat(!entry.isIntersecting),
       { threshold: 0 }
     );
-    io.observe(blockRef.current);
+    io.observe(ctaRef.current);
     return () => io.disconnect();
   }, []);
 
@@ -62,7 +69,7 @@ export default function ActionBlock({
 
   return (
     <>
-      {/* Main card */}
+      {/* Main card — flujo normal; al salir de vista lo releva el CTA compacto */}
       <div
         ref={blockRef}
         id="cauce-action-cta"
@@ -78,6 +85,7 @@ export default function ActionBlock({
       >
         {/* CTA button — primero, con animación sutil al hover */}
         <button
+          ref={ctaRef}
           onClick={canSign ? onSign : undefined}
           disabled={!canSign}
           className="transition-all duration-200 ease-out enabled:hover:scale-[1.03] enabled:hover:shadow-[0_6px_18px_rgba(22,38,31,0.18)] enabled:active:scale-[0.99]"
@@ -98,6 +106,15 @@ export default function ActionBlock({
           {ctaLabel}
         </button>
 
+        {/* Contenido colapsable en desktop: comprimido queda solo el botón.
+            En móvil las clases md:* no aplican y nunca se comprime. */}
+        <div
+          className={`flex flex-col gap-4 overflow-hidden transition-all duration-[650ms] ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
+            compressed
+              ? "md:max-h-0 md:opacity-0 md:-mt-4"
+              : "md:max-h-[560px] md:opacity-100 md:mt-0"
+          }`}
+        >
         {/* Counter — centrado al bloque */}
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, lineHeight: 1, color: "#16261F" }}>
@@ -187,6 +204,7 @@ export default function ActionBlock({
         <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(22,38,31,0.72)", lineHeight: 1.55, textAlign: "center" }}>
           Confirmamos tu firma por correo. Por defecto es privada — vos elegís cómo aparece.
         </div>
+        </div>{/* fin contenido colapsable */}
       </div>
 
       {/* Floating CTA — solo móvil. El display va en clases (flex + md:hidden):

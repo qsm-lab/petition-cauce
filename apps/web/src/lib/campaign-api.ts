@@ -6,6 +6,8 @@ export interface CampaignOrg {
   name: string;
   initial: string;
   logo_url: string | null;
+  description: string | null;
+  contact_email: string | null;
 }
 
 export interface CampaignAttachment {

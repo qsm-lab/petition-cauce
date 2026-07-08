@@ -43,8 +43,10 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
           >
             <span className="font-display text-[16px] leading-none" style={{ color: "#16261F" }}>C</span>
           </span>
-          <span className="font-body font-bold text-[14px] text-white leading-tight">
-            Cauce Petition
+          <span className="text-[14px] text-white leading-tight">
+            {/* "+" en Poppins semibold un 20% más grande; el resto en Anton */}
+            <span style={{ fontFamily: "var(--font-poppins, 'Poppins', sans-serif)", fontWeight: 600, fontSize: "1.2em" }}>+</span>
+            <span style={{ fontFamily: "var(--font-anton, 'Anton', sans-serif)", fontWeight: 400 }}>Cauces.org</span>
           </span>
         </div>
       </div>

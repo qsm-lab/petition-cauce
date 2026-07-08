@@ -53,12 +53,12 @@ export default function PetitionBody({ asks, petitionBody, categoryColor }: Prop
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: 700,
                     flexShrink: 0,
                   }}
                 >
-                  {i + 1}
+                  {String.fromCharCode(65 + i)}
                 </div>
                 <div style={{ fontSize: 16, lineHeight: 1.5, paddingTop: 2, color: "#16261F" }}>
                   {ask}
