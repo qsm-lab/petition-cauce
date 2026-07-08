@@ -49,11 +49,13 @@ export default function StepThanks({
   // Emojis compatibles con WhatsApp (Unicode 6.0, ampliamente soportados)
   // 🌿 (U+1F33F, Unicode 7.0) falla en algunos dispositivos → usar ✊ (U+270A, Unicode 6.0)
   function buildCopy(): string {
-    if (shareText?.trim()) {
-      const header = welcomeTitle && !shareText.includes(welcomeTitle)
+    // U+FFFD: emojis corruptos guardados con mala codificación
+    const cleanShareText = shareText?.replace(/�/g, "").trim();
+    if (cleanShareText) {
+      const header = welcomeTitle && !cleanShareText.includes(welcomeTitle)
         ? `*${welcomeTitle}*\n`
         : "";
-      return `${header}${shareText.trim()}`;
+      return `${header}${cleanShareText}`;
     }
     const parts: string[] = [];
     if (welcomeTitle)  parts.push(`*${welcomeTitle}*`);
