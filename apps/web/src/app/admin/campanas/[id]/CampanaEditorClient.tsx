@@ -493,12 +493,12 @@ export default function CampanaEditorClient({
               <div className="px-5 py-4 flex flex-col gap-2">
                 {asks.map((ask, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="text-[11.5px] font-bold flex-shrink-0 w-5 text-center" style={{ color: "var(--bmut)" }}>{i + 1}.</span>
+                    <span className="text-[11.5px] font-bold flex-shrink-0 w-5 text-center" style={{ color: "var(--bmut)" }}>{String.fromCharCode(65 + i)}.</span>
                     <input
                       type="text"
                       value={ask}
                       onChange={(e) => setAsk(i, e.target.value)}
-                      placeholder={`Pedido ${i + 1}`}
+                      placeholder={`Pedido ${String.fromCharCode(65 + i)}`}
                       maxLength={200}
                       className="flex-1 bg-transparent text-[13px] font-semibold outline-none placeholder:opacity-30 placeholder:font-normal"
                       style={{ color: "var(--bink)" }}
