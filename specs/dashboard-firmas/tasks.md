@@ -42,7 +42,7 @@
 - [x] T22 — `GET /v1/admin/campaigns/{id}/signatures/export.csv` → archivo descargable con columnas correctas, sin email ni cédula
 - [ ] T23 — Acceso con campaña de otra org → 404
 - [x] T24 — Acceso sin JWT → 401
-- [ ] T25 — Página `/admin/campanas/{id}/firmas` en browser → tabla visible con datos de la campaña dev
-- [ ] T26 — Cambiar filtro provincia en browser → tabla se recarga; URL refleja el filtro
-- [ ] T27 — Botón "Exportar CSV" → descarga el archivo `.csv` con datos correctos
+- [x] T25 — Página `/admin/campanas/{id}/firmas` en browser → tabla visible con datos de la campaña dev (validado usuario, sesión 26)
+- [x] T26 — Cambiar filtro provincia en browser → tabla se recarga; URL refleja el filtro (fix sesión 26: el select solo listaba 6 provincias hardcodeadas; ahora fuente única `lib/provincias.ts` compartida con StepForm — 24 provincias + "Otra")
+- [x] T27 — Botón "Exportar CSV" → descarga el archivo `.csv` con datos correctos (validado usuario, sesión 26)
 - [ ] T28 — Campaña sin firmas → estado vacío visible

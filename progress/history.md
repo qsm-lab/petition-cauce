@@ -450,3 +450,26 @@ antes de recolectar firmas reales); completar TEST-5 en prod.
 - Infra VPS: D3/F8/Cloudflare/GitHub Secrets — antes del primer deploy
 
 **Próxima sesión:** Verificaciones V1/V3/V4 + commit, luego `modelo-base` o `landing-campana`.
+
+---
+
+## Sesión 26 — 2026-07-08
+
+**Foco:** UI de la landing pública (desktop + móvil, iterado con capturas), marca +Cauces.org, OrgCard expandible, fix filtro provincia (T26).
+
+**Commits (usuario):** `7c9ef37` fix provincias · `9020748` asks A-E · `3bf8a0c` OrgCard expandible + API org · `810ba42` rediseño landing.
+
+**Entregado:**
+- Tarjeta de firma "viajera" en desktop: compresión a solo botón + intercambio de lugares con org/compartir (FLIP 700/600ms, easeOutCubic; sticky en última posición; histéresis en scroll up; expande solo al volver al primer lugar). Fueron 3 iteraciones: sticky+z-overlay → sticky-bottom al final del sidebar → intercambio de lugares (definitiva, sin sobreposiciones).
+- Hero: eslogan `welcome_slogan` con loop 9s y color por luminancia real (canvas); "Impulsada por"+logo org abajo-derecha (desktop); tag categoría arriba-derecha (invertido ink/categoryColor en móvil); portada móvil full-bleed.
+- Compartir: botones circulares solo-icono (FB/X/Email/Copiar) ambos breakpoints; URL solo móvil; QR intacto; docs destacados en desktop.
+- Marca "+Cauces.org" (Poppins + / Anton) en nav landing (atenuada, −15%) y sidebar admin; footer oscuro "sin fines de lucro hecha en Ecuador".
+- OrgCard expandible (descripción + contact_email); serializer público expone datos institucionales de la org (no PII).
+- "Lo que pedimos" con letras A–E (landing + editor); riel de etapas centrado/simétrico (fix flex de última etapa).
+- Fix T26: filtro provincia admin con 6 provincias hardcodeadas → `lib/provincias.ts` (24+Otra) compartida con StepForm. T25/T27 validados por usuario; T28 pendiente.
+
+**Verificación:** 57 tests API · tsc 0 · validación visual del usuario en dev con capturas.
+
+**Deploy:** sin migraciones ni env nuevas; falta `welcome_slogan` en campaña TLC de prod para que aparezca el eslogan.
+
+**Lección técnica:** para reordenar elementos animados con Tailwind `order` + FLIP, capturar los `getBoundingClientRect().top` en el scroll handler ANTES del `setState` y aplicar el inverso en `useLayoutEffect`; el trigger de visibilidad debe observar el botón, no la tarjeta contenedora (pantallas 13-14").
