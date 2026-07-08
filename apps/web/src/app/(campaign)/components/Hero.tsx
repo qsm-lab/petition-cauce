@@ -49,9 +49,15 @@ export default function Hero({ campaign, categoryColor }: Props) {
   const mobileSrc  = campaign.hero_image_mobile_url ?? campaign.hero_image_url;
 
   const isDark = useImageIsDark(desktopSrc);
-  const slogan = typeof campaign.meta?.welcome_slogan === "string"
-    ? (campaign.meta.welcome_slogan as string)
-    : null;
+  // Hasta 3 eslóganes (meta.welcome_slogan, _2, _3) rotando en secuencia:
+  // el texto cambia al cierre de cada ciclo de animación, mientras está oculto
+  const slogans = [
+    campaign.meta?.welcome_slogan,
+    campaign.meta?.welcome_slogan_2,
+    campaign.meta?.welcome_slogan_3,
+  ].filter((s): s is string => typeof s === "string" && s.trim().length > 0);
+  const [sloganIdx, setSloganIdx] = useState(0);
+  const slogan = slogans.length > 0 ? slogans[sloganIdx % slogans.length] : null;
 
   const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
 
@@ -91,6 +97,9 @@ export default function Hero({ campaign, categoryColor }: Props) {
         <div className="flex absolute inset-0 items-center justify-center pointer-events-none">
           <div
             className="cauce-slogan-loop px-6 md:px-14"
+            onAnimationIteration={() => {
+              if (slogans.length > 1) setSloganIdx((i) => (i + 1) % slogans.length);
+            }}
             style={{
               fontFamily: FONT_DISPLAY,
               fontSize: "clamp(24px, 4.6vw, 56px)",

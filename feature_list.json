@@ -227,6 +227,15 @@
       "phase": 3
     },
     {
+      "id": "export-entrega",
+      "title": "Fase 3 — LOPDP: descarga completa de PII para entrega oficial (step-up auth)",
+      "description": "Botón 'Descarga de entrega' en el dashboard de firmas, disponible desde la etapa Entrega (lifecycle_stage >= 2). Step-up auth: re-validación de contraseña + OTP de 6 dígitos al email del admin (TTL 10 min, hasheado en Redis, 3 intentos, rate 3/hora) → token de descarga de un solo uso (TTL 5 min) → CSV con cédula y email descifrados. Solo firmas confirmadas; las secretas nunca integran el archivo (solo cuentan). Auditoría pii_export_audit (sin PII) + notificación al Responsable y a admins de plataforma. Insumo de documento-entrega (fase 4). Análisis aprobado en sesión 27.",
+      "status": "done",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 3
+    },
+    {
       "id": "rat-autogenerado",
       "title": "Fase 3 — LOPDP: Registro de Actividades de Tratamiento por campaña",
       "description": "RAT autogenerado desde la privacy_config de cada campaña: qué datos, fines, bases legales, plazos, flujos, destinatarios. Exportable en PDF para cumplimiento documental ante SPDP.",

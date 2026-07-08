@@ -167,7 +167,7 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
             fontFamily: FONT_DISPLAY,
             fontWeight: 400,
             fontSize: "clamp(32px, 4.6vw, 52px)",
-            lineHeight: 1.03,
+            lineHeight: 1.14,
             margin: 0,
             color: categoryColor,
           }}
@@ -263,7 +263,7 @@ export default function CampaignPage({ campaign, recentSignatures, campaignUrl }
               fontFamily: FONT_DISPLAY,
               fontWeight: 400,
               fontSize: "clamp(32px, 4.6vw, 52px)",
-              lineHeight: 1.03,
+              lineHeight: 1.14,
               margin: 0,
               color: categoryColor,
             }}

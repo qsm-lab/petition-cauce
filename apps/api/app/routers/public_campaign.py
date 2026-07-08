@@ -125,6 +125,10 @@ async def get_privacy(campaign_id: str, db: AsyncSession = Depends(get_db)):
 
     # Fuente principal: la política asignada en el admin (privacy_policies).
     if campaign.privacy_policy_id:
+        # privacy_policies tiene RLS por org y la política puede pertenecer a la org
+        # plataforma (Encargado) mientras la campaña es de una org cliente — lectura
+        # puntual por FK, transaction-local, solo expone el aviso público.
+        await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', true)"))
         pp_result = await db.execute(
             select(PrivacyPolicy).where(
                 PrivacyPolicy.id == campaign.privacy_policy_id,
@@ -239,6 +243,8 @@ async def resend_confirmation_email(
                 select(Organization).where(Organization.id == campaign.org_id)
             )
             org = org_result.scalar_one_or_none()
+            from app.services.signature_service import build_privacy_url
+
             await send_confirmation_email(
                 to_email=email_normalized,
                 token=sig.confirmation_token,
@@ -246,6 +252,9 @@ async def resend_confirmation_email(
                 signer_name=sig.name or "",
                 org_name=org.name if org else "",
                 org_logo_url=(org.logo_url or "") if org else "",
+                visibility=sig.visibility,
+                privacy_url=build_privacy_url(campaign.slug),
+                org_contact_email=(org.contact_email or "") if org else "",
             )
         except Exception:
             pass
@@ -267,7 +276,13 @@ async def confirm_sig(token: str, db: AsyncSession = Depends(get_db)):
 
     slug = result["slug"]
     estado = "1" if result["status"] == "confirmed" else "expirada"
-    return RedirectResponse(f"{app_url}/c/{slug}?confirmada={estado}", status_code=302)
+    dest = f"{app_url}/c/{slug}?confirmada={estado}"
+    # El nombre (si la firma es pública) alimenta el popup de compartir en la landing
+    if estado == "1" and result.get("name"):
+        from urllib.parse import quote
+
+        dest += f"&nombre={quote(result['name'])}"
+    return RedirectResponse(dest, status_code=302)
 
 
 @router.get("/confirm-visibility/{token}")

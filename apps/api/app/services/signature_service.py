@@ -34,6 +34,14 @@ def _get_form_config(campaign: Campaign) -> dict:
     return {**_DEFAULT_FORM_CONFIG, **cfg}
 
 
+def build_privacy_url(slug: str | None) -> str:
+    """URL pública del aviso de privacidad de la campaña (página /aviso-de-privacidad)."""
+    from app.config import settings
+
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+    return f"{app_url}/aviso-de-privacidad?slug={slug}" if slug else f"{app_url}/aviso-de-privacidad"
+
+
 async def create_signature(
     db: AsyncSession,
     campaign: Campaign,
@@ -70,6 +78,10 @@ async def create_signature(
     # Snapshot del aviso realmente mostrado: política asignada primero, legacy después.
     text_snapshot, aviso_version, legal_basis = "", "1", "consentimiento_expreso"
     if campaign.privacy_policy_id:
+        # La política puede pertenecer a la org plataforma (Encargado) y no a la org
+        # de la campaña — sin bypass, RLS la oculta y el snapshot cae al legacy vacío
+        from sqlalchemy import text as sa_text
+        await db.execute(sa_text("SELECT set_config('app.is_platform_admin', 'true', true)"))
         pp_result = await db.execute(
             select(PrivacyPolicy).where(PrivacyPolicy.id == campaign.privacy_policy_id)
         )
@@ -140,6 +152,9 @@ async def create_signature(
             signer_name=data.name or "",
             org_name=org.name if org else "",
             org_logo_url=(org.logo_url or "") if org else "",
+            visibility=data.visibility,
+            privacy_url=build_privacy_url(campaign.slug),
+            org_contact_email=(org.contact_email or "") if org else "",
         )
     except Exception:
         logger.warning("[email] failed to send confirmation for sig %s", sig.id)
@@ -169,6 +184,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
 
     now = datetime.now(timezone.utc)
 
+    newly_confirmed = False
     if sig.status == "pending_confirmation":
         if sig.confirmation_token_expires_at:
             exp = sig.confirmation_token_expires_at
@@ -178,6 +194,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
                 return {"status": "expired", "slug": slug, "count": 0, "goal": None}
         sig.status = "confirmed"
         sig.confirmed_at = now
+        newly_confirmed = True
         await db.flush()
 
     count_result = await db.execute(
@@ -188,12 +205,47 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     )
     count = count_result.scalar() or 0
 
+    signer_name = sig.name or ""
+    email_encrypted = sig.email_encrypted
+
     await db.commit()
+
+    # Segundo email: agradecimiento + kit de difusión (solo en la primera confirmación,
+    # no en clics repetidos del enlace). Nunca bloquea la redirección.
+    if newly_confirmed and campaign:
+        try:
+            from app.crypto import decrypt_pii
+            from app.services.email_service import send_thanks_share_email
+
+            email = decrypt_pii(email_encrypted, ref=str(sig.id))
+            org_result = await db.execute(
+                select(Organization).where(Organization.id == campaign.org_id)
+            )
+            org = org_result.scalar_one_or_none()
+            meta = campaign.meta or {}
+            from app.config import settings
+
+            app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+            await send_thanks_share_email(
+                to_email=email,
+                campaign_title=campaign.petition_title or campaign.title,
+                campaign_url=f"{app_url}/c/{campaign.slug}",
+                signer_name=signer_name,
+                org_name=org.name if org else "",
+                org_logo_url=(org.logo_url or "") if org else "",
+                share_text=(meta.get("share_text") or ""),
+                qr_code_data=(campaign.qr_code_data or "") if meta.get("show_qr") else "",
+            )
+        except Exception:
+            logger.warning("[email] failed to send thanks email for sig %s", sig.id)
+
     return {
         "status": "confirmed",
         "slug": slug,
         "count": count,
         "goal": campaign.goal_count if campaign else None,
+        "name": signer_name,
+        "newly_confirmed": newly_confirmed,
     }
 
 

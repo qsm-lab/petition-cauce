@@ -473,3 +473,23 @@ antes de recolectar firmas reales); completar TEST-5 en prod.
 **Deploy:** sin migraciones ni env nuevas; falta `welcome_slogan` en campaña TLC de prod para que aparezca el eslogan.
 
 **Lección técnica:** para reordenar elementos animados con Tailwind `order` + FLIP, capturar los `getBoundingClientRect().top` en el scroll handler ANTES del `setState` y aplicar el inverso en `useLayoutEffect`; el trigger de visibilidad debe observar el botón, no la tarjeta contenedora (pantallas 13-14").
+
+---
+
+## Sesión 27 — 2026-07-08
+
+**Foco:** ajustes UX landing/formulario (con capturas), LOPDP en emails, export CSV enmascarado, popup post-confirmación, 2 fixes RLS, spec `export-entrega`.
+
+**Entregado:**
+- **Fix RLS doble**: el aviso de privacidad público devolvía 404 (política de la org plataforma invisible bajo el contexto de la org de la campaña) y el mismo patrón dejaba el snapshot del consentimiento vacío en `create_signature` — bypass transaction-local puntual por FK en ambos.
+- Formulario: firma **pública por defecto**, textos por visibilidad bajo los pills (cambian con la selección), pills azul #2B4EEA tras interacción (default negro), usted en lugar de vos, borde ink en CTAs lime, icono mano firmando al hover, título con interlineado 1.14, icono edificio gubernamental en "Dirigida a".
+- Móvil: "Por qué importa" full-bleed; CTA flotante con fondo azul y entrada/salida animada.
+- Emails: footer transparencia +Cauces.org en todas las plantillas; confirmación con nota de la visibilidad elegida + enlace al aviso + mailto de la org para cambios posteriores; **segundo email de agradecimiento** al confirmar (botones WA/FB/X + QR si visible); redirect con `&nombre=` → **popup de compartir** en la landing.
+- Admin: 3 eslóganes rotativos (meta, sin migración) en el hero; export CSV con `cedula_parcial`/`email_parcial` (17XXXXX601 / jguXXXXXXX@gmail.com); fix compartir sin URL + limpieza de U+FFFD.
+- SDD: análisis de descarga completa de PII aprobado → feature `export-entrega` (fase 3, spec_ready) con requirements/design/tasks — step-up auth (password + OTP email), token single-use, secretas excluidas, auditoría `pii_export_audit`, notificación al Responsable.
+
+**Verificación:** 57 tests API · tsc 0 · smoke tests curl (privacy 200, landing 200, popup con nombre, CSV enmascarado end-to-end). **Pendiente probar en producción.**
+
+**Deploy:** sin migraciones ni env nuevas — solo `git push`.
+
+**Lección técnica:** las tablas con RLS por org rompen silenciosamente los endpoints públicos y los flujos cross-org (Encargado↔Responsable); toda lectura pública por FK directa necesita contexto RLS explícito. `onAnimationIteration` permite rotar contenido de una animación CSS infinita justo cuando está oculta.

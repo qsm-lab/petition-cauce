@@ -2,14 +2,25 @@
 
 import { useState } from "react";
 import TurnstileWidget from "@/components/form-renderer/TurnstileWidget";
+import SignHandIcon from "@/components/ui/SignHandIcon";
 import type { FormConfig } from "@/lib/campaign-api";
 import { PROVINCIAS } from "@/lib/provincias";
+
+/** Azul de la paleta — selección activa después de que el usuario interactúa con un grupo */
+const ACTIVE_BLUE = "#2B4EEA";
 
 const ALL_VIS_OPTIONS = [
   { value: "pub"  as const, db: "publica"  as const, label: "Pública" },
   { value: "anon" as const, db: "anonima"  as const, label: "Anónima" },
   { value: "sec"  as const, db: "secreta"  as const, label: "Secreta" },
 ];
+
+/** Qué implica cada visibilidad — se muestra bajo los botones según la selección */
+const VIS_HINTS: Record<"pub" | "anon" | "sec", string> = {
+  pub:  "Su nombre aparecerá en el listado público de apoyos y en el documento de entrega de la campaña.",
+  anon: "Su firma se suma al conteo y al documento de entrega, pero su nombre no se muestra públicamente.",
+  sec:  "Su firma solo se suma al conteo. No se muestra ni se incluirá en el documento de entrega oficial a autoridades.",
+};
 
 export interface FormValues {
   signer_type: "natural" | "org";
@@ -102,15 +113,25 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
   const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
   const FONT_BODY    = "var(--font-work-sans, 'Work Sans', sans-serif)";
 
+  // Un grupo pasa a "interactuado" cuando el usuario toca cualquiera de sus pills:
+  // la selección por defecto va en negro; tras interactuar, la activa va en azul.
+  const [interacted, setInteracted] = useState<{ signer: boolean; loc: boolean; vis: boolean }>({
+    signer: false,
+    loc: false,
+    vis: false,
+  });
+  const markInteracted = (group: "signer" | "loc" | "vis") =>
+    setInteracted((prev) => (prev[group] ? prev : { ...prev, [group]: true }));
+
   // Pill button factory
   function pill(
     label: string,
     active: boolean,
     onClick: () => void,
-    isPublica = false
+    groupInteracted = false
   ) {
-    const bg    = active ? (isPublica ? categoryColor : "#16261F") : "#fff";
-    const color = active ? "#EDF4F1" : "#16261F";
+    const bg    = active ? (groupInteracted ? ACTIVE_BLUE : "#16261F") : "#fff";
+    const color = active ? "#fff" : "#16261F";
     return (
       <button
         key={label}
@@ -127,6 +148,7 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
           color,
           border: "1.5px solid #16261F",
           fontFamily: FONT_BODY,
+          transition: "background 0.25s ease, color 0.25s ease",
         }}
       >
         {label}
@@ -169,8 +191,8 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
         <div style={{ marginBottom: 18 }}>
           <div style={{ ...labelStyle, marginBottom: 8 }}>Tipo de firmante</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {pill("Persona natural", vals.signer_type === "natural", () => set("signer_type", "natural"))}
-            {pill("Organización", vals.signer_type === "org", () => set("signer_type", "org"))}
+            {pill("Persona natural", vals.signer_type === "natural", () => { markInteracted("signer"); set("signer_type", "natural"); }, interacted.signer)}
+            {pill("Organización", vals.signer_type === "org", () => { markInteracted("signer"); set("signer_type", "org"); }, interacted.signer)}
           </div>
         </div>
       )}
@@ -223,13 +245,15 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
           <div style={{ ...labelStyle, marginBottom: 8 }}>Ubicación</div>
           <div style={{ display: "flex", gap: 8 }}>
             {pill("Ecuador", vals.location_mode === "nacional", () => {
+              markInteracted("loc");
               set("location_mode", "nacional");
               set("country", "");
-            })}
+            }, interacted.loc)}
             {pill("Internacional", vals.location_mode === "internacional", () => {
+              markInteracted("loc");
               set("location_mode", "internacional");
               set("provincia", "");
-            })}
+            }, interacted.loc)}
           </div>
         </div>
       )}
@@ -294,17 +318,33 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
 
       {/* Visibilidad */}
       {showVisGroup && (
-        <div style={{ marginBottom: 18 }}>
-          <div style={{ ...labelStyle, marginBottom: 8 }}>Visibilidad de tu firma</div>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ ...labelStyle, marginBottom: 8 }}>Visibilidad de su firma</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             {visOptions.map((opt) =>
               pill(
                 opt.label,
                 vals.visibility === opt.value,
-                () => set("visibility", opt.value),
-                opt.value === "pub"
+                () => { markInteracted("vis"); set("visibility", opt.value); },
+                interacted.vis
               )
             )}
+          </div>
+          {/* Qué implica la opción elegida — cambia con la selección */}
+          <div
+            aria-live="polite"
+            style={{
+              fontSize: 12.5,
+              lineHeight: 1.55,
+              color: "rgba(22,38,31,0.65)",
+              background: "rgba(22,38,31,0.05)",
+              borderRadius: 10,
+              padding: "10px 14px",
+              minHeight: 40,
+              boxSizing: "border-box",
+            }}
+          >
+            {VIS_HINTS[vals.visibility]}
           </div>
         </div>
       )}
@@ -355,13 +395,14 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
       <button
         type="submit"
         disabled={!canSubmit}
+        className="group"
         style={{
           width: "100%",
           fontSize: 17,
           fontWeight: 700,
           color: canSubmit ? "var(--bop, #16261F)" : "rgba(22,38,31,0.4)",
           background: canSubmit ? "var(--bp, #D7F24C)" : "rgba(22,38,31,0.1)",
-          border: "none",
+          border: "1.5px solid #16261F",
           borderRadius: 30,
           padding: 18,
           cursor: canSubmit ? "pointer" : "not-allowed",
@@ -369,7 +410,10 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
           marginBottom: 16,
         }}
       >
-        Firmar esta petición
+        <span className="inline-flex items-center justify-center">
+          {canSubmit && <SignHandIcon />}
+          Firmar esta petición
+        </span>
       </button>
     </form>
 

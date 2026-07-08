@@ -69,7 +69,12 @@ export default function ShareSection({
   const isClosed = status === "closed";
 
   const encoded = encodeURIComponent(url);
-  const text = encodeURIComponent(shareText ?? `${title} — firma aquí: ${url}`);
+  // El texto del admin puede no incluir la URL — se añade siempre al final.
+  // Se eliminan U+FFFD (emojis corruptos guardados con mala codificación).
+  const cleanShareText = shareText?.replace(/�/g, "").trim();
+  const text = encodeURIComponent(
+    cleanShareText ? `${cleanShareText}\n\n${url}` : `${title} — firma aquí: ${url}`
+  );
 
   async function copyUrl() {
     if (isClosed) return;

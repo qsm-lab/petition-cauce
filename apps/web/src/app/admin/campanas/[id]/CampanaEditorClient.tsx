@@ -193,6 +193,8 @@ export default function CampanaEditorClient({
   // — Welcome copy
   const [welcomeTitle, setWelcomeTitle] = useState(campaign?.welcome_title ?? "");
   const [welcomeSlogan, setWelcomeSlogan] = useState(campaign?.welcome_slogan ?? "");
+  const [welcomeSlogan2, setWelcomeSlogan2] = useState((meta.welcome_slogan_2 as string) ?? "");
+  const [welcomeSlogan3, setWelcomeSlogan3] = useState((meta.welcome_slogan_3 as string) ?? "");
   const [welcomeDescription, setWelcomeDescription] = useState(campaign?.welcome_description ?? "");
 
   // — Thank you
@@ -302,6 +304,8 @@ export default function CampanaEditorClient({
     // Welcome copy
     welcome_title: welcomeTitle.trim() || null,
     welcome_slogan: welcomeSlogan.trim() || null,
+    welcome_slogan_2: welcomeSlogan2.trim() || null,
+    welcome_slogan_3: welcomeSlogan3.trim() || null,
     welcome_description: welcomeDescription.trim() || null,
     // Thank you
     thank_you_title: thankYouTitle.trim() || null,
@@ -576,8 +580,17 @@ export default function CampanaEditorClient({
                       <input type="text" value={welcomeTitle} onChange={(e) => setWelcomeTitle(e.target.value)} maxLength={120} placeholder="Ej: Defendemos el Yasuní" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
                     </div>
                     <div>
-                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Eslogan</label>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Eslogan 1</label>
                       <input type="text" value={welcomeSlogan} onChange={(e) => setWelcomeSlogan(e.target.value)} maxLength={200} placeholder="Ej: Cada firma cuenta" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Eslogan 2</label>
+                      <input type="text" value={welcomeSlogan2} onChange={(e) => setWelcomeSlogan2(e.target.value)} maxLength={200} placeholder="Opcional — rota tras el eslogan 1" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Eslogan 3</label>
+                      <input type="text" value={welcomeSlogan3} onChange={(e) => setWelcomeSlogan3(e.target.value)} maxLength={200} placeholder="Opcional — rota tras el eslogan 2" className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                      <p className="text-[10.5px] mt-1" style={{ color: "var(--bmut)" }}>Los eslóganes con texto rotan en secuencia sobre la imagen de portada.</p>
                     </div>
                     <div>
                       <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>Descripción / cuerpo</label>
@@ -748,6 +761,7 @@ export default function CampanaEditorClient({
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Visibilidad</p>
                   <MultiCheck options={[{ value: "publica", label: "Pública" }, { value: "anonima", label: "Anónima" }, { value: "secreta", label: "Secreta" }]} selected={visibilityOptions} onChange={setVisibilityOptions} />
+                  <p className="text-[10.5px] mt-1.5" style={{ color: "var(--bmut)" }}>Si Pública está habilitada, es la opción preseleccionada en el formulario de firma.</p>
                 </div>
               </div>
             </PanelSection>
