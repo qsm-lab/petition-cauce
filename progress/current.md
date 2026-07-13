@@ -73,19 +73,19 @@ está en producción**.
     `secreta` `pending_confirmation` con un copy propio (sin mención al
     nombre).
 
-### 4. Infra de email (fuera del código, hecho por el usuario en el VPS/Cloudflare)
+### 4. Infra de email (fuera del código, hecho por el usuario en el VPS/Cloudflare) — **las 3 resueltas**
 - `database/init.sh` sin permiso de ejecución — bloqueaba cualquier volumen
   nuevo de la DB dev (`petition_app` nunca se creaba). Corregido (`chmod +x`).
-- Alertas de deliverability de Resend revisadas: dominio `.com` vs `.org`
-  en el `mailto` de contacto (org configurada con `info@ecuadornotlc.com`,
-  el dominio que envía es `.org`), DMARC faltante, remitente `noreply@`.
-  Solución para el mailto: Cloudflare Email Routing (`info@ecuadornotlc.org`
-  → `info@ecuadornotlc.com`, buzón real en GreenGeeks) — MX/SPF/DKIM ya
-  aparecen en el DNS; **la regla de ruteo en sí (Email Routing → Routing
-  rules) no se confirmó como creada, revisar al inicio de la próxima
-  sesión**. `RESEND_FROM_EMAIL` cambiado de `noreply@` a una dirección real
-  — confirmado funcionando por el usuario. DMARC sigue pendiente de cargar
-  en Cloudflare.
+- Alertas de deliverability de Resend revisadas y **las 3 confirmadas
+  resueltas por el usuario**:
+  - **Mailto con dominio equivocado** (org configurada con
+    `info@ecuadornotlc.com`, el dominio que envía es `.org`) — resuelto vía
+    Cloudflare Email Routing (`info@ecuadornotlc.org` → `info@ecuadornotlc.com`,
+    buzón real en GreenGeeks): regla de ruteo creada y verificada, y
+    `contact_email` de la organización actualizado a `info@ecuadornotlc.org`.
+  - **Registro DMARC faltante** — cargado en Cloudflare DNS (`_dmarc` TXT).
+  - **Remitente `noreply@`** — `RESEND_FROM_EMAIL` cambiado a una dirección
+    real, confirmado funcionando.
 - Dos alertas más (email de agradecimiento, distinto email): el link de
   WhatsApp (`wa.me`) es un falso positivo inherente a cualquier botón de
   compartir — no accionable. El QR como `data:image` (bloqueado por Gmail)
@@ -161,23 +161,20 @@ origin/main` al cerrar esta sesión (sin pérdida: el único commit local
 
 ## Pendientes para próxima sesión
 
-1. **Confirmar la regla de Email Routing** (`info@ecuadornotlc.org` →
-   `info@ecuadornotlc.com`) quedó realmente creada y verificada en
-   Cloudflare — solo se confirmaron los registros DNS, no la regla.
-2. **Cargar el registro DMARC** en Cloudflare (`_dmarc` TXT,
-   `v=DMARC1; p=none; rua=mailto:info@ecuadornotlc.org`) — sigue pendiente.
-3. Una vez confirmado el Email Routing, actualizar `contact_email` de la
-   organización en `/admin/organizaciones` a `info@ecuadornotlc.org`.
-4. Ampliar el recordatorio de confirmación (botón admin) para incluir
+Las 3 alertas de deliverability de Resend (mailto con dominio equivocado,
+DMARC faltante, remitente `noreply@`) **quedaron resueltas esta misma
+sesión** — ver sección 4 arriba. Queda para adelante:
+
+1. Ampliar el recordatorio de confirmación (botón admin) para incluir
    `anonima`/`secreta` `pending_confirmation` — requiere copy de email
    distinto (sin mención al nombre). Pedido explícito del usuario.
-5. Opcional: servir el QR del email de agradecimiento desde un endpoint
+2. Opcional: servir el QR del email de agradecimiento desde un endpoint
    propio en vez de `data:image` (resuelve el bloqueo de Gmail + la alerta
    de deliverability de Resend de una vez).
-6. Verificar en el dashboard de firmas de producción que los 247 firmantes
+3. Verificar en el dashboard de firmas de producción que los 247 firmantes
    vayan completando su nombre / confirmando en los próximos días (el link
    de completar vence a los 7 días).
-7. Sigue en espera por congelamiento: `dev` (retención-datos, supresión-
+4. Sigue en espera por congelamiento: `dev` (retención-datos, supresión-
    admin, derechos-arco) — decidir cuándo se libera la campaña real para
    traer ese trabajo a `main`.
 
