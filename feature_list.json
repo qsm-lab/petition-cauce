@@ -220,8 +220,8 @@
     {
       "id": "derechos-arco",
       "title": "Fase 3 — LOPDP: flujo ARCO + portabilidad + oposición (self-service)",
-      "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma.",
-      "status": "spec_ready",
+      "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma. Backend implementado y verificado (sesión 30, migraciones 020+021). Frontend (/mis-datos + portal) pendiente de ronda de Claude Design antes de implementar (T12-T14).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3
@@ -229,8 +229,8 @@
     {
       "id": "supresion-admin",
       "title": "Fase 3 — LOPDP: supresión de firma desde admin (ventana 15 días)",
-      "description": "Botón Archivar en el dashboard de firmas para solicitudes de supresión recibidas por canal no digital. Archiva → notifica al firmante por email → job purga la PII a los 15 días (reversible en ventana). La firma sigue cuantificándose (fila anonimizada conserva campaign_id/status). Reutiliza anonymize_signature de retencion-datos y auditoría arco_requests de derechos-arco.",
-      "status": "spec_ready",
+      "description": "Botón Archivar en el dashboard de firmas para solicitudes de supresión recibidas por canal no digital. Archiva → notifica al firmante por email → job purga la PII a los 15 días (reversible en ventana). La firma sigue cuantificándose (fila anonimizada conserva campaign_id/status). Reutiliza anonymize_signature de retencion-datos y auditoría arco_requests (creada adelantada en esta feature; derechos-arco la reutilizará).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3
@@ -239,7 +239,7 @@
       "id": "retencion-datos",
       "title": "Fase 3 — LOPDP: job de retención y purga/anonimización",
       "description": "Job programado que purga o anonimiza datos de firmantes según la política de retención definida en privacy_config de cada campaña. Se ejecuta tras presentar el expediente o al expirar el plazo. Registra la acción en audit log.",
-      "status": "spec_ready",
+      "status": "in_progress",
       "sdd": true,
       "area": "backend",
       "phase": 3

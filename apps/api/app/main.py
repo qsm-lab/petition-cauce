@@ -15,12 +15,17 @@ from app.routers import auth, forms, campaigns, public, dashboard, exports, doma
 from app.routers import public_campaign
 from app.routers import admin_signatures
 from app.routers import categories, privacy_policies, organizaciones
+from app.routers import admin_retention
+from app.routers import arco
+from app.scheduler import start_scheduler, shutdown_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_redis()
+    start_scheduler()
     yield
+    shutdown_scheduler()
     await close_redis()
 
 
@@ -55,6 +60,8 @@ app.include_router(admin_signatures.router, prefix="/v1/admin", tags=["admin"])
 app.include_router(categories.router, prefix="/v1/admin", tags=["categories"])
 app.include_router(privacy_policies.router, prefix="/v1/admin", tags=["privacy-policies"])
 app.include_router(organizaciones.router, prefix="/v1/admin", tags=["organizaciones"])
+app.include_router(admin_retention.router, prefix="/v1/admin", tags=["admin-retention"])
+app.include_router(arco.router, prefix="/v1/arco", tags=["arco"])
 
 
 @app.get("/health", tags=["health"])

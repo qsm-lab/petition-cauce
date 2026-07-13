@@ -7,6 +7,7 @@ export interface SignaturePayload {
   name: string;
   email: string;
   cedula?: string;
+  celular?: string;
   location_mode: "nacional" | "internacional";
   provincia?: string;
   country?: string;

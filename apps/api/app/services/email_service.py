@@ -405,6 +405,234 @@ async def send_visibility_change_email(
     await _send(to_email, f"Confirma el cambio de visibilidad: {campaign_title}", html)
 
 
+_ARCO_VERIFY_PATH = "/mis-datos/portal"
+
+_ARCO_RIGHT_LABELS = {
+    "supresion": "supresión de datos",
+    "rectificacion": "rectificación de datos",
+}
+
+
+async def send_arco_verification_email(
+    to_email: str,
+    token: str,
+    signer_name: str = "",
+    campaign_count: int = 1,
+) -> None:
+    """Enlace de verificación de identidad para el portal de derechos ARCO (R1-R3, R1b).
+
+    Platform-wide: no está atado a una campaña específica — el enlace abre
+    una sesión de portal con todas las campañas encontradas. Válido 1h, un
+    solo uso.
+    """
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+    verify_url = f"{app_url}{_ARCO_VERIFY_PATH}?token={token}"
+
+    if not settings.resend_api_key:
+        logger.info("[dev] arco verification email | to=%s | url=%s", to_email, verify_url)
+        return
+
+    campaign_phrase = (
+        "una campaña de Cauce" if campaign_count <= 1 else f"{campaign_count} campañas de Cauce"
+    )
+    html = _signer_action_html(
+        heading="Accede a tus datos",
+        body_html=(
+            f"Recibimos una solicitud para acceder a tus datos en {campaign_phrase}.<br>"
+            "Haz clic en el botón para entrar al portal. El enlace es válido por 1 hora y de un solo uso."
+        ),
+        cta_label="Acceder a mis datos →",
+        cta_url=verify_url,
+        footer="Si no solicitaste esto, ignora este mensaje — nadie más puede acceder a tus datos sin este enlace.",
+        signer_name=signer_name,
+        org_name="Cauce",
+        org_logo_url="",
+    )
+    await _send(to_email, "Accede a tus datos en Cauce", html)
+
+
+async def send_arco_change_notification(
+    to_email: str,
+    action_label: str,
+    campaign_title: str | None = None,
+    signer_name: str = "",
+) -> None:
+    """R18: notifica al propio titular tras cualquier cambio hecho desde el portal ARCO
+    (transparencia/seguridad — permite detectar uso no autorizado de la sesión)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] arco change email | to=%s | action=%s | campaign=%s", to_email, action_label, campaign_title)
+        return
+
+    scope = f" en <strong>{campaign_title}</strong>" if campaign_title else " en tu cuenta de Cauce"
+    html = _signer_action_html(
+        heading="Actualizamos tus datos",
+        body_html=(
+            f"{action_label}{scope}.<br>"
+            "Si no fuiste vos, escribinos de inmediato — alguien más pudo haber accedido a tu enlace."
+        ),
+        cta_label="Ir a mis datos →",
+        cta_url=f"{(settings.next_public_app_url or 'http://localhost:3002').rstrip('/')}/mis-datos",
+        footer="Este aviso se envía por cada cambio realizado desde el portal de derechos ARCO.",
+        signer_name=signer_name,
+        org_name="Cauce",
+        org_logo_url="",
+    )
+    await _send(to_email, "Actualizamos tus datos en Cauce", html)
+
+
+async def send_arco_org_notification(
+    to_email: str,
+    campaign_title: str,
+    right_type: str,
+    requested_at: str,
+) -> None:
+    """Notifica al Responsable el ejercicio de un derecho ARCO (R11). Fire-and-forget, sin PII del titular."""
+    if not to_email:
+        return
+    label = _ARCO_RIGHT_LABELS.get(right_type, right_type)
+
+    if not settings.resend_api_key:
+        logger.info("[dev] arco org notification | to=%s | right=%s | campaign=%s", to_email, right_type, campaign_title)
+        return
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">Petición Cauce</p>
+          <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1a2516;line-height:1.2;">Ejercicio de derecho ARCO: {campaign_title}</h1>
+          <p style="margin:0 0 8px;font-size:15px;color:#4a5644;">
+            Un titular ejerció su derecho de <strong>{label}</strong> sobre sus datos en esta campaña.
+          </p>
+          <p style="margin:8px 0 0;font-size:13px;color:#7a8a72;">Fecha: {requested_at}</p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"[Cauce] Ejercicio de derecho ARCO — {campaign_title}", html)
+
+
+async def send_arco_deletion_notification(
+    to_email: str,
+    campaign_title: str,
+    signer_name: str = "",
+    org_name: str = "",
+    org_logo_url: str = "",
+    org_contact_email: str = "",
+) -> None:
+    """Confirma al titular que sus datos fueron eliminados de inmediato (R7, supresión self-service)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] arco deletion email | to=%s | campaign=%s", to_email, campaign_title)
+        return
+
+    contact_block = ""
+    if org_contact_email:
+        contact_block = (
+            " Si tienes dudas, escríbenos a "
+            f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+            f"{org_contact_email}</a>."
+        )
+
+    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    greeting = f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Hola {first_name},</p>" if first_name else ""
+    logo_block = (
+        f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
+        f"style=\"display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;margin:0 0 12px;\">"
+        if org_logo_url else ""
+    )
+    org_label = org_name or "Petición Cauce"
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          {logo_block}
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">{org_label}</p>
+          <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1a2516;line-height:1.2;">Tus datos fueron eliminados</h1>
+          {greeting}
+          <p style="margin:0 0 20px;font-size:15px;color:#4a5644;line-height:1.6;">
+            A tu solicitud, tus datos personales en <strong>{campaign_title}</strong> fueron eliminados definitivamente.
+            Tu apoyo a la campaña seguirá contando de forma anónima.{contact_block}
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"Tus datos fueron eliminados: {campaign_title}", html)
+
+
+async def send_archive_notification(
+    to_email: str,
+    campaign_title: str,
+    purge_date: str,
+    signer_name: str = "",
+    org_name: str = "",
+    org_logo_url: str = "",
+    org_contact_email: str = "",
+) -> None:
+    """Notifica la supresión solicitada por canal no digital (archivado admin, ventana 15 días — R3)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] archive email | to=%s | purge_date=%s", to_email, purge_date)
+        return
+
+    contact_block = ""
+    if org_contact_email:
+        contact_block = (
+            " Si deseas revertir esta acción antes de esa fecha, escríbenos a "
+            f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+            f"{org_contact_email}</a>."
+        )
+
+    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    greeting = f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Hola {first_name},</p>" if first_name else ""
+    logo_block = (
+        f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
+        f"style=\"display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;margin:0 0 12px;\">"
+        if org_logo_url else ""
+    )
+    org_label = org_name or "Petición Cauce"
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          {logo_block}
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">{org_label}</p>
+          <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1a2516;line-height:1.2;">Tus datos fueron archivados</h1>
+          {greeting}
+          <p style="margin:0 0 20px;font-size:15px;color:#4a5644;line-height:1.6;">
+            A tu solicitud, tus datos personales en <strong>{campaign_title}</strong> quedaron archivados
+            y serán eliminados definitivamente el <strong>{purge_date}</strong>.<br><br>
+            Tu apoyo a la campaña seguirá contando de forma anónima.{contact_block}
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"Tus datos fueron archivados: {campaign_title}", html)
+
+
 async def send_name_completion_email(
     to_email: str,
     token: str,

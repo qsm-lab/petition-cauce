@@ -16,6 +16,8 @@ from app.models.domain import Domain
 from app.models.category import Category
 from app.models.privacy_policy import PrivacyPolicy
 from app.models.pii_export_audit import PiiExportAudit
+from app.models.retention_run import RetentionRun
+from app.models.arco_request import ArcoRequest
 
 __all__ = [
     "Base",
@@ -41,4 +43,6 @@ __all__ = [
     "Category",
     "PrivacyPolicy",
     "PiiExportAudit",
+    "RetentionRun",
+    "ArcoRequest",
 ]

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>derechos-arco — /mis-datos + portal (design reference)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bp:#D7F24C; --bop:#16261F; --bsec:#DCE9E6; --bink:#16261F;
+    --bmut:rgba(22,38,31,.55); --bsurf:#fff; --bbg:#EDF4F1; --bbord:rgba(22,38,31,.15);
+    --cream:#FBF0E6; --navy:#12222E; --amber:#b45309; --amberbg:color-mix(in srgb,#b45309 12%,transparent);
+    --danger:#c2410c; --danger-bg:#FBEAE4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Work Sans',sans-serif;background:#dfe6e2;color:var(--bink);}
+  .frame{max-width:1160px;margin:0 auto 56px;background:var(--bbg);padding:48px 24px;}
+  .frame-label{max-width:1160px;margin:0 auto;padding:16px 24px 0;font-family:'Work Sans';font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#12222E;background:#fff;border:1px dashed #94a89e;border-bottom:none;}
+  h1,h2{font-family:'Anton',sans-serif;font-weight:400;margin:0;}
+  .card{background:var(--bsurf);border:1.5px solid var(--bink);border-radius:18px;}
+  .pill-btn{border-radius:30px;font-weight:700;border:1.5px solid var(--bink);cursor:pointer;font-family:'Work Sans',sans-serif;}
+  .muted{color:var(--bmut);}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bmut);}
+  input,select{width:100%;box-sizing:border-box;padding:14px 16px;border-radius:10px;border:1.5px solid var(--bink);font-size:16px;font-family:'Work Sans',sans-serif;background:#fff;color:var(--bink);outline:none;}
+  label.field-label{font-size:13px;font-weight:700;display:block;margin-bottom:6px;}
+  .badge{display:inline-flex;align-items:center;font-weight:600;font-size:11px;padding:3px 10px;border-radius:99px;}
+  .spec-note{max-width:1160px;margin:0 auto;padding:14px 24px;background:#FFF7E0;border:1px dashed #b45309;border-top:none;font-size:12.5px;line-height:1.6;color:#5c3a08;}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- FRAME 0 — ActionBlock existente (landing-campana) + botón secundario nuevo -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 0 · Landing pública · Addition al ActionBlock ya implementado (no es pantalla nueva)</div>
+<div class="frame" style="padding:32px 24px;">
+  <div style="max-width:340px;">
+    <div class="card" style="padding:24px;">
+      <div class="badge" style="background:var(--bink);color:#FBF0E6;margin-bottom:10px;">DIRIGIDA A · Ministerio del Ambiente</div>
+      <div style="font-family:'Anton';font-size:40px;margin-bottom:2px;">1.284</div>
+      <div class="muted" style="font-size:13px;margin-bottom:14px;">de 5.000 firmas objetivo</div>
+      <div style="height:10px;background:rgba(22,38,31,.1);border-radius:99px;margin-bottom:18px;overflow:hidden;">
+        <div style="width:26%;height:100%;background:#3F8F5C;border-radius:99px;"></div>
+      </div>
+      <button class="pill-btn" style="width:100%;font-size:17px;padding:16px;background:var(--bp);color:var(--bop);margin-bottom:10px;">Firmar esta petición</button>
+
+      <!-- ▼ NUEVO: botón secundario -->
+      <a href="#" class="pill-btn" style="display:block;text-align:center;width:100%;font-size:13px;padding:12px;background:#fff;color:#16261F;text-decoration:none;">
+        ¿Ya firmaste? Accedé a tus datos
+      </a>
+
+      <p style="font-size:11px;color:var(--bmut);text-align:center;margin:10px 0 0;">
+        Este enlace lleva a <code>/mis-datos?campaign={id}</code> — se preserva
+        de qué campaña vino para preseleccionarla en el portal (punto 2.3).
+      </p>
+    </div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Nota de backend (no visual):</strong> hay DOS emails con acceso
+  directo al portal (mismo mecanismo de <code>request_access</code> pero con
+  token propio de 24h, generado en el momento): (1) el email de confirmación
+  original (Frame 0b, abajo) — enviado al firmar, antes de confirmar, para
+  corregir errores desde el primer momento; (2) el de agradecimiento
+  (<code>send_thanks_share_email</code>, ya existente) tras confirmar. Ambos
+  entran <strong>directo al Frame 5</strong>, sin pasar por el formulario de
+  email+cédula del Frame 1, con la campaña de origen preseleccionada.
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 0b — Email de confirmación con resumen + corrección (nuevo) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 0b · Email · Confirmación con resumen de datos + corrección</div>
+<div class="frame" style="background:#dfe6e2;padding:40px 24px;">
+  <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:20px;padding:32px 28px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+    <p style="font-size:11px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;margin:0 0 6px;">¡Protejamos el Yasuní!</p>
+    <h2 style="font-family:'Anton';font-weight:400;font-size:22px;color:#1a2516;margin:0 0 10px;">Confirma tu firma</h2>
+    <p style="font-size:14px;color:#4a5644;line-height:1.6;margin:0 0 16px;">
+      Gracias por apoyar esta campaña.<br>
+      Haz clic en el botón para activar tu firma. El enlace es válido por 24 horas.
+    </p>
+    <div style="padding:14px 16px;background:#f4f5f0;border-radius:10px;font-size:13px;line-height:1.7;color:#4a5644;margin-bottom:20px;">
+      <strong>Revisa que tus datos hayan quedado bien escritos:</strong><br>
+      Nombre completo: María Fernanda Chávez<br>
+      Cédula: 17XXXXX065<br>
+      Ubicación: Pichincha
+    </div>
+    <div style="text-align:center;">
+      <a href="#" style="display:inline-block;background:#3d6b35;color:#fff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:100px;">Confirmar mi firma →</a>
+      <p style="margin:16px 0 0;"><a href="#" style="color:#6b7d63;text-decoration:underline;font-size:13px;font-weight:600;">¿Algo está mal? Corregir mis datos</a></p>
+    </div>
+    <p style="font-size:12px;color:#9aaa92;margin:24px 0 0;line-height:1.5;">Si no solicitaste esta acción, ignora este mensaje. Tu firma no quedará registrada.</p>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Nota de backend (no visual):</strong> el bloque de revisión NUNCA
+  incluye el correo — que este email haya llegado a la bandeja ya prueba que
+  se escribió bien. Siempre muestra nombre completo y cédula (enmascarada);
+  suma organización, ubicación (provincia o país, según el modo) y celular
+  <em>solo si la campaña los pidió y el firmante los completó</em> (R19).
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 1 — /mis-datos (formulario de solicitud, estado inicial) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 1 · /mis-datos · Formulario de solicitud</div>
+<div class="frame">
+  <div style="max-width:480px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-family:'Anton';font-size:22px;color:var(--bink);">Cauce</div>
+      <div class="eyebrow" style="margin-top:2px;">Portal de derechos ARCO</div>
+    </div>
+
+    <div class="card" style="padding:36px 32px;">
+      <h1 style="font-size:clamp(26px,4vw,32px);color:#2B4EEA;margin-bottom:14px;">Accedé a tus datos</h1>
+      <p style="font-size:15px;line-height:1.6;color:rgba(22,38,31,.82);margin:0 0 22px;">
+        Si firmaste alguna petición en <strong>cualquier campaña de Cauce</strong>,
+        podés ejercer tus derechos LOPDP desde un solo lugar: ver tus datos,
+        corregirlos, oponerte a comunicaciones, descargar una copia o eliminar
+        tu información — campaña por campaña. Ingresá el correo y la cédula con
+        los que firmaste — te enviaremos un enlace de verificación.
+      </p>
+
+      <form>
+        <div style="margin-bottom:16px;">
+          <label class="field-label">Correo electrónico *</label>
+          <input type="email" placeholder="tu@correo.com">
+        </div>
+        <div style="margin-bottom:20px;">
+          <label class="field-label">Cédula de identidad *</label>
+          <input type="text" inputmode="numeric" maxlength="10" placeholder="0102030405">
+        </div>
+
+        <div style="font-size:12px;color:rgba(22,38,31,.45);margin-bottom:20px;">
+          Protegido con verificación de seguridad automática.
+        </div>
+
+        <button type="button" class="pill-btn" style="width:100%;font-size:17px;padding:18px;background:var(--bp);color:var(--bop);">
+          Enviar enlace de acceso
+        </button>
+      </form>
+
+      <p style="font-size:12px;color:var(--bmut);margin:18px 0 0;line-height:1.5;text-align:center;">
+        Por privacidad, siempre mostramos este mismo mensaje al enviar la
+        solicitud, exista o no una firma asociada a esos datos.
+      </p>
+    </div>
+
+    <p style="text-align:center;font-size:12.5px;margin-top:18px;">
+      <a href="#" style="color:var(--bink);font-weight:600;">← Volver a la campaña</a>
+    </p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 2 — /mis-datos (confirmación genérica, anti-enumeración) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 2 · /mis-datos · Confirmación genérica (R2 anti-enumeración)</div>
+<div class="frame">
+  <div style="max-width:480px;margin:0 auto;">
+    <div class="card" style="padding:40px 32px;text-align:center;">
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--bsec);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:26px;">✉️</div>
+      <h1 style="font-size:24px;margin-bottom:10px;color:var(--bink);">Revisá tu correo</h1>
+      <p style="font-size:14.5px;line-height:1.6;color:rgba(22,38,31,.75);margin:0 0 4px;">
+        Si existen datos asociados a ese correo y cédula, te enviamos un
+        enlace de verificación. El enlace es válido por <strong>1 hora</strong>
+        y de un solo uso.
+      </p>
+      <p style="font-size:13px;color:var(--bmut);margin:16px 0 0;">
+        ¿No te llegó nada? Revisá spam o intentá de nuevo en unos minutos.
+      </p>
+    </div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Nota de backend (no visual):</strong> este mismo mensaje se muestra
+  exista o no una firma, y sea cual sea su estado (confirmada, pendiente,
+  ya suprimida). Si la única coincidencia está pendiente de confirmación y su
+  campaña sigue en estado firmable, al hacer clic en el enlace del correo se
+  confirma automáticamente esa firma como parte de la verificación de
+  identidad — no hace falta un segundo enlace ni pantalla adicional. Si la
+  campaña ya cerró, se omite la confirmación pero igual se da acceso al
+  portal para gestionar ese registro (ver Frame 5, fila 3).
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 3 — /mis-datos/portal (verificando token) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 3 · /mis-datos/portal?token=… · Verificando</div>
+<div class="frame" style="padding-top:80px;padding-bottom:80px;">
+  <div style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+    <div style="width:44px;height:44px;border-radius:50%;border:4px solid rgba(22,38,31,.15);border-top-color:#16261F;margin-bottom:20px;"></div>
+    <div style="font-family:'Anton';font-size:22px;margin-bottom:8px;">Verificando tu acceso…</div>
+    <div style="font-size:14px;color:var(--bmut);">Un momento, estamos confirmando tu identidad.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 4 — /mis-datos/portal (token inválido / expirado) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 4 · /mis-datos/portal · Enlace inválido o expirado</div>
+<div class="frame">
+  <div style="max-width:480px;margin:0 auto;">
+    <div class="card" style="padding:40px 32px;text-align:center;">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--danger-bg);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--danger);margin:0 auto 20px;">!</div>
+      <h1 style="font-size:24px;margin-bottom:10px;">Este enlace ya no es válido</h1>
+      <p style="font-size:14.5px;line-height:1.6;color:rgba(22,38,31,.75);margin:0 0 24px;">
+        El enlace expiró o ya fue usado — cada enlace de verificación es de un
+        solo uso y dura 1 hora.
+      </p>
+      <button class="pill-btn" style="width:100%;font-size:15px;padding:16px;background:var(--bp);color:var(--bop);">
+        Solicitar un nuevo enlace
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 5 — /mis-datos/portal (portal completo, sesión verificada, MULTI-CAMPAÑA, 3 niveles) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 5 · /mis-datos/portal · Portal — datos compartidos + selector por campaña</div>
+<div class="frame">
+  <div style="max-width:640px;margin:0 auto;">
+
+    <div style="text-align:center;margin-bottom:6px;">
+      <div style="font-family:'Anton';font-size:20px;">Cauce</div>
+    </div>
+    <div style="text-align:center;margin-bottom:28px;">
+      <h1 style="font-size:clamp(24px,3.6vw,30px);color:#2B4EEA;">Tus datos en Cauce</h1>
+      <p class="muted" style="font-size:13.5px;margin-top:4px;">
+        Sesión activa por <strong style="color:var(--bink);">30 minutos</strong> ·
+        encontramos <strong style="color:var(--bink);">3 campañas</strong> con datos tuyos.
+      </p>
+    </div>
+
+    <!-- ══════════ NIVEL 1 — Datos personales (compartidos, una sola vez) ══════════ -->
+    <section class="card" style="padding:24px;margin-bottom:14px;">
+      <div class="eyebrow" style="margin-bottom:4px;">Tus datos personales</div>
+      <h2 style="font-size:18px;margin-bottom:4px;">Se aplican a tus 3 campañas</h2>
+      <p style="font-size:12.5px;color:var(--bmut);margin:0 0 16px;line-height:1.5;">
+        Nombre, correo y cédula se actualizan en todas tus campañas a la vez —
+        salvo las que ya <strong>cerraron</strong>: esos datos quedan fijos ahí
+        porque pudieron usarse en la entrega formal de firmas. Provincia/país y
+        tipo de firmante se gestionan por campaña más abajo — cada una puede ser
+        distinta. El correo/cédula también son únicos por campaña: si el valor
+        nuevo ya está en uso en alguna, esa campaña no se actualiza y te lo avisamos.
+      </p>
+      <div style="margin-bottom:12px;">
+        <label class="field-label">Nombre</label>
+        <input type="text" value="María Fernanda Chávez">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label class="field-label">Correo electrónico</label>
+          <input type="email" value="maria@gmail.com">
+        </div>
+        <div>
+          <label class="field-label">Cédula</label>
+          <input type="text" value="1710034065">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="field-label">Celular <span style="font-weight:400;color:var(--bmut);">(opcional)</span></label>
+        <input type="tel" placeholder="099 123 4567">
+      </div>
+
+      <!-- Ejemplo de aviso: choque por campaña -->
+      <div style="padding:10px 14px;background:var(--amberbg);border-radius:10px;font-size:12px;color:var(--amber);margin-bottom:10px;line-height:1.5;">
+        ⚠ El correo no se pudo actualizar en <strong>Agua limpia para el Cotacachi</strong> —
+        ya hay una firma con ese correo ahí. Se actualizó en las otras 2 campañas.
+      </div>
+      <!-- Ejemplo de aviso: campaña cerrada -->
+      <div style="padding:10px 14px;background:var(--bbg);border-radius:10px;font-size:12px;color:rgba(22,38,31,.7);margin-bottom:14px;line-height:1.5;">
+        🔒 Tu nombre en <strong>Justicia para el páramo de Íntag</strong> quedó
+        fijo — esa campaña ya cerró y sus datos pudieron usarse en la entrega
+        formal. Sí se actualizó en tus otras campañas activas.
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <button class="pill-btn" style="padding:11px 20px;font-size:13px;background:var(--bp);color:var(--bop);">Guardar datos personales</button>
+        <span style="font-size:11px;color:var(--bmut);">Cédula: 17XXXXX065 · Celular: XXXXXX4567</span>
+      </div>
+      <p style="font-size:11px;color:var(--bmut);margin:12px 0 0;line-height:1.5;">
+        Por trazabilidad, registramos que cambiaste estos datos y cuándo — no
+        guardamos el valor anterior. Si cambiás el correo de una firma que
+        todavía no confirmaste, te reenviamos la confirmación a la dirección
+        nueva. Por seguridad, avisamos cualquier cambio al correo <strong>anterior</strong>.
+      </p>
+    </section>
+
+    <!-- ══════════ NIVEL 1 — Portabilidad unificada ══════════ -->
+    <section class="card" style="padding:24px;margin-bottom:24px;">
+      <div class="eyebrow" style="margin-bottom:4px;">Portabilidad</div>
+      <h2 style="font-size:18px;margin-bottom:10px;">Descargá una copia de todo</h2>
+      <p style="font-size:12.5px;color:var(--bmut);margin:0 0 14px;">
+        Un solo archivo con tus 3 campañas. Generado al momento — no lo guardamos.
+      </p>
+      <div style="display:flex;gap:10px;">
+        <button class="pill-btn" style="flex:1;padding:11px;font-size:13px;background:#fff;color:#16261F;">⬇ Descargar JSON</button>
+        <button class="pill-btn" style="flex:1;padding:11px;font-size:13px;background:#fff;color:#16261F;">⬇ Descargar CSV</button>
+      </div>
+    </section>
+
+    <!-- ══════════ NIVEL 2 — Selector lateral de campañas ══════════ -->
+    <div class="eyebrow" style="margin-bottom:8px;">Preferencias por campaña</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px;">
+      <button class="pill-btn" style="padding:9px 16px;font-size:12.5px;background:#16261F;color:#fff;white-space:nowrap;">
+        ¡Protejamos el Yasuní! <span style="opacity:.7;">· Confirmada</span>
+      </button>
+      <button class="pill-btn" style="padding:9px 16px;font-size:12.5px;background:#fff;color:#16261F;white-space:nowrap;">
+        Alto a la megaminería en Íntag <span style="opacity:.6;">· Confirmada</span>
+      </button>
+      <button class="pill-btn" style="padding:9px 16px;font-size:12.5px;background:#fff;color:#16261F;white-space:nowrap;">
+        Agua limpia para el Cotacachi <span style="color:var(--amber);">· Pendiente</span>
+      </button>
+    </div>
+    <p style="font-size:12px;color:var(--bmut);margin:0 0 16px;">
+      Llegaste desde <strong style="color:var(--bink);">¡Protejamos el Yasuní!</strong> — por eso se muestra primero.
+      Elegí otra pestaña arriba para gestionar sus preferencias.
+    </p>
+
+    <!-- ══════════ NIVEL 3 — Tarjeta unificada de la campaña activa ══════════ -->
+    <section class="card" style="padding:24px;border-color:#2B4EEA;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#2B4EEA;">
+          Estás editando: ¡Protejamos el Yasuní!
+        </div>
+        <span class="badge" style="background:#DCE9E6;color:#16261F;">Confirmada</span>
+      </div>
+
+      <!-- Confirmación manual (deshabilitada si ya confirmada) -->
+      <button class="pill-btn" disabled style="padding:8px 14px;font-size:12px;background:rgba(22,38,31,.06);color:rgba(22,38,31,.35);border-color:rgba(22,38,31,.15);cursor:not-allowed;margin:10px 0 16px;">
+        ✓ Firma ya confirmada
+      </button>
+
+      <!-- Tipo de firmante + Ubicación — solo editables mientras pendiente y campaña activa -->
+      <div class="eyebrow" style="margin-bottom:6px;">Tipo de firmante y ubicación</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="pill-btn" disabled style="flex:1;padding:9px 6px;font-size:12.5px;background:rgba(22,38,31,.06);color:rgba(22,38,31,.35);border-color:rgba(22,38,31,.15);cursor:not-allowed;">Natural</button>
+        <button class="pill-btn" disabled style="flex:1;padding:9px 6px;font-size:12.5px;background:rgba(22,38,31,.06);color:rgba(22,38,31,.35);border-color:rgba(22,38,31,.15);cursor:not-allowed;">Organización</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="pill-btn" disabled style="flex:1;padding:9px 6px;font-size:12.5px;background:rgba(22,38,31,.06);color:rgba(22,38,31,.35);border-color:rgba(22,38,31,.15);cursor:not-allowed;">Ecuador</button>
+        <button class="pill-btn" disabled style="flex:1;padding:9px 6px;font-size:12.5px;background:rgba(22,38,31,.06);color:rgba(22,38,31,.35);border-color:rgba(22,38,31,.15);cursor:not-allowed;">Internacional</button>
+      </div>
+      <p style="font-size:11px;color:var(--bmut);margin:0 0 10px;line-height:1.5;">
+        🔒 Ya confirmaste esta firma — el tipo de firmante y la ubicación quedan
+        fijos. Solo se pueden cambiar mientras la firma está pendiente de
+        confirmar y la campaña sigue activa.
+      </p>
+      <div style="margin-bottom:16px;">
+        <label class="field-label">Provincia</label>
+        <select><option>Pichincha</option></select>
+        <p style="font-size:11px;color:var(--bmut);margin:6px 0 0;">Esta sí se puede corregir siempre, aunque la campaña ya haya cerrado.</p>
+      </div>
+
+      <!-- Visibilidad -->
+      <div class="eyebrow" style="margin-bottom:6px;">Visibilidad de tu firma</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="pill-btn" style="flex:1;padding:10px 6px;font-size:13px;background:#2B4EEA;color:#fff;border-color:#16261F;">Pública</button>
+        <button class="pill-btn" style="flex:1;padding:10px 6px;font-size:13px;background:#fff;color:#16261F;">Anónima</button>
+        <button class="pill-btn" style="flex:1;padding:10px 6px;font-size:13px;background:#fff;color:#16261F;">Secreta</button>
+      </div>
+      <div style="font-size:12px;line-height:1.55;color:rgba(22,38,31,.65);background:var(--bbg);border-radius:10px;padding:10px 14px;margin-bottom:20px;">
+        <strong>Pública:</strong> tu nombre aparece en el listado de apoyos y en el
+        documento de entrega. <strong>Anónima:</strong> tu firma se suma al conteo y
+        al documento, pero tu nombre no se muestra. <strong>Secreta:</strong> solo
+        se suma al conteo — nunca se muestra ni se incluye en la entrega oficial.
+      </div>
+
+      <!-- Oposición -->
+      <div class="eyebrow" style="margin-bottom:6px;">Preferencias de contacto</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bbord);">
+        <div style="font-weight:600;font-size:13.5px;">Novedades de esta campaña</div>
+        <div style="width:40px;height:23px;border-radius:99px;background:#16261F;position:relative;flex-shrink:0;">
+          <div style="width:17px;height:17px;border-radius:50%;background:#fff;position:absolute;top:3px;right:3px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;margin-bottom:20px;">
+        <div style="font-weight:600;font-size:13.5px;">Boletín de la plataforma</div>
+        <div style="width:40px;height:23px;border-radius:99px;background:rgba(22,38,31,.15);position:relative;flex-shrink:0;">
+          <div style="width:17px;height:17px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;"></div>
+        </div>
+      </div>
+
+      <button class="pill-btn" style="padding:11px 20px;font-size:13px;background:var(--bp);color:var(--bop);margin-bottom:20px;">Guardar preferencias de esta campaña</button>
+
+      <!-- Supresión -->
+      <div style="border-top:1.5px dashed var(--danger);padding-top:16px;">
+        <div class="eyebrow" style="margin-bottom:4px;color:var(--danger);">Supresión</div>
+        <p style="font-size:12.5px;color:rgba(22,38,31,.7);margin:0 0 12px;line-height:1.5;">
+          Elimina tus datos solo de <strong>esta campaña</strong>. Tus otras 2
+          campañas no se ven afectadas.
+        </p>
+        <button class="pill-btn" style="padding:10px 18px;font-size:12.5px;background:#fff;color:var(--danger);border-color:var(--danger);">
+          🗑 Eliminar mis datos de esta campaña
+        </button>
+      </div>
+    </section>
+
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Nota de backend (no visual):</strong> la búsqueda de identidad
+  (email+cédula) y el token de verificación dejan de estar atados a una sola
+  campaña — buscan en toda la plataforma. Un solo enlace de verificación abre
+  una sesión de portal (30 min) que agrupa <em>todas</em> las firmas no
+  anonimizadas de esa persona.<br><br>
+  <strong>Nivel 1 (compartido):</strong> "datos personales" (nombre,
+  provincia/país) se rectifica una vez y se aplica a todas las firmas no
+  anonimizadas de la persona en la misma operación; la auditoría registra qué
+  campos cambiaron (no los valores) para trazabilidad sin exponer PII.
+  Portabilidad también se unifica: un solo export con todas las campañas.<br><br>
+  <strong>Nivel 2/3 (por campaña):</strong> visibilidad, confirmación manual,
+  oposición y supresión siguen operando sobre un <code>signature_id</code>
+  puntual — el selector de campañas cambia cuál tarjeta unificada está activa;
+  la campaña de origen (desde qué landing o email se accedió) se preselecciona.
+  Confirmar manualmente solo está habilitado si la firma sigue
+  <code>pending_confirmation</code> y la campaña todavía acepta firmas.
+  Cualquier cambio (datos personales, visibilidad, oposición, confirmación,
+  supresión) dispara un email de notificación al titular, además de la
+  notificación a la organización que ya existía para rectificación/supresión.
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 6 — Modal de confirmación de supresión (2 pasos) -->
+<!-- ============================================================ -->
+<div class="frame-label">Frame 6 · Modal · Confirmar supresión por campaña (2 pasos, mismo patrón que ArchiveModal admin)</div>
+<div class="frame" style="background:#96a49e;padding:56px 24px;">
+  <div style="width:100%;max-width:420px;margin:0 auto;border-radius:16px;padding:26px;background:var(--bsurf);border:1px solid var(--bbord);">
+    <h2 style="font-family:'Anton';font-weight:400;font-size:16px;margin-bottom:8px;">¿Eliminar tus datos de "¡Protejamos el Yasuní"?</h2>
+    <p style="font-size:13px;color:var(--bmut);margin:0 0 16px;line-height:1.55;">
+      Esta acción es inmediata, solo afecta a esta campaña y no se puede
+      deshacer. Tus datos en otras campañas de Cauce no se ven afectados. Al
+      confirmar:
+    </p>
+    <ul style="font-size:13px;margin:0 0 20px;padding-left:18px;color:var(--bmut);line-height:1.7;">
+      <li>Tu nombre, correo y cédula se eliminan de forma permanente.</li>
+      <li>Recibirás un correo confirmando la eliminación.</li>
+      <li>Tu apoyo seguirá contando de forma anónima en el total.</li>
+    </ul>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="pill-btn" style="padding:10px 18px;font-size:13px;background:#fff;color:#16261F;border-radius:10px;">Cancelar</button>
+      <button class="pill-btn" style="padding:10px 18px;font-size:13px;background:var(--danger);color:#fff;border-color:var(--danger);border-radius:10px;">Sí, eliminar mis datos</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

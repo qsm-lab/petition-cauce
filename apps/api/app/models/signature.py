@@ -16,6 +16,8 @@ class Signature(Base):
     email_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     cedula_encrypted: Mapped[str | None] = mapped_column(Text)
     cedula_hash: Mapped[str | None] = mapped_column(String(128))
+    # Aportado voluntariamente por el titular desde el portal ARCO — sin hash, no se usa para búsqueda
+    celular_encrypted: Mapped[str | None] = mapped_column(Text)
     provincia: Mapped[str | None] = mapped_column(String(100))
     country: Mapped[str | None] = mapped_column(String(100))
     signer_type: Mapped[str] = mapped_column(String(10), nullable=False, default="natural")
@@ -38,6 +40,14 @@ class Signature(Base):
     completion_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    anonymized_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    # Supresión solicitada por canal no digital, resuelta desde el admin (ventana de 15 días)
+    archived_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    archived_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    purge_after: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    # Verificación de identidad para el portal de derechos ARCO (hash del token, no el token en claro)
+    arco_verification_token: Mapped[str | None] = mapped_column(String(128), unique=True)
+    arco_verification_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

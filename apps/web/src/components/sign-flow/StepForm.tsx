@@ -28,6 +28,7 @@ export interface FormValues {
   name: string;
   email: string;
   cedula: string;
+  celular: string;
   location_mode: "nacional" | "internacional";
   provincia: string;
   country: string;
@@ -315,6 +316,23 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
           placeholder={isIntl ? "Tu número de identificación" : "0102030405"}
         />
       </div>
+
+      {/* Celular (opcional, solo si la campaña lo solicita) */}
+      {formConfig.request_celular && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>
+            Celular <span style={{ fontWeight: 400, color: "rgba(22,38,31,0.5)" }}>(opcional)</span>
+          </label>
+          <input
+            type="tel"
+            inputMode="tel"
+            value={vals.celular}
+            onChange={(e) => set("celular", e.target.value)}
+            style={inputStyle}
+            placeholder="099 123 4567"
+          />
+        </div>
+      )}
 
       {/* Visibilidad */}
       {showVisGroup && (

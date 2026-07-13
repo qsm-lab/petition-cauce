@@ -1,14 +1,17 @@
 import io
 import csv
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.crypto import PIIDecryptError, decrypt_pii
+from app.models.arco_request import ArcoRequest
 from app.models.signature import Signature
 from app.models.pii_export_audit import PiiExportAudit
+
+ARCHIVE_WINDOW_DAYS = 15
 
 
 def _mask_cedula(cedula: str) -> str:
@@ -44,6 +47,13 @@ def _apply_provincia_filter(filters: list, provincia: str | None) -> None:
         filters.append(Signature.country.isnot(None))
     elif provincia:
         filters.append(Signature.provincia == provincia)
+
+
+def _mask_phone(phone: str) -> str:
+    """Últimos 4 dígitos visibles (ej. XXXXXX4321)."""
+    if len(phone) <= 4:
+        return "X" * len(phone)
+    return "X" * (len(phone) - 4) + phone[-4:]
 
 
 class AdminSignatureService:
@@ -113,6 +123,9 @@ class AdminSignatureService:
                     "status": sig.status,
                     "confirmed_at": sig.confirmed_at.isoformat() if sig.confirmed_at else None,
                     "created_at": sig.created_at.isoformat(),
+                    "archived_at": sig.archived_at.isoformat() if sig.archived_at else None,
+                    "purge_after": sig.purge_after.isoformat() if sig.purge_after else None,
+                    "anonymized_at": sig.anonymized_at.isoformat() if sig.anonymized_at else None,
                 }
                 for sig in items
             ],
@@ -136,7 +149,8 @@ class AdminSignatureService:
         visibility: str | None = None,
         status: str | None = None,
     ) -> StreamingResponse:
-        filters = [Signature.campaign_id == campaign_id]
+        # Archivadas excluidas desde el momento del archivado, no esperan la purga (R7)
+        filters = [Signature.campaign_id == campaign_id, Signature.archived_at.is_(None)]
         if org_id is not None:
             filters.append(Signature.org_id == org_id)
         _apply_provincia_filter(filters, provincia)
@@ -283,3 +297,52 @@ class AdminSignatureService:
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
         return response, len(signatures), secret_excluded_count, pending_included_count
+
+    @staticmethod
+    async def archive_signature(db: AsyncSession, sig: Signature, admin_id: uuid.UUID) -> datetime:
+        """Archiva la firma con ventana de gracia de 15 días (R2, R4). No cambia `status`: sigue contando."""
+        now = datetime.now(timezone.utc)
+        purge_after = now + timedelta(days=ARCHIVE_WINDOW_DAYS)
+        sig.archived_at = now
+        sig.archived_by = admin_id
+        sig.purge_after = purge_after
+        db.add(ArcoRequest(
+            campaign_id=sig.campaign_id,
+            right_type="supresion",
+            email_hash=sig.email_hash,
+            completed_at=now,
+            result="completed",
+            detail={"trigger": "admin", "admin_id": str(admin_id)},
+        ))
+        await db.commit()
+        await db.refresh(sig)
+        return purge_after
+
+    @staticmethod
+    async def unarchive_signature(db: AsyncSession, sig: Signature, admin_id: uuid.UUID) -> None:
+        """Revierte el archivado dentro de la ventana de gracia (R6). Rechaza si ya fue purgada (T6)."""
+        if sig.anonymized_at is not None:
+            raise ValueError("ya_suprimida")
+        sig.archived_at = None
+        sig.archived_by = None
+        sig.purge_after = None
+
+        request_result = await db.execute(
+            select(ArcoRequest)
+            .where(
+                ArcoRequest.campaign_id == sig.campaign_id,
+                ArcoRequest.email_hash == sig.email_hash,
+                ArcoRequest.right_type == "supresion",
+            )
+            .order_by(ArcoRequest.requested_at.desc())
+            .limit(1)
+        )
+        request = request_result.scalar_one_or_none()
+        if request is not None:
+            detail = dict(request.detail or {})
+            detail["reverted_at"] = datetime.now(timezone.utc).isoformat()
+            detail["reverted_by"] = str(admin_id)
+            request.detail = detail
+
+        await db.commit()
+        await db.refresh(sig)
