@@ -129,6 +129,12 @@ un cambio de alcance no autorizado):
   fila, se agrega una fila final `SELLO_DESCARGA` con el admin, fecha/hora y
   `export_id` — mismo propósito de trazabilidad (R8) con más contexto legible
   para quien abre el CSV.
+- **Incluye `pending_confirmation` además de `confirmed`** (contradice R5,
+  cambio pedido explícitamente por el usuario después del deploy inicial):
+  la columna `estado` del CSV distingue cuáles no completaron el doble
+  opt-in. `pii_export_audit.pending_included_count` (migración 033) registra
+  cuántas de las filas incluidas están sin confirmar, para trazabilidad —
+  mismo patrón que `secret_excluded_count`. `anulada` se sigue excluyendo
+  siempre (no estaba en el filtro original ni en el nuevo).
 - El resto del diseño (exclusión de `secreta`, auditoría `pii_export_audit`,
-  solo firmas `confirmed`, `decrypt_pii` como vía de lectura) se mantiene
-  igual al análisis original.
+  `decrypt_pii` como vía de lectura) se mantiene igual al análisis original.

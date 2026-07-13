@@ -24,6 +24,12 @@ está en producción**.
   (promesa del propio formulario: "no se incluirá en el documento de
   entrega"). Sin gating por etapa. Auditoría `pii_export_audit` + email a
   `organizations.contact_email` y `platform_admin_emails`.
+  **Push adicional (mismo día)**: a pedido del usuario, ahora incluye
+  también `pending_confirmation` (antes solo `confirmed`) — la columna
+  `estado` distingue cuáles no completaron el doble opt-in. Nuevo conteo
+  `pii_export_audit.pending_included_count` (migración 033) para
+  trazabilidad, mismo patrón que `secret_excluded_count`. `anulada` sigue
+  excluida siempre.
 - **Nombre visible según rol**: `admin` (plataforma) ve todos los nombres,
   incluida `secreta`; `gestor` (org) no ve nombre si `visibility='secreta'`.
 - **Columna Nombre con formato org**: `(org_name) nombre` cuando
