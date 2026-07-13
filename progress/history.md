@@ -493,3 +493,25 @@ antes de recolectar firmas reales); completar TEST-5 en prod.
 **Deploy:** sin migraciones ni env nuevas — solo `git push`.
 
 **Lección técnica:** las tablas con RLS por org rompen silenciosamente los endpoints públicos y los flujos cross-org (Encargado↔Responsable); toda lectura pública por FK directa necesita contexto RLS explícito. `onAnimationIteration` permite rotar contenido de una animación CSS infinita justo cuando está oculta.
+
+---
+
+## 2026-07-13 — Sesión 31: dashboard de firmas, 2 fixes de RLS, y remediación real de 247 firmas
+
+**Foco:** pedido puntual de la campaña real activa — rama `fix/dashboard-firmas-entrega` partida de `origin/main` (no de `dev`, que sigue congelado con retención/supresión/ARCO sin mergear). PR #9 mergeado y desplegado a producción durante la sesión.
+
+**Entregado:**
+- **Dashboard de firmas** (3 puntos pedidos): "Descarga absoluta" (contraseña sin OTP, excluye siempre `secreta`, notifica a org+plataforma, auditoría `pii_export_audit`); nombre visible según rol (`gestor` no ve `secreta`, `admin` sí); columna Nombre con formato `(org) nombre`; columna Provincia → Origen (color por provincia/país, filtro Internacional); extra: botón "Recordar a pendientes" (reenvía confirmación a `publica`+`pending_confirmation`).
+- **Fix RLS `consents_org_admin`**: mismo bug de `sig_org_admin` pre-migración-008 (falta `NULLIF` antes del cast a uuid), nunca portado a `consents` — causaba errores intermitentes al crear firmas. Migración 031.
+- **Fix RLS confirmación de `secreta`**: daba 500 siempre — ninguna política le daba visibilidad a la fila `confirmed`+`secreta` resultante, ni al propio firmante. Bypass transaccional `app.is_platform_admin`.
+- **El nombre se guarda siempre** (antes solo si `visibility='publica'`): el formulario le promete al anónimo que su firma va al documento de entrega — imposible sin el nombre. Hallazgo colateral: el email de confirmación ya mostraba el primer nombre en anónimas (usaba `data.name` crudo, no el `sig.name` nuleado) — confirmado con un payload real de Resend; techo de recuperación: solo primer nombre, nunca el completo.
+- **Remediación del histórico** (migración 032): script CLI `send_name_completion_emails` (`--dry-run`/`--force`) + popup en la landing (`?completar=token`, 7 días) que completa el nombre y promueve `pending_confirmation` → `confirmed` en el mismo paso. Excluye `secreta` (su firma nunca va al documento de entrega) y `anulada`. **Corrida real contra `soberania-tlc-ecu-usa`: 247/247 enviados** (239 anónimas + 8 públicas con nombre incompleto, 0 secretas, verificado sin contaminación de `is_test`).
+- **Infra de email** (fuera de código, en Cloudflare/VPS): revisión de 4 alertas de deliverability de Resend. `database/init.sh` sin permiso de ejecución corregido (bloqueaba cualquier volumen nuevo de DB dev). Cloudflare Email Routing configurado para `info@ecuadornotlc.org` → buzón real en GreenGeeks (`info@ecuadornotlc.com`) — DNS confirmado, regla de ruteo sin confirmar. `RESEND_FROM_EMAIL` cambiado de `noreply@` a dirección real. DMARC sigue pendiente de cargar.
+
+**Verificación:** 65 tests API (8 nuevos de masking) · `tsc --noEmit` 0 · flujo completo probado en dev con datos simulados (secreta/anónima/pública/org, distintas provincias/países) antes de tocar producción. DB dev reseteada para poder correr las migraciones de esta rama (partía de `main`, sin la cadena 018-022 de `dev`).
+
+**Deploy:** 3 commits → PR #9 → merge a `main` → `docker compose up -d --build petition-api` (migraciones 030-032 vía pipeline de `deploy.yml`). `main` local estaba desactualizado desde "sesión 20" (sin relación de ancestro con `origin/main`); resuelto con `git reset --hard origin/main` sin pérdida de trabajo.
+
+**Nota de reconciliación futura:** las migraciones 030-032 parten de la 017 (head de `main`), no de la cadena 018-022 de `dev` — al mergear `dev` a `main` van a aparecer dos heads de Alembic que van a requerir `alembic merge` explícito. Mismo tema para los `progress/*.md` de `dev` (siguen en sesión 30).
+
+**Lección técnica:** en RLS, un `SET LOCAL` transaccional (`is_local=true`) sobre un GUC custom nunca antes tocado en la sesión crea un placeholder cuyo valor de reset es cadena vacía (`''`), no `NULL` — cualquier policy con `current_setting(...) != ''` sin `NULLIF` puede reventar en una conexión pooleada reutilizada después de esa transacción, aunque la lógica parezca correcta en aislamiento. Para UPDATE bajo RLS, el estado resultante de la fila también necesita una política que otorgue visibilidad de lectura — no alcanza con que el `WITH CHECK` pase.
