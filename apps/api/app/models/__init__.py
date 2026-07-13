@@ -15,6 +15,7 @@ from app.models.lifecycle_event import LifecycleEvent
 from app.models.domain import Domain
 from app.models.category import Category
 from app.models.privacy_policy import PrivacyPolicy
+from app.models.pii_export_audit import PiiExportAudit
 
 __all__ = [
     "Base",
@@ -39,4 +40,5 @@ __all__ = [
     "Domain",
     "Category",
     "PrivacyPolicy",
+    "PiiExportAudit",
 ]
