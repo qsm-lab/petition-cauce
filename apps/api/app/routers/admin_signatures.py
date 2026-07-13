@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.crypto import PIIDecryptError, compute_hmac, decrypt_pii
-from app.dependencies import get_db_with_org, get_current_user
+from app.dependencies import get_db_with_org, get_current_user, require_admin
 from app.limiter import limiter
 from app.models.organization import Organization
 from app.models.signature import Signature
@@ -16,6 +16,7 @@ from app.models.campaign import Campaign
 from app.services.admin_signature_service import AdminSignatureService
 from app.services.auth_service import verify_password
 from app.services.email_service import (
+    send_archive_notification,
     send_confirmation_reminder_email,
     send_export_absoluto_notification,
     send_visibility_change_email,
@@ -287,3 +288,71 @@ async def request_visibility_change(
         org_logo_url=(org.logo_url or "") if org else "",
     )
     return {"ok": True, "pending_visibility": sig.pending_visibility}
+
+
+async def _get_signature_for_admin(campaign_id: str, signature_id: str, db: AsyncSession) -> tuple[Campaign, Signature]:
+    """Solo accesible por rol admin (platform-wide): sin scope de org (R1, R9 supresion-admin)."""
+    campaign = await _get_campaign(campaign_id, None, db)
+    result = await db.execute(
+        select(Signature).where(
+            Signature.id == signature_id,
+            Signature.campaign_id == campaign.id,
+        )
+    )
+    sig = result.scalar_one_or_none()
+    if not sig:
+        raise HTTPException(status_code=404, detail="Firma no encontrada")
+    return campaign, sig
+
+
+@router.post("/campaigns/{campaign_id}/signatures/{signature_id}/archive")
+async def archive_signature(
+    campaign_id: str,
+    signature_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """Archiva la firma a solicitud del titular por canal no digital (R1). Purga a los 15 días."""
+    campaign, sig = await _get_signature_for_admin(campaign_id, signature_id, db)
+    if sig.archived_at is not None:
+        raise HTTPException(status_code=409, detail="La firma ya está archivada")
+    if sig.anonymized_at is not None:
+        raise HTTPException(status_code=409, detail="La firma ya fue suprimida")
+
+    try:
+        email = decrypt_pii(sig.email_encrypted, ref=str(sig.id))
+    except PIIDecryptError:
+        raise HTTPException(status_code=500, detail="No se pudo recuperar el email del firmante")
+
+    purge_after = await AdminSignatureService.archive_signature(db, sig, current_user.id)
+
+    org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
+    org = org_result.scalar_one_or_none()
+    await send_archive_notification(
+        to_email=email,
+        campaign_title=campaign.petition_title or campaign.title,
+        purge_date=purge_after.strftime("%d/%m/%Y"),
+        signer_name=sig.name or "",
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+        org_contact_email=(org.contact_email or "") if org else "",
+    )
+    return {"ok": True, "archived_at": sig.archived_at.isoformat(), "purge_after": purge_after.isoformat()}
+
+
+@router.post("/campaigns/{campaign_id}/signatures/{signature_id}/unarchive")
+async def unarchive_signature(
+    campaign_id: str,
+    signature_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """Revierte el archivado dentro de la ventana de gracia (R6)."""
+    _, sig = await _get_signature_for_admin(campaign_id, signature_id, db)
+    if sig.archived_at is None:
+        raise HTTPException(status_code=409, detail="La firma no está archivada")
+    if sig.anonymized_at is not None:
+        raise HTTPException(status_code=409, detail="La firma ya fue suprimida: no se puede restaurar")
+
+    await AdminSignatureService.unarchive_signature(db, sig, current_user.id)
+    return {"ok": True}
