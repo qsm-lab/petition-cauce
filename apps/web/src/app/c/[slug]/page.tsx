@@ -6,6 +6,7 @@ import { getCampaignBySlug, getRecentSignatures } from "@/lib/campaign-api";
 import { campaignMetadata } from "@/lib/campaign-og";
 import { campaignStyleTag } from "@/lib/design-tokens";
 import CampaignPage from "../../(campaign)/CampaignPage";
+import CompleteNamePopup from "../../(campaign)/components/CompleteNamePopup";
 import ConfirmationBanner from "../../(campaign)/components/ConfirmationBanner";
 import ConfirmedSharePopup from "../../(campaign)/components/ConfirmedSharePopup";
 
@@ -44,7 +45,7 @@ export default async function CampaignBySlugPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { confirmada?: string; nombre?: string };
+  searchParams: { confirmada?: string; nombre?: string; completar?: string };
 }) {
   const headersList = headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
@@ -63,6 +64,8 @@ export default async function CampaignBySlugPage({
   return (
     <>
       {styleTag && <style dangerouslySetInnerHTML={{ __html: styleTag }} />}
+      {/* Remediación: completar nombre null/incompleto (?completar=<token>) */}
+      {searchParams.completar && <CompleteNamePopup token={searchParams.completar} />}
       {/* Firma recién confirmada → popup de compartir; otros estados → banner */}
       {searchParams.confirmada === "1" ? (
         <ConfirmedSharePopup
