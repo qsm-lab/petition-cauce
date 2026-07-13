@@ -57,6 +57,230 @@ esta sesión.
 
 ---
 
+## 2026-07-12/13 — Sesión 30: fix ArchiveModal + derechos-arco (backend completo, multi-campaña)
+
+Sesión larga con varias rondas de diseño iterativo a pedido del usuario — el
+alcance de `derechos-arco` creció de "una campaña" a "toda la plataforma"
+sobre la marcha. Reconstruyo el arco completo abajo porque el diseño final es
+bastante distinto del planteo inicial.
+
+### Fix previo: `/admin/campanas/[id]/firmas` daba 500
+
+`ArchiveModal.tsx` (client component) importaba `archiveSignature`/
+`unarchiveSignature` desde `admin-signatures-api.ts`, módulo que también
+contiene `apiServer` (usa `next/headers`, solo válido en Server Components).
+El import en tiempo de ejecución arrastraba ese código server-only al bundle
+del cliente. Se movieron esas dos funciones fuera del módulo —
+`ArchiveModal.tsx` ahora llama `api.post(...)` directamente, mismo patrón que
+`VisibilityCell.tsx` ya usaba correctamente.
+
+### `derechos-arco` — primera pasada (una campaña, luego superada)
+
+Implementación inicial acotada a una campaña (verificación email+cédula,
+sesión de portal JWT 30 min, los 5 derechos ARCO clásicos). Entré en modo
+Plan antes de implementar; plan aprobado. Se creó la migración
+`020_arco_verification.py` (`signatures.arco_verification_token`/
+`expires_at`, reutilizando la `arco_requests` ya creada por `supresion-admin`
+en la `019` — la spec original mencionaba migración `017` y recrear la
+tabla, desactualizado, corregido).
+
+**Bug de infraestructura encontrado y corregido durante la verificación
+manual**: `consents_org_admin` (RLS, migración `006`) nunca recibió el mismo
+fix de guard `NULLIF` que `sig_org_admin` sí recibió en la migración `008` —
+con `app.current_org_id` sin setear, Postgres podía evaluar el cast `::uuid`
+de una cadena vacía y romper con `invalid input syntax for type uuid: ""`
+(no garantiza cortocircuito de AND/OR en policies RLS combinadas). Expuesto
+por ser el primer flujo que alterna `app.current_org_id` dentro de la misma
+sesión antes de tocar `consents`. Corregido en migración
+`021_fix_consents_rls.py`, mismo patrón que la `008`.
+
+### Pivote a multi-campaña (a pedido del usuario)
+
+El usuario pidió: (1) reconocer que un firmante puede tener firma pendiente
+sin confirmar cuando entra a ARCO, y (2) que la misma persona puede haber
+firmado varias campañas — el portal debía agruparlas, no vivir atado a una.
+Reescritura completa de `arco_service.py`:
+
+- **Búsqueda platform-wide**: `request_access`/`verify_token` ya no reciben
+  `campaign_id` — buscan por email_hash+cedula_hash en toda la plataforma,
+  usando el bypass `app.is_platform_admin` (mismo patrón que
+  `retention_service.run_retention` para operar sin conocer de antemano el
+  `org_id` de cada fila).
+- **Token ancla + re-consulta**: `arco_verification_token` tiene constraint
+  `UNIQUE`, así que no puede replicarse en todas las firmas encontradas — se
+  ancla a UNA fila (la de la campaña de origen si se indicó); al verificar,
+  se re-consulta el conjunto vigente por esos mismos hashes, así la sesión
+  siempre refleja el estado más reciente.
+- **Sesión de portal multi-firma**: JWT con `signature_ids: [...]` (lista, no
+  un solo id) + `origin_campaign_id` + `auto_confirmed_ids`.
+- **Auto-confirmación al verificar (R1c)**: si una firma está
+  `pending_confirmation` y su campaña sigue firmable, se confirma
+  automáticamente al abrir el portal (el enlace ARCO ya prueba la
+  titularidad del email). Si la campaña ya cerró, se omite pero se conserva
+  el acceso para gestionar el registro.
+- **Confirmación manual (R14)**: nuevo `confirm_pending`, habilitado solo si
+  `pending_confirmation` + campaña firmable.
+- Router movido de `/v1/public-campaign/{campaign_id}/arco/*` a `/v1/arco/*`
+  (ya no tiene sentido anclado a una campaña).
+- **Acceso directo sin formulario (R15)**: `signature_service.confirm_signature`
+  emite un token de acceso directo (24h) al confirmar, incluido como CTA
+  "Gestionar mis datos" en el email de agradecimiento — entra derecho al
+  portal, sin pasar por `/mis-datos`.
+- **Botón en landing (R16)**: agregado inicialmente en `ActionBlock.tsx`,
+  luego MOVIDO (a pedido del usuario, tras revisar en el navegador) a
+  `RecentSignatures.tsx`, como link fuera de la tarjeta, al final de la
+  sección.
+
+### Rectificación de email/cédula/celular (a pedido del usuario)
+
+El usuario pidió poder corregir también email y cédula (no solo
+nombre/provincia), más un campo nuevo opcional (celular), y me pidió
+analizar las implicaciones antes de implementar:
+
+- `celular_encrypted` (migración `022`) — cifrado, sin hash/índice, nunca
+  formó parte de lo entregado, siempre editable.
+- Email/cédula son únicos **por campaña** (índices `uq_sig_email_*`/
+  `uq_sig_cedula_natural`, migración `006`, partidos por `signer_type`) — a
+  diferencia de nombre/provincia. `rectify_personal_data` detecta el choque
+  campaña por campaña (`_has_collision`) y aplica donde puede, reportando
+  conflictos en vez de fallar todo (decisión explícita del usuario: "aplicar
+  donde se pueda, avisar el resto").
+  Si el email cambia en una firma `pending_confirmation`, se reenvía la
+  confirmación automáticamente al correo nuevo. El aviso de seguridad del
+  cambio (R18, nuevo `send_arco_change_notification`) va al correo
+  **anterior**, no al nuevo.
+
+### Reestructuración final: qué es compartido vs. por campaña
+
+Tras un ida y vuelta sobre qué pasa cuando una campaña ya cerró (¿se congela
+todo? ¿solo algunos campos? ¿cuándo exactamente?), quedó así (decisión final
+del usuario, revirtiendo una propuesta intermedia de congelar al confirmar):
+
+- **Nivel 1 — compartido** (`rectify_personal_data`): nombre, email, cédula,
+  celular. Nombre/email/cédula ("datos esenciales para la firma") se
+  congelan **por campaña cerrada** — pudieron usarse en la entrega formal;
+  el intento de cambiarlos en esa campaña puntual se reporta como conflicto
+  (`reason="campana_cerrada"`) sin bloquear las demás campañas activas de la
+  sesión. Celular siempre editable, incluso con campaña cerrada.
+- **Nivel 2/3 — por campaña** (nuevo `update_campaign_profile`): tipo de
+  firmante y ubicación (Ecuador/internacional) son estructurales — editables
+  **solo** si la firma sigue `pending_confirmation` Y la campaña acepta
+  firmas (mismo criterio que el alta original: se eligen una vez).
+  Provincia/país NO son "esenciales para la firma" — editables siempre,
+  independiente del estado.
+
+### Email de confirmación con revisión (R19, nuevo)
+
+El email de confirmación original (doble opt-in) ahora muestra un resumen de
+lo ingresado ("revisa que tus datos hayan quedado bien escritos") + un
+enlace secundario, visualmente menor al botón principal, que entra directo
+al portal para corregir antes de confirmar — evita tener que rectificar
+después. Ajuste fino a pedido del usuario: el resumen **nunca** incluye el
+correo (que el mensaje haya llegado a la bandeja ya prueba que estaba bien
+escrito) — solo nombre completo + cédula siempre, y organización/ubicación/
+celular condicionalmente si la campaña los pidió y el firmante los completó.
+
+### Celular configurable por campaña (R20, nuevo)
+
+Toggle "Solicitar celular" en el panel "Configuración formulario" del editor
+de campaña (`form_config.request_celular`, default `false`) — wireado hasta
+`StepForm.tsx` (campo opcional en el alta original, no solo vía ARCO).
+
+### Verificación
+
+- 42 tests en `test_arco.py`, **109 tests API en total, todos en verde**.
+- `tsc --noEmit` sin errores en el frontend.
+- Verificación manual end-to-end vía HTTP con escenarios reales: firma en
+  campaña activa+confirmada, campaña activa+pendiente (auto-confirmó al
+  verificar), campaña cerrada+pendiente (NO se auto-confirmó, `confirm`
+  manual rechazado con 409) — mismo email+cédula, 3 campañas agrupadas en
+  una sesión, acciones aisladas por campaña confirmadas en DB, auditoría
+  completa sin PII. Datos de prueba limpiados en cada corrida.
+
+### Pendiente para después
+
+1. Frontend `/mis-datos` + portal en Next.js (T13-T14) — diseño ya aprobado
+   en `specs/derechos-arco/design-export.html`.
+2. Decisión abierta: ¿implementar "perfil histórico de firmante" (reconoce a
+   la misma persona entre campañas, pre-llena datos, verifica consistencia
+   de nombre/cédula) como feature nueva? No está en `feature_list.json` — el
+   usuario prefirió dejarlo como decisión a tomar más adelante en vez de
+   improvisarlo dentro de esta sesión.
+3. Viabilidad a diseñar: qué hacer cuando el email de confirmación nunca le
+   llega al firmante (typo o problema del proveedor de correo), ni dentro de
+   las 24h ni después de expirar — hoy no hay recurso real (`resend-confirmation`
+   reenvía al mismo correo; el flujo ARCO también depende de ese correo).
+
+---
+
+## 2026-07-11 — Sesión 29: supresion-admin implementada
+
+**Bloqueo de spec resuelto**: `supresion-admin` (design.md) dependía de la
+tabla `arco_requests`, propia de `derechos-arco` — aún `spec_ready`, sin
+migración ni modelo. Es una dependencia circular real entre las dos specs.
+Con aprobación del usuario, se creó `arco_requests` adelantada en la
+migración `019`, con el esquema ya definido en `specs/derechos-arco/design.md`
+(R10). `derechos-arco` reutilizará esta misma tabla cuando se implemente —
+nota dejada en `feature_list.json` para no recrearla.
+
+**`supresion-admin` (fase 3, LOPDP) implementada completa**: botón "Archivar"
+en el dashboard de firmas (ventana de gracia de 15 días, reversible). Migración
+`019` (`signatures.archived_at/archived_by/purge_after` + `arco_requests`),
+`admin_signature_service.archive_signature`/`unarchive_signature` con
+auditoría ARCO (email_hash, sin PII), `email_service.send_archive_notification`,
+exclusiones de firmas archivadas en export CSV / notificaciones de novedades /
+feed de recientes (activas desde el archivado, no esperan la purga), y
+reutilización de `retention_service.anonymize_signature` — la cola de purga de
+archivadas corre en el mismo job/scheduler diario de `retencion-datos` (un
+solo mecanismo, ahora dos disparadores). Endpoints
+`POST .../signatures/{id}/archive` y `/unarchive`, exclusivos rol admin.
+Frontend: columna de acciones + `ArchiveModal.tsx` (confirmación 2 pasos) +
+badges "Archivada — purga el X" / "Suprimida" — sin ronda de Claude Design
+(adiciones a pantalla existente, ya contemplado en el design.md aprobado).
+
+**Verificación**: 73 tests (8 nuevos) ✓. Prueba end-to-end manual vía HTTP con
+login real de admin sobre una firma de prueba en `prueba-001`: archivar →
+excluida de feed/export/notify → restaurar → re-archivar → purga forzada
+(`purge_after` al pasado) → job de retención → conteo de la campaña intacto,
+PII eliminada. Las firmas reales de `prueba-001` no se vieron afectadas
+(confirmado antes y después); datos de prueba limpiados (`signatures`,
+`arco_requests`).
+
+**Estado al cierre**: migración 019 aplicada en dev, en espera de deploy a
+producción (congelamiento por campaña real activa vigente). Nada commiteado
+aún de sesión 28 ni 29 — el usuario revisa y commitea manualmente. Siguiente:
+`derechos-arco` (ya no tiene el bloqueo de `arco_requests`) o `export-entrega`
+si el usuario prioriza la entrega.
+
+---
+
+## 2026-07-09 — Sesión 28: retencion-datos implementada
+
+**Corrección de estado**: `export-entrega` estaba marcada `done` en
+`feature_list.json` por error (sin ningún commit de implementación real,
+verificado con `git log --all`); revertida a `spec_ready` con confirmación
+del usuario.
+
+**`retencion-datos` (fase 3, LOPDP) implementada completa**: migración `018`
+(`signatures.anonymized_at` + tabla auditoría `retention_runs`),
+`retention_service.py` (ancla por evento `entrega` o `created_at`,
+anonimización de campos identificantes preservando los agregables),
+`scheduler.py` (APScheduler diario 03:00 Guayaquil + lock Redis compartido
+con el endpoint manual), `POST /v1/admin/retention/run`.
+
+**Verificación**: 65 tests (8 nuevos) ✓. Prueba end-to-end manual vía HTTP con
+login real de admin, confirmando que las campañas reales no se ven afectadas
+y el contador de landing queda intacto.
+
+**Regla nueva del usuario**: hay una campaña real activa en producción
+(`soberania-tlc-ecu-usa`) — todo cambio significativo (deploys, migraciones)
+espera al cierre de la campaña. Se sigue avanzando en local; en paralelo
+habrá ajustes menores de contenido en producción.
+
+**Estado al cierre**: migración 018 aplicada en dev, en espera de deploy a
+producción. Siguiente: supresion-admin (reutiliza `anonymize_signature`) →
+derechos-arco; `export-entrega` puede intercalarse — todo en local por ahora.
+
 ## 2026-07-08 — Sesión 25: cifrado-reposo en producción + rectificaciones y pulido
 
 **cifrado-reposo implementado y desplegado**: AES-256-GCM (`enc:v1:`), clave
