@@ -1,73 +1,132 @@
-# Estado actual — tras sesión 27 (2026-07-08)
+# Estado actual — tras sesión 31 (2026-07-13)
 
-## Resumen de sesión 27
+## Resumen de sesión 31
 
-Lote de ajustes UX en landing + formulario de firma (con capturas del usuario),
-mejoras LOPDP en emails, export CSV con PII enmascarada, popup de compartir
-post-confirmación, y **dos fixes de RLS** (aviso de privacidad público y snapshot
-del consentimiento). Análisis de descarga completa de PII aprobado → spec
-`export-entrega` generada (spec_ready). Revisión local OK; **falta probar en
-producción**. Sin migraciones ni variables de entorno nuevas.
+Sesión larga y con deploy real a producción. Partió de un pedido puntual de
+la campaña real activa (`soberania-tlc-ecu-usa`) y terminó en 3 features
+completas + 2 bugs de RLS + una remediación de datos ya ejecutada contra
+producción. Rama `fix/dashboard-firmas-entrega`, partida de `origin/main`
+(no de `dev`) a propósito — `dev` sigue con el trabajo LOPDP de sesiones
+28-30 (retención, supresión, ARCO) sin mergear, congelado por la campaña
+real. PR #9 mergeado a `main`, deploy corrido, **todo lo de esta sesión ya
+está en producción**.
 
 ---
 
 ## Lo que se hizo
 
-### Fixes RLS (bug encontrado en 1.1)
-- **Aviso de privacidad "no disponible"**: `privacy_policies` tiene RLS por org y
-  la política asignada pertenece a la org plataforma (Encargado) mientras la
-  campaña es de una org cliente → el endpoint público `/privacy` devolvía 404.
-  Fix: bypass transaction-local (`app.is_platform_admin`) para la lectura puntual
-  por FK en `public_campaign.py`.
-- **Mismo bug en el snapshot del consentimiento** (`create_signature`): el texto
-  del aviso caía al fallback legacy vacío. Ahora `consents.text_snapshot` guarda
-  el aviso real que vio el firmante (relevante LOPDP).
+### 1. Dashboard de firmas — 3 puntos pedidos por el usuario
+- **Descarga absoluta**: botón junto a "Exportar CSV". Modal con aviso +
+  responsabilidad → contraseña (sin OTP — decisión explícita del usuario,
+  más simple que el análisis original de sesión 27) → CSV con PII sin
+  enmascarar (nombre, cédula, email, org, origen, tipo de firma/visibilidad,
+  estado) + fila de sello (admin/fecha/hora). Excluye siempre `secreta`
+  (promesa del propio formulario: "no se incluirá en el documento de
+  entrega"). Sin gating por etapa. Auditoría `pii_export_audit` + email a
+  `organizations.contact_email` y `platform_admin_emails`.
+  **Push adicional (mismo día)**: a pedido del usuario, ahora incluye
+  también `pending_confirmation` (antes solo `confirmed`) — la columna
+  `estado` distingue cuáles no completaron el doble opt-in. Nuevo conteo
+  `pii_export_audit.pending_included_count` (migración 033) para
+  trazabilidad, mismo patrón que `secret_excluded_count`. `anulada` sigue
+  excluida siempre.
+- **Nombre visible según rol**: `admin` (plataforma) ve todos los nombres,
+  incluida `secreta`; `gestor` (org) no ve nombre si `visibility='secreta'`.
+- **Columna Nombre con formato org**: `(org_name) nombre` cuando
+  `signer_type='org'`. **Columna Origen** (ex-Provincia): color por
+  provincia/país, filtro "Internacional" agrupa `country IS NOT NULL`.
+- Extra no pedido explícitamente pero natural del punto 1: botón "Recordar
+  a pendientes" — reenvía confirmación (token regenerado, el original ya
+  expiró) a todas las `publica`+`pending_confirmation` de un clic.
 
-### Formulario de firma / landing
-- **Firma pública por defecto** (regla de plataforma) en `SignFlow`; nota de la
-  regla en el editor admin; texto del ActionBlock en usted ("Por defecto es
-  pública — usted elige cómo aparece"). Voseo del flujo → usted.
-- Texto explicativo bajo los botones de visibilidad, cambia según selección
-  (`VIS_HINTS`, caja suave, aria-live, minHeight anti-salto).
-- Pills: default en negro; tras interactuar con el grupo, la activa pasa a
-  **azul #2B4EEA** con texto blanco (estado `interacted` por grupo).
-- Borde 1.5px ink en CTAs lime (landing, flotante, submit popup, "Ya confirmé").
-- Icono mano firmando al hover (`SignHandIcon` compartido, ancho 0→visible).
-- Interlineado del h1: 1.03 → 1.14. Icono "Dirigida a" → edificio gubernamental.
-- Móvil: "Por qué importa" full-bleed (-mx-6); CTA flotante con fondo #2B4EEA y
-  entrada/salida animada (translateY + fade, siempre montado).
+### 2. Dos bugs de RLS encontrados y corregidos (afectaban prod ahora mismo)
+- **`consents_org_admin`** sin guard `NULLIF` antes del cast a `uuid` —
+  mismo bug que `sig_org_admin` ya tenía corregido desde migración 008,
+  nunca portado a `consents`. Causaba `InvalidTextRepresentationError`
+  intermitente al crear firmas (conexión pooleada con `app.current_org_id`
+  revertido a `''` tras un `SET LOCAL`). Migración 031.
+- **Confirmar una firma `secreta` daba 500 siempre** — tras el `UPDATE` a
+  `status='confirmed'`, ninguna política RLS le daba visibilidad a la fila
+  resultante, ni siquiera al propio firmante completando su token. Fix:
+  bypass transaccional `app.is_platform_admin` (mismo patrón ya usado en
+  sesión 27 para el aviso de privacidad cross-org).
 
-### Emails (LOPDP + difusión)
-- Footer de transparencia "+Cauces.org" en todas las plantillas.
-- Email de confirmación: nota de lo que implica la visibilidad **elegida** (la
-  de secreta solo si así se eligió), enlace al aviso
-  (`/aviso-de-privacidad?slug=`), y cómo cambiar el tipo después → mailto al
-  `organizations.contact_email` (se omite si la org no lo tiene).
-- **Segundo email al confirmar** (solo primera confirmación): agradecimiento +
-  botones WhatsApp/FB/X + QR si `show_qr` (data URI — Gmail lo bloquea, degrada
-  a botones) + enlace directo.
-- Redirección de confirmación añade `&nombre=` → **popup de compartir** en la
-  landing (`ConfirmedSharePopup`: X, "¡Gracias, {nombre}!", reutiliza
-  ShareSection). Banner solo para estados expirada/visibilidad.
+### 3. El nombre del firmante se guarda siempre (fix de raíz + remediación)
+- **Causa raíz**: `signature_service.create_signature` guardaba
+  `name=NULL` si `visibility != 'publica'` — decisión de minimización de
+  sesión 1. Pero el propio formulario le promete al anónimo: *"tu firma se
+  suma... al documento de entrega"* — imposible de cumplir sin el nombre.
+  Se guarda siempre desde ahora; la exposición pública sigue igual de
+  restringida (feed, export enmascarado, dashboard según rol).
+- **Hallazgo colateral**: el email de confirmación SÍ mostraba el primer
+  nombre incluso en firmas anónimas (usaba `data.name` crudo del request,
+  no el `sig.name` ya nuleado) — confirmado con un raw payload real de
+  Resend. Techo de recuperación: solo primer nombre, nunca el completo, y
+  solo desde ese email específico (el resto usa `sig.name`, ya nuleado).
+- **Remediación del histórico ya afectado** (migración 032):
+  - Script CLI `send_name_completion_emails` (`--dry-run`/`--force`):
+    ubica `name IS NULL` o de una sola palabra, excluye `secreta` (su
+    firma nunca va al documento de entrega, la justificación del email no
+    le aplica) y `anulada`. Genera `completion_token` (7 días) y manda
+    email con link a un popup en la landing pública (`?completar=token`,
+    mismo patrón que el popup de compartir post-confirmación). Si la firma
+    seguía `pending_confirmation`, queda `confirmed` en el mismo paso.
+  - **Corrida real contra `soberania-tlc-ecu-usa`: 247/247 enviados** —
+    verificado dry-run primero (239 anónimas + 8 públicas con nombre de
+    una palabra, 0 secretas, 0 contaminación de `is_test`).
+  - Pendiente explícito del usuario: el recordatorio de confirmación
+    (botón admin) hoy solo cubre `publica` — falta sumar `anonima`/
+    `secreta` `pending_confirmation` con un copy propio (sin mención al
+    nombre).
 
-### Admin
-- **3 eslóganes** (meta.welcome_slogan_2/3, sin migración) rotando en el hero al
-  cierre de cada ciclo de animación (`onAnimationIteration`).
-- Export CSV: columnas `cedula_parcial` (17XXXXX601) y `email_parcial`
-  (jguXXXXXXX@gmail.com) — descifra solo para enmascarar.
-- Fix compartir: `share_text` del admin no incluía la URL → ahora se añade
-  siempre (ShareSection + StepThanks) y se limpian `U+FFFD` (emojis corruptos).
+### 4. Infra de email (fuera del código, hecho por el usuario en el VPS/Cloudflare) — **las 3 resueltas**
+- `database/init.sh` sin permiso de ejecución — bloqueaba cualquier volumen
+  nuevo de la DB dev (`petition_app` nunca se creaba). Corregido (`chmod +x`).
+- Alertas de deliverability de Resend revisadas y **las 3 confirmadas
+  resueltas por el usuario**:
+  - **Mailto con dominio equivocado** (org configurada con
+    `info@ecuadornotlc.com`, el dominio que envía es `.org`) — resuelto vía
+    Cloudflare Email Routing (`info@ecuadornotlc.org` → `info@ecuadornotlc.com`,
+    buzón real en GreenGeeks): regla de ruteo creada y verificada, y
+    `contact_email` de la organización actualizado a `info@ecuadornotlc.org`.
+  - **Registro DMARC faltante** — cargado en Cloudflare DNS (`_dmarc` TXT).
+  - **Remitente `noreply@`** — `RESEND_FROM_EMAIL` cambiado a una dirección
+    real, confirmado funcionando.
+- Dos alertas más (email de agradecimiento, distinto email): el link de
+  WhatsApp (`wa.me`) es un falso positivo inherente a cualquier botón de
+  compartir — no accionable. El QR como `data:image` (bloqueado por Gmail)
+  es una limitación real y ya documentada desde sesión 27; la solución de
+  fondo (servir el QR desde un endpoint propio en vez de data URI) queda
+  como mejora futura, no implementada esta sesión.
 
-### SDD
-- **`export-entrega`** agregada al backlog (fase 3, spec_ready) con specs
-  completas — descarga completa de PII con step-up auth (password + OTP email),
-  token single-use, exclusión de secretas, auditoría `pii_export_audit`,
-  notificación al Responsable. Análisis aprobado por el usuario en esta sesión.
+---
 
-### Verificación
-- 57 tests API ✓ · `tsc --noEmit` limpio ✓ · landing 200 ✓ · popup con nombre ✓
-- Export CSV enmascarado probado end-to-end con login ✓
-- Aviso de privacidad carga en `prueba-001` ✓
+## Estado de los commits y del deploy
+
+**Todo mergeado y desplegado.** 3 commits en `fix/dashboard-firmas-entrega`
+→ PR #9 → mergeado a `main` (`64cb136`) → deploy corrido por el usuario
+(`docker compose up -d --build petition-api` con migraciones 030-032
+aplicadas por el pipeline de `deploy.yml`). Historial completo:
+
+```
+5491687 fix: dashboard de firmas — descarga absoluta, nombre por rol, columna origen, recordatorio a pendientes
+dcf58f4 fix: RLS de consents_org_admin sin guard NULLIF ante cast a uuid
+b9bbeae fix: el nombre del firmante se guarda siempre + remediación de firmas ya afectadas
+```
+
+**Nota de reconciliación futura**: las migraciones 030-032 parten de la
+017 (head de `main`), NO de la cadena 018-022 de `dev` (retención,
+supresión, ARCO — siguen sin mergear). Cuando `dev` finalmente se mergee a
+`main`, van a aparecer dos heads de Alembic (022 y 032) que van a requerir
+una migración de merge explícita (`alembic merge`). Mismo tema para
+`progress/current.md`/`history.md`: los de `dev` siguen en "sesión 30"; a
+reconciliar manualmente en ese momento.
+
+**Local `main` estaba muy desactualizado** (commit "sesión 20", sin
+relación de ancestro real con `origin/main` — probablemente un rebase/
+squash upstream en algún punto). Se resolvió con `git reset --hard
+origin/main` al cerrar esta sesión (sin pérdida: el único commit local
+único no tenía contenido no superado por el historial remoto).
 
 ---
 
@@ -78,40 +137,52 @@ producción**. Sin migraciones ni variables de entorno nuevas.
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Landing con eslogan | `http://localhost:3002/c/prueba-001` |
-| Popup post-confirmación | `http://localhost:3002/c/prueba-001?confirmada=1&nombre=Javier` |
-| Migración activa | `017` |
+| Migración activa | `032` |
+| Nota | DB dev reseteada esta sesión (`docker volume rm` + migrate + seed) para poder correr las migraciones de esta rama; se perdieron los datos de prueba de sesiones anteriores. |
 
 ## Datos producción
 
 | Campo | Valor |
 |-------|-------|
 | Primera campaña real | `https://cauce.ecuadornotlc.org/c/soberania-tlc-ecu-usa` |
+| Título interno | `Camp-01_AMICUS_TLC_USA` |
 | Campaign ID | `63867787-5498-401e-90f7-990f46b1e09e` |
 | Organización | Plataforma por la Soberanía Alimentaria |
-| Migraciones en prod | 015-017 aplicadas; PII cifrada verificada (`enc:v1:`) |
+| Migraciones en prod | 001-017 + 030-032 aplicadas (018-022 de `dev` siguen sin mergear/aplicar) |
+| Remediación de nombres | Corrida el 2026-07-13 — 247/247 emails enviados |
 
 ---
 
 ## Estado de features
 
-- `export-entrega` **nueva** → `spec_ready` (fase 3)
-- Orden fase 3 vigente: **retencion-datos → supresion-admin → derechos-arco**
-  (specs aprobadas); `export-entrega` puede intercalarse — decide el usuario.
-- `cifrado-reposo` implementado y desplegado; usuario decide `done`.
-- `enlace-corto-qr` (fase 2) spec aprobada, pendiente de turno.
+- `dashboard-firmas` → `in_progress`, ampliado esta sesión (descarga
+  absoluta, nombre por rol, origen, recordatorio a pendientes).
+- `export-entrega` → `done` (ya lo había marcado el usuario); descripción
+  actualizada para reflejar la implementación real (simplificada, sin OTP).
+- `remediacion-nombres-incompletos` → **nueva**, `in_progress` — primera
+  corrida real completada, queda pendiente ampliar el recordatorio a
+  anónima/secreta.
+- Sigue vigente el congelamiento de `dev` (retención-datos, supresión-
+  admin, derechos-arco) hasta que se libere la campaña real.
 
 ## Pendientes para próxima sesión
 
-1. **Probar en producción** los cambios de sesión 27 tras el deploy (formulario,
-   emails con Resend real, popup post-confirmación, export CSV)
-2. Implementar **`retencion-datos`** (siguiente de fase 3) o `export-entrega`
-   si el usuario prioriza la entrega
-3. Usuario en admin prod: `welcome_slogan` campaña TLC, texto del aviso, logo org
-4. Checks browser menores: dashboard-firmas T28, editor-branding T14,
-   resumen-admin T6-T7
-5. Deploy: solo `git push` → CI/CD (sin migraciones ni env nuevas)
-6. Opcional: reconstruir `history.md` sesiones 6–23
+Las 3 alertas de deliverability de Resend (mailto con dominio equivocado,
+DMARC faltante, remitente `noreply@`) **quedaron resueltas esta misma
+sesión** — ver sección 4 arriba. Queda para adelante:
+
+1. Ampliar el recordatorio de confirmación (botón admin) para incluir
+   `anonima`/`secreta` `pending_confirmation` — requiere copy de email
+   distinto (sin mención al nombre). Pedido explícito del usuario.
+2. Opcional: servir el QR del email de agradecimiento desde un endpoint
+   propio en vez de `data:image` (resuelve el bloqueo de Gmail + la alerta
+   de deliverability de Resend de una vez).
+3. Verificar en el dashboard de firmas de producción que los 247 firmantes
+   vayan completando su nombre / confirmando en los próximos días (el link
+   de completar vence a los 7 días).
+4. Sigue en espera por congelamiento: `dev` (retención-datos, supresión-
+   admin, derechos-arco) — decidir cuándo se libera la campaña real para
+   traer ese trabajo a `main`.
 
 ## Al inicio de la próxima sesión
 

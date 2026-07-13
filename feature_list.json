@@ -121,7 +121,7 @@
     {
       "id": "dashboard-firmas",
       "title": "Fase 1 — MVP: dashboard admin de firmas",
-      "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm.",
+      "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm. Sesión 31: nombre visible según rol (gestor no ve secreta, admin sí), columna Provincia → Origen (color por provincia/país, filtro Internacional agrupa países), botón 'Recordar a pendientes' (reenvía confirmación a publica+pending_confirmation de un clic).",
       "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
@@ -229,8 +229,17 @@
     {
       "id": "export-entrega",
       "title": "Fase 3 — LOPDP: descarga completa de PII para entrega oficial (step-up auth)",
-      "description": "Botón 'Descarga de entrega' en el dashboard de firmas, disponible desde la etapa Entrega (lifecycle_stage >= 2). Step-up auth: re-validación de contraseña + OTP de 6 dígitos al email del admin (TTL 10 min, hasheado en Redis, 3 intentos, rate 3/hora) → token de descarga de un solo uso (TTL 5 min) → CSV con cédula y email descifrados. Solo firmas confirmadas; las secretas nunca integran el archivo (solo cuentan). Auditoría pii_export_audit (sin PII) + notificación al Responsable y a admins de plataforma. Insumo de documento-entrega (fase 4). Análisis aprobado en sesión 27.",
+      "description": "Implementado en sesión 31 como 'Descarga absoluta' en el dashboard de firmas — versión simplificada del análisis de sesión 27: re-validación de SOLO contraseña (sin OTP, decisión explícita del usuario) → CSV con nombre/cédula/email descifrados + org, origen (provincia/país), tipo de firma (visibilidad) y estado; fila final de sello (admin/fecha/hora). Sin gating por lifecycle_stage (disponible en cualquier etapa). Solo firmas confirmadas; las secretas nunca integran el archivo (solo cuentan, conteo en pii_export_audit.secret_excluded_count). Auditoría pii_export_audit (sin PII) + notificación por email al contacto de la org y a platform_admin_emails. Insumo de documento-entrega (fase 4).",
       "status": "done",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 3
+    },
+    {
+      "id": "remediacion-nombres-incompletos",
+      "title": "Fase 3 — LOPDP: remediación de firmas con nombre null/incompleto",
+      "description": "Hallazgo sesión 31: el nombre del firmante se descartaba en DB para visibility != 'publica' (ya corregido en signature_service — se guarda siempre desde ahora), pero el formulario le promete al anónimo que su firma va al documento de entrega. Remediación del histórico ya afectado: script CLI (send_name_completion_emails, --dry-run/--force) ubica firmas con name null o de una sola palabra (excluye secreta y anulada), genera completion_token (7 días) y manda email con link a un popup en la landing (?completar=<token>) para completar el nombre; si la firma seguía pending_confirmation, queda confirmed en el mismo paso. Además, botón 'Recordar a pendientes' (parte de dashboard-firmas) para publica+pending_confirmation. Primera corrida real en campaña soberania-tlc-ecu-usa: 247/247 enviados exitosamente (sesión 31). Pendiente: sumar anonima/secreta pending_confirmation al recordatorio (requiere copy sin mención al nombre).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3

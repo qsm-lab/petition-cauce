@@ -446,6 +446,7 @@ async def send_export_absoluto_notification(
     admin_email: str,
     row_count: int,
     secret_excluded_count: int,
+    pending_included_count: int,
     created_at,
 ) -> None:
     """Notifica cada descarga absoluta de PII: al contacto de la org Responsable
@@ -470,6 +471,7 @@ async def send_export_absoluto_notification(
             <tr><td style="padding:2px 0;color:#7a8a72;">Realizada por</td><td style="padding:2px 0;text-align:right;">{admin_email}</td></tr>
             <tr><td style="padding:2px 0;color:#7a8a72;">Fecha</td><td style="padding:2px 0;text-align:right;">{fecha}</td></tr>
             <tr><td style="padding:2px 0;color:#7a8a72;">Filas incluidas</td><td style="padding:2px 0;text-align:right;">{row_count}</td></tr>
+            <tr><td style="padding:2px 0;color:#7a8a72;">De esas, sin confirmar aún</td><td style="padding:2px 0;text-align:right;">{pending_included_count}</td></tr>
             <tr><td style="padding:2px 0;color:#7a8a72;">Secretas excluidas</td><td style="padding:2px 0;text-align:right;">{secret_excluded_count}</td></tr>
           </table>
           <p style="margin:0;font-size:12px;color:#9aaa92;line-height:1.5;">

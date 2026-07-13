@@ -177,3 +177,26 @@ además del RLS. Previene data leak si RLS se desactiva por error de migración.
   (combinado con los headers de request). Audit log completo se agrega en Fase 3.
 - **Retención del CSV descargado:** responsabilidad del Responsable (org activista)
   conforme al contrato de encargo de tratamiento. La plataforma no retiene copias.
+
+---
+
+## Addendum — sesión 31
+
+Ampliaciones sobre el diseño original, implementadas junto con `export-entrega`:
+
+- **Masking de `name` por rol** en `list_signatures`/`export_csv`: `role='gestor'`
+  no ve el nombre si `visibility='secreta'`; `role='admin'` (plataforma) sí. La
+  minimización pasó de "no guardar el nombre" (bug corregido, ver
+  `signature_service.create_signature`) a "no exponerlo según rol/visibilidad" —
+  el dato ahora sí se persiste siempre.
+- **Columna Origen** (ex-Provincia): `provincia`/`country` son mutuamente
+  excluyentes en el modelo, sin migración necesaria. Filtro `provincia=internacional`
+  agrupa `country IS NOT NULL`.
+- **`(org) nombre`** en la columna Nombre cuando `signer_type='org'` — formato
+  solo de display, sin cambio de modelo (`org_name` ya existía).
+- **Botón "Recordar a pendientes"**: nuevo endpoint
+  `POST /campaigns/{id}/signatures/remind-pending`, regenera
+  `confirmation_token`/`confirmation_token_expires_at` (el original expira a las
+  24h) y reenvía el email de confirmación a todo `publica`+`pending_confirmation`
+  de la campaña. Pendiente explícito del usuario: sumar `anonima`/`secreta`
+  (requiere copy sin mención al nombre — ver `remediacion-nombres-incompletos`).

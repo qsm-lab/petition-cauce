@@ -141,7 +141,7 @@ async def export_signatures_absoluto(
     org_id = campaign.org_id
     ip = request.headers.get("X-Real-IP") or (request.client.host if request.client else "")
 
-    response, row_count, secret_excluded_count = await AdminSignatureService.export_absoluto(
+    response, row_count, secret_excluded_count, pending_included_count = await AdminSignatureService.export_absoluto(
         db,
         campaign_id=campaign.id,
         org_id=org_id,
@@ -159,6 +159,7 @@ async def export_signatures_absoluto(
         admin_email=current_user.email,
         row_count=row_count,
         secret_excluded_count=secret_excluded_count,
+        pending_included_count=pending_included_count,
         created_at=datetime.now(timezone.utc),
     )
     return response
