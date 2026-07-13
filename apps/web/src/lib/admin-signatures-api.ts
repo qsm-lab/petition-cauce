@@ -3,7 +3,10 @@ import { apiServer } from "@/lib/api-server";
 export interface AdminSignatureItem {
   id: string;
   name: string | null;
+  org_name: string | null;
+  signer_type: "natural" | "org";
   provincia: string | null;
+  country: string | null;
   visibility: "publica" | "anonima" | "secreta";
   pending_visibility: "publica" | "anonima" | "secreta" | null;
   status: "confirmed" | "pending_confirmation" | "anulada";

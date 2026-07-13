@@ -2,7 +2,34 @@ import Link from "next/link";
 import { getAdminSignatures, type AdminSignatureItem } from "@/lib/admin-signatures-api";
 import FiltrosBar from "./FiltrosBar";
 import ExportCsvButton from "./ExportCsvButton";
+import ExportAbsolutoButton from "./ExportAbsolutoButton";
+import RemindPendingButton from "./RemindPendingButton";
 import VisibilityCell from "./VisibilityCell";
+
+function displayName(sig: AdminSignatureItem): string {
+  if (sig.signer_type === "org" && sig.org_name) {
+    return sig.name ? `(${sig.org_name}) ${sig.name}` : `(${sig.org_name})`;
+  }
+  return sig.name ?? "—";
+}
+
+function OrigenCell({ provincia, country }: { provincia: string | null; country: string | null }) {
+  if (country) {
+    return (
+      <span
+        className="inline-flex items-center font-semibold text-[11px]"
+        style={{ background: "color-mix(in srgb, #2B4EEA 10%, transparent)", color: "#2B4EEA", padding: "3px 8px", borderRadius: "99px" }}
+        aria-label={`Origen internacional: ${country}`}
+      >
+        {country}
+      </span>
+    );
+  }
+  if (provincia) {
+    return <span style={{ color: "var(--bmut)" }}>{provincia}</span>;
+  }
+  return <span style={{ color: "var(--bmut)" }}>—</span>;
+}
 
 // ─── Badges ─────────────────────────────────────────────────────────────────
 
@@ -121,13 +148,16 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
           </div>
 
           {data && (
-            <ExportCsvButton
-              campaignId={campaignId}
-              total={data.total}
-              provincia={provincia}
-              visibility={visibility}
-              status={status}
-            />
+            <div className="flex items-center gap-2">
+              <ExportCsvButton
+                campaignId={campaignId}
+                total={data.total}
+                provincia={provincia}
+                visibility={visibility}
+                status={status}
+              />
+              <ExportAbsolutoButton campaignId={campaignId} total={data.confirmed_count} />
+            </div>
           )}
         </div>
       </header>
@@ -154,23 +184,26 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
           <>
             {/* Chips de estadísticas */}
             <div
-              className="flex items-center gap-2 mb-5 px-4 py-3 rounded-[12px] text-[13px] font-medium"
+              className="flex items-center justify-between gap-2 mb-5 px-4 py-3 rounded-[12px] text-[13px] font-medium"
               style={{ backgroundColor: "var(--bsurf)", border: "1px solid var(--bbord)" }}
             >
-              <span style={{ color: "var(--bink)" }}>
-                <strong style={{ fontWeight: 700 }}>{data.confirmed_count}</strong>
-                <span style={{ color: "var(--bmut)" }}> confirmadas</span>
-              </span>
-              <span style={{ color: "var(--bbord)" }}>·</span>
-              <span style={{ color: "var(--bink)" }}>
-                <strong style={{ fontWeight: 700 }}>{data.pending_count}</strong>
-                <span style={{ color: "var(--bmut)" }}> pendientes</span>
-              </span>
-              <span style={{ color: "var(--bbord)" }}>·</span>
-              <span style={{ color: "var(--bink)" }}>
-                <strong style={{ fontWeight: 700 }}>{data.anulada_count}</strong>
-                <span style={{ color: "var(--bmut)" }}> anuladas</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span style={{ color: "var(--bink)" }}>
+                  <strong style={{ fontWeight: 700 }}>{data.confirmed_count}</strong>
+                  <span style={{ color: "var(--bmut)" }}> confirmadas</span>
+                </span>
+                <span style={{ color: "var(--bbord)" }}>·</span>
+                <span style={{ color: "var(--bink)" }}>
+                  <strong style={{ fontWeight: 700 }}>{data.pending_count}</strong>
+                  <span style={{ color: "var(--bmut)" }}> pendientes</span>
+                </span>
+                <span style={{ color: "var(--bbord)" }}>·</span>
+                <span style={{ color: "var(--bink)" }}>
+                  <strong style={{ fontWeight: 700 }}>{data.anulada_count}</strong>
+                  <span style={{ color: "var(--bmut)" }}> anuladas</span>
+                </span>
+              </div>
+              {data.pending_count > 0 && <RemindPendingButton campaignId={campaignId} />}
             </div>
 
             {/* Filtros */}
@@ -193,7 +226,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
               <table className="w-full" role="table">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--bbord)", backgroundColor: "var(--bbg)" }}>
-                    {(["Nombre", "Provincia", "Visibilidad", "Estado", "Confirmada el", "Registrada el"] as const).map(
+                    {(["Nombre", "Origen", "Visibilidad", "Estado", "Confirmada el", "Registrada el"] as const).map(
                       (col) => (
                         <th
                           key={col}
@@ -235,10 +268,10 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
                         style={{ borderBottom: "1px solid color-mix(in srgb, var(--bbord) 60%, transparent)" }}
                       >
                         <td className="px-4 py-3 text-[13px] font-medium" style={{ color: "var(--bink)" }}>
-                          {sig.name ?? "—"}
+                          {displayName(sig)}
                         </td>
                         <td className="px-4 py-3 text-[13px]" style={{ color: "var(--bmut)" }}>
-                          {sig.provincia ?? "—"}
+                          <OrigenCell provincia={sig.provincia} country={sig.country} />
                         </td>
                         <td className="px-4 py-3">
                           <VisibilityCell campaignId={params.id} signature={sig} />

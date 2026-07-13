@@ -37,12 +37,13 @@ export default function FiltrosBar({
         onChange={handleChange}
         className={selectClass}
         style={selectStyle}
-        aria-label="Filtrar por provincia"
+        aria-label="Filtrar por origen"
       >
-        <option value="">Todas las provincias</option>
+        <option value="">Todo origen</option>
         {PROVINCIAS.map((p) => (
           <option key={p} value={p}>{p}</option>
         ))}
+        <option value="internacional">Internacional (todos los países)</option>
       </select>
 
       <select

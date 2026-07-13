@@ -99,7 +99,12 @@ async def create_signature(
     sig = Signature(
         campaign_id=campaign.id,
         org_id=campaign.org_id,
-        name=data.name.strip() if data.visibility == "publica" else None,
+        # El nombre se guarda siempre, sin importar la visibilidad elegida:
+        # anónima promete "se suma... al documento de entrega" (StepForm.tsx),
+        # lo cual requiere conservar el nombre. La minimización ocurre en la
+        # exposición (feed público, export CSV enmascarado, dashboard según
+        # rol), no en la captura.
+        name=data.name.strip(),
         email_encrypted=encrypt_pii(email_normalized),
         email_hash=email_hash,
         cedula_encrypted=encrypt_pii(data.cedula) if data.cedula else None,
@@ -169,6 +174,14 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     (o el prefetch del cliente de correo) no termine en error.
     status: "confirmed" | "expired".
     """
+    # Bypass RLS transaccional (mismo patrón que la lectura cross-org del
+    # aviso de privacidad): tras confirmar, la fila queda en
+    # status='confirmed' y ninguna política pública/anónima cubre
+    # visibility='secreta' — ni siquiera para el propio firmante completando
+    # su token. La autorización real aquí es "conoce el token", no RLS.
+    from sqlalchemy import text as sa_text
+    await db.execute(sa_text("SELECT set_config('app.is_platform_admin', 'true', true)"))
+
     result = await db.execute(
         select(Signature).where(Signature.confirmation_token == token)
     )
@@ -313,3 +326,66 @@ async def get_total_signature_count(db: AsyncSession, campaign_id: uuid.UUID) ->
         )
     )
     return result.scalar() or 0
+
+
+COMPLETION_TOKEN_TTL_DAYS = 7
+
+
+async def get_completion_context(db: AsyncSession, token: str) -> dict | None:
+    """Valida el token de completar nombre. No consume PII, solo confirma vigencia."""
+    from sqlalchemy import text as sa_text
+    await db.execute(sa_text("SELECT set_config('app.is_platform_admin', 'true', true)"))
+
+    result = await db.execute(select(Signature).where(Signature.completion_token == token))
+    sig = result.scalar_one_or_none()
+    if not sig or not sig.completion_token_expires_at:
+        return None
+
+    exp = sig.completion_token_expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > exp:
+        return None
+
+    return {"campaign_id": sig.campaign_id}
+
+
+async def complete_signature_name(db: AsyncSession, token: str, name: str) -> dict | None:
+    """Completa el nombre de una firma vía el token de remediación.
+
+    Si la firma seguía `pending_confirmation`, la promueve a `confirmed` en
+    el mismo paso (consolida completar-nombre + confirmar en un solo click,
+    como pidió el usuario). Token de un solo uso.
+    """
+    from sqlalchemy import text as sa_text
+    await db.execute(sa_text("SELECT set_config('app.is_platform_admin', 'true', true)"))
+
+    result = await db.execute(select(Signature).where(Signature.completion_token == token))
+    sig = result.scalar_one_or_none()
+    if not sig or not sig.completion_token_expires_at:
+        return None
+
+    exp = sig.completion_token_expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > exp:
+        return None
+
+    clean_name = name.strip()
+    if len(clean_name) < 3 or " " not in clean_name:
+        raise ValueError("nombre_incompleto")
+
+    campaign_result = await db.execute(select(Campaign).where(Campaign.id == sig.campaign_id))
+    campaign = campaign_result.scalar_one_or_none()
+    slug = campaign.slug if campaign else None
+
+    newly_confirmed = sig.status == "pending_confirmation"
+    sig.name = clean_name
+    if newly_confirmed:
+        sig.status = "confirmed"
+        sig.confirmed_at = datetime.now(timezone.utc)
+    sig.completion_token = None
+    sig.completion_token_expires_at = None
+    await db.commit()
+
+    return {"slug": slug, "newly_confirmed": newly_confirmed}
