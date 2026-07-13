@@ -392,3 +392,102 @@ async def send_visibility_change_email(
         org_logo_url=org_logo_url,
     )
     await _send(to_email, f"Confirma el cambio de visibilidad: {campaign_title}", html)
+
+
+async def send_name_completion_email(
+    to_email: str,
+    token: str,
+    campaign_title: str,
+    campaign_slug: str,
+    org_name: str = "",
+    org_logo_url: str = "",
+    org_contact_email: str = "",
+) -> None:
+    """Remediación histórica: pide completar el nombre de una firma que quedó
+    sin nombre o con nombre incompleto. Enlaza al popup público en la landing
+    (?completar=<token>), no a una página nueva."""
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+    complete_url = f"{app_url}/c/{campaign_slug}?completar={token}"
+
+    if not settings.resend_api_key:
+        logger.info("[dev] name completion email | to=%s | url=%s", to_email, complete_url)
+        return
+
+    contact_block = ""
+    if org_contact_email:
+        contact_block = (
+            f"<br><br>Si tenés dudas sobre este pedido, escribinos a "
+            f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+            f"{org_contact_email}</a>."
+        )
+
+    html = _signer_action_html(
+        heading="Ayúdanos a validar tu firma",
+        body_html=(
+            f"Estamos por entregar la campaña: <strong>{campaign_title}</strong> a la autoridad correspondiente. "
+            "Para que tu firma llegue con todo su respaldo, necesitamos que completes tu nombre — "
+            "quedó registrada sin él.<br><br>"
+            "Tu nombre sigue sin mostrarse públicamente si así lo elegiste al firmar; esto solo "
+            "corrige el dato interno."
+            f"{contact_block}"
+        ),
+        cta_label="Completar y validar →",
+        cta_url=complete_url,
+        footer="Si no reconocés esta firma, ignora este mensaje.",
+        org_name=org_name,
+        org_logo_url=org_logo_url,
+    )
+    await _send(to_email, f"Completa tu firma: {campaign_title}", html)
+
+
+async def send_export_absoluto_notification(
+    org_contact_email: str | None,
+    campaign_title: str,
+    admin_email: str,
+    row_count: int,
+    secret_excluded_count: int,
+    created_at,
+) -> None:
+    """Notifica cada descarga absoluta de PII: al contacto de la org Responsable
+    y a la plataforma. Control de transparencia/trazabilidad — no bloquea la
+    descarga si falla el envío (ya se registró en pii_export_audit)."""
+    fecha = created_at.strftime("%d/%m/%Y %H:%M UTC")
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          <p style="margin:0 0 4px;font-size:13px;color:#b45309;letter-spacing:.04em;text-transform:uppercase;">Descarga absoluta de datos</p>
+          <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#1a2516;">{campaign_title}</h1>
+          <p style="margin:0 0 8px;font-size:14px;color:#4a5644;line-height:1.6;">
+            Se descargó el listado completo de firmantes (nombre, cédula y correo sin enmascarar)
+            para preparar el documento de entrega oficial.
+          </p>
+          <table width="100%" style="margin:16px 0;font-size:13px;color:#4a5644;">
+            <tr><td style="padding:2px 0;color:#7a8a72;">Realizada por</td><td style="padding:2px 0;text-align:right;">{admin_email}</td></tr>
+            <tr><td style="padding:2px 0;color:#7a8a72;">Fecha</td><td style="padding:2px 0;text-align:right;">{fecha}</td></tr>
+            <tr><td style="padding:2px 0;color:#7a8a72;">Filas incluidas</td><td style="padding:2px 0;text-align:right;">{row_count}</td></tr>
+            <tr><td style="padding:2px 0;color:#7a8a72;">Secretas excluidas</td><td style="padding:2px 0;text-align:right;">{secret_excluded_count}</td></tr>
+          </table>
+          <p style="margin:0;font-size:12px;color:#9aaa92;line-height:1.5;">
+            Como Responsable del tratamiento, el resguardo y la retención de esta copia
+            son de su responsabilidad conforme al contrato de encargo de tratamiento.
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    subject = f"[Cauce] Descarga absoluta de firmantes — {campaign_title}"
+
+    admin_emails = [e.strip() for e in settings.platform_admin_emails.split(",") if e.strip()]
+    recipients = admin_emails + ([org_contact_email] if org_contact_email else [])
+    if not recipients:
+        logger.info("[export-absoluto] sin destinatarios configurados (platform_admin_emails/org.contact_email)")
+        return
+    await _send(recipients, subject, html)

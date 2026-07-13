@@ -56,3 +56,7 @@ class ConfirmResponse(BaseModel):
 
 class ResendConfirmationRequest(BaseModel):
     email: str
+
+
+class CompleteNameRequest(BaseModel):
+    name: str

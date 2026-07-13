@@ -12,11 +12,13 @@ from app.models.organization import Organization
 from app.models.privacy_config import PrivacyConfig
 from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
-from app.schemas.signature import ResendConfirmationRequest, SignatureCreate
+from app.schemas.signature import CompleteNameRequest, ResendConfirmationRequest, SignatureCreate
 from app.services.email_service import send_confirmation_email
 from app.services.signature_service import (
+    complete_signature_name,
     confirm_signature,
     create_signature,
+    get_completion_context,
     get_recent_signatures,
     get_signature_count,
     get_total_signature_count,
@@ -285,6 +287,31 @@ async def confirm_sig(token: str, db: AsyncSession = Depends(get_db)):
     return RedirectResponse(dest, status_code=302)
 
 
+@router.get("/complete/{token}")
+@limiter.limit("20/minute")
+async def check_completion_token(token: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Valida el token del popup de completar nombre (remediación histórica)."""
+    ctx = await get_completion_context(db, token)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Enlace inválido o expirado")
+    return {"valid": True}
+
+
+@router.post("/complete/{token}")
+@limiter.limit("10/minute")
+async def submit_completion_name(
+    token: str, data: CompleteNameRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Completa el nombre de la firma; si seguía pending_confirmation, la confirma también."""
+    try:
+        result = await complete_signature_name(db, token, data.name)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Ingresá tu nombre completo (nombre y apellido)")
+    if not result:
+        raise HTTPException(status_code=404, detail="Enlace inválido o expirado")
+    return {"ok": True, "newly_confirmed": result["newly_confirmed"]}
+
+
 @router.get("/confirm-visibility/{token}")
 async def confirm_visibility_change(token: str, db: AsyncSession = Depends(get_db)):
     """Aplica el cambio de visibilidad solicitado por admin, confirmado por el titular."""
@@ -316,8 +343,8 @@ async def confirm_visibility_change(token: str, db: AsyncSession = Depends(get_d
         return RedirectResponse(f"{app_url}/c/{slug}?confirmada=expirada", status_code=302)
 
     sig.visibility = sig.pending_visibility
-    if sig.visibility != "publica":
-        sig.name = None  # el nombre solo se conserva para firmas públicas
+    # El nombre se conserva sin importar la visibilidad (ver signature_service.
+    # create_signature); solo cambia la exposición según visibility/rol.
     sig.pending_visibility = None
     sig.visibility_change_token = None
     sig.visibility_change_expires_at = None
