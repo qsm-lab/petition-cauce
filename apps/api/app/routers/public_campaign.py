@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, text
@@ -351,6 +352,43 @@ async def confirm_visibility_change(token: str, db: AsyncSession = Depends(get_d
     await db.commit()
 
     return RedirectResponse(f"{app_url}/c/{slug}?confirmada=visibilidad", status_code=302)
+
+
+def _ics_escape(text: str) -> str:
+    return (text or "").replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
+
+
+@router.get("/calendar.ics")
+async def event_calendar_ics(title: str, start: datetime, location: str = "", details: str = ""):
+    """Genera un .ics on-demand a partir de los datos ya incluidos en el link
+    (no persiste nada) — usado por el botón 'Apple Calendar' de la invitación
+    al evento de entrega. Duración fija de 2h."""
+    start_utc = start if start.tzinfo else start.replace(tzinfo=timezone.utc)
+    start_utc = start_utc.astimezone(timezone.utc)
+    end_utc = start_utc + timedelta(hours=2)
+    now_utc = datetime.now(timezone.utc)
+    fmt = "%Y%m%dT%H%M%SZ"
+    ics = "\r\n".join([
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Cauce//Evento//ES",
+        "BEGIN:VEVENT",
+        f"UID:{uuid.uuid4()}@cauce",
+        f"DTSTAMP:{now_utc.strftime(fmt)}",
+        f"DTSTART:{start_utc.strftime(fmt)}",
+        f"DTEND:{end_utc.strftime(fmt)}",
+        f"SUMMARY:{_ics_escape(title)}",
+        f"LOCATION:{_ics_escape(location)}",
+        f"DESCRIPTION:{_ics_escape(details)}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+        "",
+    ])
+    return Response(
+        content=ics,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="evento.ics"'},
+    )
 
 
 @router.get("/{campaign_id}")

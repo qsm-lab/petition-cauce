@@ -16,7 +16,7 @@ from app.models.campaign import Campaign
 from app.services.admin_signature_service import AdminSignatureService
 from app.services.auth_service import verify_password
 from app.services.email_service import (
-    send_confirmation_email,
+    send_confirmation_reminder_email,
     send_export_absoluto_notification,
     send_visibility_change_email,
 )
@@ -212,7 +212,7 @@ async def remind_pending_signatures(
         sig.confirmation_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=_TOKEN_TTL_HOURS)
         await db.commit()
 
-        await send_confirmation_email(
+        await send_confirmation_reminder_email(
             to_email=email,
             token=sig.confirmation_token,
             campaign_title=campaign.petition_title or campaign.title,

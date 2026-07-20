@@ -189,7 +189,7 @@ class CampaignService:
         if not campaign:
             return None
         current_meta = dict(campaign.meta or {})
-        link_keys = {"instagram", "facebook", "tiktok", "whatsapp", "newsletter", "website"}
+        link_keys = {"instagram", "facebook", "x", "tiktok", "whatsapp", "newsletter", "website", "email"}
         current_meta["social_links"] = {k: v for k, v in data.model_dump().items() if k in link_keys and v is not None}
         if data.share_text is not None:
             current_meta["share_text"] = data.share_text
@@ -309,6 +309,88 @@ class CampaignService:
             except PIIDecryptError:
                 continue  # ya logueado en decrypt_pii; no aborta el envío al resto
         return emails
+
+    @staticmethod
+    async def _decrypt_confirmed_emails(db: AsyncSession, filters: list) -> list[str]:
+        result = await db.execute(select(Signature.id, Signature.email_encrypted).where(*filters))
+        emails: list[str] = []
+        for sig_id, enc in result.all():
+            if not enc:
+                continue
+            try:
+                emails.append(decrypt_pii(enc, ref=str(sig_id)))
+            except PIIDecryptError:
+                continue  # ya logueado en decrypt_pii; no aborta el envío al resto
+        return emails
+
+    @staticmethod
+    async def get_signer_emails_and_names_nacional_confirmed(
+        db: AsyncSession,
+        campaign_id: uuid.UUID,
+    ) -> list[tuple[str, str]]:
+        """(email, name) de firmas confirmed + país nulo (nacional) — para
+        personalizar la invitación al evento. Sin filtro notify_updates —
+        ver comunicaciones-cierre-campana/requirements.md (nunca se capturó)."""
+        result = await db.execute(
+            select(Signature.id, Signature.email_encrypted, Signature.name).where(
+                Signature.campaign_id == campaign_id,
+                Signature.status == "confirmed",
+                Signature.country.is_(None),
+            )
+        )
+        recipients: list[tuple[str, str]] = []
+        for sig_id, enc, name in result.all():
+            if not enc:
+                continue
+            try:
+                email = decrypt_pii(enc, ref=str(sig_id))
+            except PIIDecryptError:
+                continue
+            recipients.append((email, name or ""))
+        return recipients
+
+    @staticmethod
+    async def get_signer_emails_nacional_confirmed(
+        db: AsyncSession,
+        campaign_id: uuid.UUID,
+    ) -> list[str]:
+        """Firmas confirmed + país nulo (nacional). Sin filtro notify_updates —
+        ver comunicaciones-cierre-campana/requirements.md (nunca se capturó)."""
+        recipients = await CampaignService.get_signer_emails_and_names_nacional_confirmed(db, campaign_id)
+        return [email for email, _ in recipients]
+
+    @staticmethod
+    async def get_signer_emails_and_names_todos_confirmed(
+        db: AsyncSession,
+        campaign_id: uuid.UUID,
+    ) -> list[tuple[str, str]]:
+        """(email, name) de TODAS las firmas confirmed, nacional + internacional
+        — para personalizar el aviso de cierre."""
+        result = await db.execute(
+            select(Signature.id, Signature.email_encrypted, Signature.name).where(
+                Signature.campaign_id == campaign_id,
+                Signature.status == "confirmed",
+            )
+        )
+        recipients: list[tuple[str, str]] = []
+        for sig_id, enc, name in result.all():
+            if not enc:
+                continue
+            try:
+                email = decrypt_pii(enc, ref=str(sig_id))
+            except PIIDecryptError:
+                continue
+            recipients.append((email, name or ""))
+        return recipients
+
+    @staticmethod
+    async def get_signer_emails_todos_confirmed(
+        db: AsyncSession,
+        campaign_id: uuid.UUID,
+    ) -> list[str]:
+        """Todas las firmas confirmed de la campaña, nacional + internacional."""
+        recipients = await CampaignService.get_signer_emails_and_names_todos_confirmed(db, campaign_id)
+        return [email for email, _ in recipients]
 
     @staticmethod
     async def get_qr(db: AsyncSession, campaign_id: str) -> dict:
