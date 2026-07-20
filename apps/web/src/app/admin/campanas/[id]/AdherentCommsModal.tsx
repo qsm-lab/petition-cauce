@@ -78,6 +78,55 @@ function DraftBanner({ visible, onDiscard }: { visible: boolean; onDiscard: () =
   );
 }
 
+const toolbarBtnStyle: React.CSSProperties = {
+  border: "1.5px solid var(--bbord)", background: "#fff", borderRadius: 6,
+  width: 24, height: 24, fontSize: 12, cursor: "pointer", color: "#16261F",
+  display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+};
+
+/** Textarea con negrita/cursiva (envuelve la selección con asteriscos dobles
+ * o simples, mismo formato que interpreta _render_message_html en el
+ * backend) y saltos de línea nativos — una línea en blanco separa párrafos
+ * en el email. */
+function MessageField({
+  value, onChange, rows = 2, placeholder,
+}: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  function wrap(marker: string) {
+    const el = ref.current;
+    if (!el) return;
+    const { selectionStart, selectionEnd } = el;
+    const selected = value.slice(selectionStart, selectionEnd) || "texto";
+    const next = value.slice(0, selectionStart) + marker + selected + marker + value.slice(selectionEnd);
+    onChange(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selectionStart + marker.length, selectionStart + marker.length + selected.length);
+    });
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+        <button type="button" onClick={() => wrap("**")} style={{ ...toolbarBtnStyle, fontWeight: 800 }} aria-label="Negrita" title="Negrita">B</button>
+        <button type="button" onClick={() => wrap("*")} style={{ ...toolbarBtnStyle, fontStyle: "italic" }} aria-label="Cursiva" title="Cursiva">I</button>
+      </div>
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        style={{ ...inputStyle, resize: "vertical" }}
+      />
+      <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(22,38,31,0.45)" }}>
+        **negrita**, *cursiva*. Una línea en blanco separa párrafos.
+      </p>
+    </div>
+  );
+}
+
 function TestEmailsField({
   emails, onChange,
 }: { emails: string[]; onChange: (v: string[]) => void }) {
@@ -246,7 +295,7 @@ function EventInvitationTab({ campaignId }: { campaignId: string }) {
       </div>
       <div>
         <label style={labelStyle}>Mensaje adicional (opcional)</label>
-        <textarea value={d.message} onChange={(e) => set("message", e.target.value)} rows={2} style={{ ...inputStyle, resize: "none" }} />
+        <MessageField value={d.message} onChange={(v) => set("message", v)} />
       </div>
       <div>
         <label style={labelStyle}>Asunto (opcional)</label>
@@ -371,7 +420,7 @@ function ClosingNotificationTab({ campaignId }: { campaignId: string }) {
       </div>
       <div>
         <label style={labelStyle}>Mensaje adicional (opcional)</label>
-        <textarea value={d.message} onChange={(e) => set("message", e.target.value)} rows={2} style={{ ...inputStyle, resize: "none" }} />
+        <MessageField value={d.message} onChange={(v) => set("message", v)} />
       </div>
       <div>
         <label style={labelStyle}>Asunto (opcional)</label>
@@ -444,12 +493,11 @@ function MessageTab({ campaignId }: { campaignId: string }) {
       <p style={{ margin: 0, fontSize: 12, color: "rgba(22,38,31,0.55)" }}>
         Mensaje libre, sin plantilla ni vista previa. Solo se envía a firmantes que consintieron recibir novedades.
       </p>
-      <textarea
+      <MessageField
         value={d.message}
-        onChange={(e) => set("message", e.target.value)}
-        placeholder="Escribe el mensaje para los firmantes…"
+        onChange={(v) => set("message", v)}
         rows={4}
-        style={{ ...inputStyle, resize: "none" }}
+        placeholder="Escribe el mensaje para los firmantes…"
       />
       {result && <p style={resultStyle(result.startsWith("✓"))}>{result}</p>}
       <button

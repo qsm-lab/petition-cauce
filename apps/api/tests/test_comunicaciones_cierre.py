@@ -14,6 +14,7 @@ from app.services.email_service import (
     _build_delivery_event_invitation_html,
     _build_campaign_closing_html,
     _fmt_event_datetime,
+    _render_message_html,
 )
 from app.schemas.campaign import EventInvitationRequest, ClosingNotificationRequest
 import pytest
@@ -250,3 +251,32 @@ def test_invitation_html_muestra_hora_local_no_utc():
     )
     assert "10:00" in html
     assert "15:00" not in html
+
+
+def test_render_message_html_negrita_y_cursiva():
+    html = _render_message_html("Traigan **banderas** y *pancartas*.")
+    assert "<strong>banderas</strong>" in html
+    assert "<em>pancartas</em>" in html
+
+
+def test_render_message_html_linea_en_blanco_separa_parrafos():
+    html = _render_message_html("Primer párrafo.\n\nSegundo párrafo.")
+    assert html.count("<p") == 2
+    assert "Primer párrafo." in html
+    assert "Segundo párrafo." in html
+
+
+def test_render_message_html_salto_de_linea_simple_es_br():
+    html = _render_message_html("Línea uno.\nLínea dos.")
+    assert "Línea uno.<br>Línea dos." in html
+
+
+def test_render_message_html_escapa_html_del_admin():
+    html = _render_message_html("<script>alert(1)</script>")
+    assert "<script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_render_message_html_vacio_no_genera_bloque():
+    assert _render_message_html(None) == ""
+    assert _render_message_html("   ") == ""

@@ -1,4 +1,6 @@
+import html as _html
 import logging
+import re
 from datetime import timedelta, timezone
 from typing import Sequence
 from urllib.parse import quote
@@ -197,6 +199,7 @@ async def send_lifecycle_signer_notification(
     if not emails:
         return 0
     stage = _STAGE_NAMES[current_stage_index] if 0 <= current_stage_index <= 4 else str(current_stage_index)
+    message_block = _render_message_html(message)
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -208,7 +211,7 @@ async def send_lifecycle_signer_notification(
           <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">Petición Cauce</p>
           <h1 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#1a2516;">{campaign_title}</h1>
           <p style="margin:0 0 8px;font-size:14px;color:#7a8a72;">Etapa actual: <strong>{stage}</strong></p>
-          <p style="margin:0;font-size:15px;color:#4a5644;line-height:1.6;">{message}</p>
+          {message_block}
         </td></tr>
       </table>
       {_PLATFORM_FOOTER_HTML}
@@ -571,6 +574,24 @@ def _fmt_event_datetime(dt) -> str:
     return f"{local.day} de {_MESES_ES[local.month - 1]} de {local.year} · {local.strftime('%H:%M')}"
 
 
+def _render_message_html(text: str | None) -> str:
+    """Convierte el texto plano del campo 'mensaje adicional' a HTML seguro:
+    escapa el input antes de aplicar formato (nunca se inyecta HTML crudo del
+    admin), soporta **negrita**, *cursiva*, saltos de línea simples (<br>) y
+    párrafos (línea en blanco)."""
+    if not text or not text.strip():
+        return ""
+    escaped = _html.escape(text.strip())
+    escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"(?<!\*)\*([^*\n]+?)\*(?!\*)", r"<em>\1</em>", escaped)
+    paragraphs = [p.replace("\n", "<br>") for p in escaped.split("\n\n") if p.strip()]
+    inner = "".join(
+        f"<p style='margin:0 0 10px;font-size:14px;color:#4a5644;line-height:1.6;'>{p}</p>"
+        for p in paragraphs
+    )
+    return f"<div style='margin-top:20px;'>{inner}</div>"
+
+
 def _ics_escape(text: str) -> str:
     return (text or "").replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
 
@@ -735,10 +756,7 @@ def _build_delivery_event_invitation_html(
         f"<p style='margin:0 0 12px;font-size:14px;font-weight:700;color:#1a2516;'>{event_subtitle}</p>"
         if event_subtitle else ""
     )
-    message_block = (
-        f"<p style='margin:20px 0 0;font-size:14px;color:#4a5644;line-height:1.6;'>{message}</p>"
-        if message else ""
-    )
+    message_block = _render_message_html(message)
     first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
     greeting_body = (
         f"{first_name}, la campaña <strong>{campaign_title}</strong> te invita a participar "
@@ -883,10 +901,7 @@ def _build_campaign_closing_html(
         f"<p style='margin:0 0 12px;font-size:14px;font-weight:700;color:#1a2516;'>{subtitle}</p>"
         if subtitle else ""
     )
-    message_block = (
-        f"<p style='margin:20px 0 0;font-size:14px;color:#4a5644;line-height:1.6;'>{message}</p>"
-        if message else ""
-    )
+    message_block = _render_message_html(message)
     first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
     greeting_body = (
         f"{first_name}, <strong>{campaign_title}</strong> dejó de recibir firmas. "
