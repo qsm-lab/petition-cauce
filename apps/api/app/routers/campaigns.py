@@ -1,21 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import get_db_with_org, get_current_user
+from app.limiter import limiter
 from app.schemas.campaign import (
     CampaignCreate, CampaignUpdate, CampaignStatusUpdate, CampaignResponse,
     SocialLinksUpdate, ThankYouUpdate, WelcomeConfigUpdate, CampaignInfoUpdate,
     LifecycleStageUpdate, NotifySignersRequest, AdminCampaignDetailResponse,
-    LifecycleEventOut,
+    LifecycleEventOut, EventInvitationRequest, ClosingNotificationRequest,
 )
 from app.services.campaign_service import CampaignService
 from app.services.email_service import (
     send_lifecycle_admin_notification,
     send_lifecycle_org_notification,
     send_lifecycle_signer_notification,
+    send_delivery_event_invitation_email,
+    send_campaign_closing_email,
+    _build_delivery_event_invitation_html,
+    _build_campaign_closing_html,
 )
+from app.services.signature_service import get_signature_count
 from app.models.user import User
 from app.models.campaign import Campaign as CampaignModel
 from app.models.form import Form as FormModel
@@ -226,6 +232,134 @@ async def notify_signers(
         message=data.message,
     )
     return {"sent_count": sent_count}
+
+
+@router.post("/{campaign_id}/lifecycle/event-invitation/preview")
+async def preview_event_invitation(
+    campaign_id: str,
+    data: EventInvitationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    html = _build_delivery_event_invitation_html(
+        campaign_title=campaign.petition_title or campaign.title,
+        event_title=data.event_title or "Entrega de la petición",
+        event_subtitle=data.event_subtitle,
+        event_datetime=data.event_datetime,
+        event_location=data.event_location,
+        event_map_url=data.event_map_url,
+        event_image_url=data.event_image_url,
+        message=data.message,
+        signer_name="Nombre Apellido",
+        social_links=campaign.social_links,
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+    )
+    recipient_count = len(await CampaignService.get_signer_emails_nacional_confirmed(db, campaign.id))
+    return {"html": html, "recipient_count": recipient_count}
+
+
+@router.post("/{campaign_id}/lifecycle/event-invitation")
+@limiter.limit("5/minute")
+async def send_event_invitation(
+    request: Request,
+    campaign_id: str,
+    data: EventInvitationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if campaign.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Campaña archivada")
+
+    if data.test_emails:
+        recipients = [(email, "Nombre Apellido") for email in data.test_emails]
+    else:
+        recipients = await CampaignService.get_signer_emails_and_names_nacional_confirmed(db, campaign.id)
+
+    sent_count = await send_delivery_event_invitation_email(
+        recipients,
+        campaign_title=campaign.petition_title or campaign.title,
+        event_title=data.event_title,
+        event_subtitle=data.event_subtitle,
+        event_datetime=data.event_datetime,
+        event_location=data.event_location,
+        event_map_url=data.event_map_url,
+        event_image_url=data.event_image_url,
+        message=data.message,
+        subject_override=data.subject,
+        social_links=campaign.social_links,
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+    )
+    return {"sent_count": sent_count, "mode": "test" if data.test_emails else "real"}
+
+
+@router.post("/{campaign_id}/lifecycle/closing-notification/preview")
+async def preview_closing_notification(
+    campaign_id: str,
+    data: ClosingNotificationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    final_count = await get_signature_count(db, campaign.id)
+    html = _build_campaign_closing_html(
+        campaign_title=campaign.petition_title or campaign.title,
+        final_count=final_count,
+        social_links=campaign.social_links,
+        subtitle=data.subtitle,
+        image_url=data.image_url,
+        message=data.message,
+        signer_name="Nombre Apellido",
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+    )
+    recipient_count = len(await CampaignService.get_signer_emails_todos_confirmed(db, campaign.id))
+    return {"html": html, "final_count": final_count, "recipient_count": recipient_count}
+
+
+@router.post("/{campaign_id}/lifecycle/closing-notification")
+@limiter.limit("5/minute")
+async def send_closing_notification(
+    request: Request,
+    campaign_id: str,
+    data: ClosingNotificationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if campaign.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Campaña archivada")
+
+    final_count = await get_signature_count(db, campaign.id)
+    if data.test_emails:
+        recipients = [(email, "Nombre Apellido") for email in data.test_emails]
+    else:
+        recipients = await CampaignService.get_signer_emails_and_names_todos_confirmed(db, campaign.id)
+
+    sent_count = await send_campaign_closing_email(
+        recipients,
+        campaign_title=campaign.petition_title or campaign.title,
+        final_count=final_count,
+        social_links=campaign.social_links,
+        subtitle=data.subtitle,
+        image_url=data.image_url,
+        message=data.message,
+        subject_override=data.subject,
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+    )
+    return {"sent_count": sent_count, "final_count": final_count, "mode": "test" if data.test_emails else "real"}
 
 
 @router.get("/{campaign_id}/qr")

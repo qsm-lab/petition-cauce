@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { LifecycleEventOut } from "@/lib/admin-campaigns-api";
-import { advanceLifecycleStage, notifySigners } from "@/lib/admin-lifecycle-api";
+import { advanceLifecycleStage } from "@/lib/admin-lifecycle-api";
 import LifecycleConfirmModal from "./LifecycleConfirmModal";
+import AdherentCommsModal from "./AdherentCommsModal";
 
 const STAGE_NAMES = ["Lanzada", "Recolección", "Entrega", "Diálogo", "Decisión"];
 
@@ -47,11 +48,8 @@ export default function LifecyclePanelAdmin({
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // — Notificación a firmantes
-  const [showNotifySigners, setShowNotifySigners] = useState(false);
-  const [signerMessage, setSignerMessage] = useState("");
-  const [sendingSigners, setSendingSigners] = useState(false);
-  const [signerResult, setSignerResult] = useState<string | null>(null);
+  // — Comunicación con adherentes (invitación al evento, aviso de cierre, mensaje libre)
+  const [showAdherentComms, setShowAdherentComms] = useState(false);
 
   async function handleConfirm() {
     if (targetStage === null) return;
@@ -87,25 +85,6 @@ export default function LifecyclePanelAdmin({
     setShowModal(false);
     setNotifyOrg(false);
     setModalError(null);
-  }
-
-  async function handleNotifySigners() {
-    if (!signerMessage.trim()) return;
-    setSendingSigners(true);
-    setSignerResult(null);
-    try {
-      const res = await notifySigners(campaignId, signerMessage);
-      setSignerResult(
-        res.sent_count === 0
-          ? "Sin firmantes suscritos a notificaciones."
-          : `✓ ${res.sent_count} email(s) enviados a firmantes.`
-      );
-      if (res.sent_count > 0) setSignerMessage("");
-    } catch (e: unknown) {
-      setSignerResult(e instanceof Error ? e.message : "Error al enviar");
-    } finally {
-      setSendingSigners(false);
-    }
   }
 
   return (
@@ -255,62 +234,18 @@ export default function LifecyclePanelAdmin({
         </div>
       )}
 
-      {/* Notificar a firmantes (acción secundaria) */}
+      {/* Comunicación con adherentes: invitación al evento, aviso de cierre, mensaje libre */}
       <div style={{ marginTop: 20, borderTop: "1px solid var(--bbord)", paddingTop: 16 }}>
         <button
           type="button"
-          onClick={() => { setShowNotifySigners(!showNotifySigners); setSignerResult(null); }}
+          onClick={() => setShowAdherentComms(true)}
           style={{
             width: "100%", padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer",
             background: "transparent", border: "1.5px solid var(--bbord)", color: "rgba(22,38,31,0.7)",
           }}
         >
-          {showNotifySigners ? "Cerrar ▲" : "Notificar a firmantes ▼"}
+          Comunicación con adherentes ↗
         </button>
-
-        {showNotifySigners && (
-          <div style={{ marginTop: 10 }}>
-            <p style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(22,38,31,0.55)" }}>
-              Solo se envía a firmantes que consintieron recibir novedades.
-            </p>
-            <textarea
-              value={signerMessage}
-              onChange={(e) => setSignerMessage(e.target.value)}
-              placeholder="Escribe el mensaje para los firmantes…"
-              rows={3}
-              style={{
-                width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 10,
-                border: "1.5px solid var(--bbord)", fontSize: 13, color: "#16261F", resize: "none",
-                fontFamily: "inherit", marginBottom: 8, outline: "none",
-              }}
-            />
-            {signerResult && (
-              <p style={{
-                fontSize: 12, marginBottom: 8,
-                color: signerResult.startsWith("✓") ? "#3d6b35" : "#c2410c",
-                padding: "6px 10px",
-                background: signerResult.startsWith("✓") ? "color-mix(in srgb,#3d6b35 8%,transparent)" : "color-mix(in srgb,#c2410c 8%,transparent)",
-                borderRadius: 8,
-              }}>
-                {signerResult}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleNotifySigners}
-              disabled={sendingSigners || !signerMessage.trim()}
-              style={{
-                width: "100%", padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                cursor: sendingSigners || !signerMessage.trim() ? "not-allowed" : "pointer",
-                background: sendingSigners || !signerMessage.trim() ? "rgba(22,38,31,0.08)" : "#16261F",
-                color: sendingSigners || !signerMessage.trim() ? "rgba(22,38,31,0.35)" : "#fff",
-                border: "none",
-              }}
-            >
-              {sendingSigners ? "Enviando…" : "Enviar a firmantes"}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Modal de confirmación */}
@@ -328,6 +263,10 @@ export default function LifecyclePanelAdmin({
           loading={saving}
           error={modalError}
         />
+      )}
+
+      {showAdherentComms && (
+        <AdherentCommsModal campaignId={campaignId} onClose={() => setShowAdherentComms(false)} />
       )}
     </div>
   );

@@ -153,7 +153,7 @@ class AdminSignatureService:
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow([
-            "id", "nombre", "cedula_parcial", "email_parcial", "provincia",
+            "id", "nombre", "org", "cedula_parcial", "email_parcial", "provincia",
             "visibilidad", "estado", "confirmada_el", "registrada_el",
         ])
         for sig in signatures:
@@ -171,6 +171,7 @@ class AdminSignatureService:
             writer.writerow([
                 str(sig.id),
                 _visible_name(sig, role) or "",
+                sig.org_name or "",
                 cedula_parcial,
                 email_parcial,
                 sig.provincia or "",

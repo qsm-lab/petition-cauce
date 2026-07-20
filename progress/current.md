@@ -1,132 +1,151 @@
-# Estado actual — tras sesión 31 (2026-07-13)
+# Estado actual — tras sesión 32 (2026-07-20)
 
-## Resumen de sesión 31
+## Resumen de sesión 32
 
-Sesión larga y con deploy real a producción. Partió de un pedido puntual de
-la campaña real activa (`soberania-tlc-ecu-usa`) y terminó en 3 features
-completas + 2 bugs de RLS + una remediación de datos ya ejecutada contra
-producción. Rama `fix/dashboard-firmas-entrega`, partida de `origin/main`
-(no de `dev`) a propósito — `dev` sigue con el trabajo LOPDP de sesiones
-28-30 (retención, supresión, ARCO) sin mergear, congelado por la campaña
-real. PR #9 mergeado a `main`, deploy corrido, **todo lo de esta sesión ya
-está en producción**.
+Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Partió de 2
+cambios puntuales (columna org en el CSV normal, corrección del conteo
+público excluyendo firmas sin nombre) y terminó en una feature grande
+nueva — comunicación con adherentes — completamente implementada pero
+**sin probar visualmente en navegador todavía** y **sin mergear**. Todo en
+la rama `feat/comunicaciones-cierre-campana`, partida de `main` (no de
+`dev`, que sigue con su propia cadena de LOPDP sin mergear — ver abajo).
 
 ---
 
 ## Lo que se hizo
 
-### 1. Dashboard de firmas — 3 puntos pedidos por el usuario
-- **Descarga absoluta**: botón junto a "Exportar CSV". Modal con aviso +
-  responsabilidad → contraseña (sin OTP — decisión explícita del usuario,
-  más simple que el análisis original de sesión 27) → CSV con PII sin
-  enmascarar (nombre, cédula, email, org, origen, tipo de firma/visibilidad,
-  estado) + fila de sello (admin/fecha/hora). Excluye siempre `secreta`
-  (promesa del propio formulario: "no se incluirá en el documento de
-  entrega"). Sin gating por etapa. Auditoría `pii_export_audit` + email a
-  `organizations.contact_email` y `platform_admin_emails`.
-  **Push adicional (mismo día)**: a pedido del usuario, ahora incluye
-  también `pending_confirmation` (antes solo `confirmed`) — la columna
-  `estado` distingue cuáles no completaron el doble opt-in. Nuevo conteo
-  `pii_export_audit.pending_included_count` (migración 033) para
-  trazabilidad, mismo patrón que `secret_excluded_count`. `anulada` sigue
-  excluida siempre.
-- **Nombre visible según rol**: `admin` (plataforma) ve todos los nombres,
-  incluida `secreta`; `gestor` (org) no ve nombre si `visibility='secreta'`.
-- **Columna Nombre con formato org**: `(org_name) nombre` cuando
-  `signer_type='org'`. **Columna Origen** (ex-Provincia): color por
-  provincia/país, filtro "Internacional" agrupa `country IS NOT NULL`.
-- Extra no pedido explícitamente pero natural del punto 1: botón "Recordar
-  a pendientes" — reenvía confirmación (token regenerado, el original ya
-  expiró) a todas las `publica`+`pending_confirmation` de un clic.
+### 1. Dos cambios puntuales (antes de la feature grande)
+- **CSV normal** (`export_csv`, botón "Exportar CSV" del dashboard de
+  firmas): agregada columna `org` (mismo dato que ya usaba la descarga
+  absoluta).
+- **Conteo público corregido, caso especial de esta campaña**:
+  `get_signature_count`/`get_total_signature_count` ahora excluyen
+  `name IS NULL` **solo** cuando `campaign_id` coincide con
+  `soberania-tlc-ecu-usa` (constante `_LEGACY_NULL_NAME_EXCLUSION_CAMPAIGN_ID`
+  en `signature_service.py`, documentada como no generalizable — el bug de
+  origen ya se corrigió en sesión 31). El dashboard admin sigue mostrando
+  el total real sin excluir, a propósito.
 
-### 2. Dos bugs de RLS encontrados y corregidos (afectaban prod ahora mismo)
-- **`consents_org_admin`** sin guard `NULLIF` antes del cast a `uuid` —
-  mismo bug que `sig_org_admin` ya tenía corregido desde migración 008,
-  nunca portado a `consents`. Causaba `InvalidTextRepresentationError`
-  intermitente al crear firmas (conexión pooleada con `app.current_org_id`
-  revertido a `''` tras un `SET LOCAL`). Migración 031.
-- **Confirmar una firma `secreta` daba 500 siempre** — tras el `UPDATE` a
-  `status='confirmed'`, ninguna política RLS le daba visibilidad a la fila
-  resultante, ni siquiera al propio firmante completando su token. Fix:
-  bypass transaccional `app.is_platform_admin` (mismo patrón ya usado en
-  sesión 27 para el aviso de privacidad cross-org).
+### 2. Comunicación con adherentes (feature nueva, implementada completa)
 
-### 3. El nombre del firmante se guarda siempre (fix de raíz + remediación)
-- **Causa raíz**: `signature_service.create_signature` guardaba
-  `name=NULL` si `visibility != 'publica'` — decisión de minimización de
-  sesión 1. Pero el propio formulario le promete al anónimo: *"tu firma se
-  suma... al documento de entrega"* — imposible de cumplir sin el nombre.
-  Se guarda siempre desde ahora; la exposición pública sigue igual de
-  restringida (feed, export enmascarado, dashboard según rol).
-- **Hallazgo colateral**: el email de confirmación SÍ mostraba el primer
-  nombre incluso en firmas anónimas (usaba `data.name` crudo del request,
-  no el `sig.name` ya nuleado) — confirmado con un raw payload real de
-  Resend. Techo de recuperación: solo primer nombre, nunca el completo, y
-  solo desde ese email específico (el resto usa `sig.name`, ya nuleado).
-- **Remediación del histórico ya afectado** (migración 032):
-  - Script CLI `send_name_completion_emails` (`--dry-run`/`--force`):
-    ubica `name IS NULL` o de una sola palabra, excluye `secreta` (su
-    firma nunca va al documento de entrega, la justificación del email no
-    le aplica) y `anulada`. Genera `completion_token` (7 días) y manda
-    email con link a un popup en la landing pública (`?completar=token`,
-    mismo patrón que el popup de compartir post-confirmación). Si la firma
-    seguía `pending_confirmation`, queda `confirmed` en el mismo paso.
-  - **Corrida real contra `soberania-tlc-ecu-usa`: 247/247 enviados** —
-    verificado dry-run primero (239 anónimas + 8 públicas con nombre de
-    una palabra, 0 secretas, 0 contaminación de `is_test`).
-  - Pendiente explícito del usuario: el recordatorio de confirmación
-    (botón admin) hoy solo cubre `publica` — falta sumar `anonima`/
-    `secreta` `pending_confirmation` con un copy propio (sin mención al
-    nombre).
+Reemplaza lo que iba a ser solo "comunicaciones de cierre" — terminó
+siendo el lugar único para **todo** email masivo a firmantes. Un botón
+("Comunicación con adherentes ↗") en el panel de ciclo de vida abre un
+popup con 3 pestañas:
 
-### 4. Infra de email (fuera del código, hecho por el usuario en el VPS/Cloudflare) — **las 3 resueltas**
-- `database/init.sh` sin permiso de ejecución — bloqueaba cualquier volumen
-  nuevo de la DB dev (`petition_app` nunca se creaba). Corregido (`chmod +x`).
-- Alertas de deliverability de Resend revisadas y **las 3 confirmadas
-  resueltas por el usuario**:
-  - **Mailto con dominio equivocado** (org configurada con
-    `info@ecuadornotlc.com`, el dominio que envía es `.org`) — resuelto vía
-    Cloudflare Email Routing (`info@ecuadornotlc.org` → `info@ecuadornotlc.com`,
-    buzón real en GreenGeeks): regla de ruteo creada y verificada, y
-    `contact_email` de la organización actualizado a `info@ecuadornotlc.org`.
-  - **Registro DMARC faltante** — cargado en Cloudflare DNS (`_dmarc` TXT).
-  - **Remitente `noreply@`** — `RESEND_FROM_EMAIL` cambiado a una dirección
-    real, confirmado funcionando.
-- Dos alertas más (email de agradecimiento, distinto email): el link de
-  WhatsApp (`wa.me`) es un falso positivo inherente a cualquier botón de
-  compartir — no accionable. El QR como `data:image` (bloqueado por Gmail)
-  es una limitación real y ya documentada desde sesión 27; la solución de
-  fondo (servir el QR desde un endpoint propio en vez de data URI) queda
-  como mejora futura, no implementada esta sesión.
+- **Invitación al evento de entrega** — audiencia: confirmadas + nacional
+  (`country IS NULL`, sin filtro `notify_updates`, ver hallazgo abajo).
+  Campos: título, subtítulo, fecha/hora, lugar, link de mapa, imagen de
+  banner, mensaje, asunto editable. Personalizado por nombre del firmante
+  (saludo "{primer nombre}, la campaña..."). Incluye links de agendar
+  (Google Calendar/Outlook con deep links propios, Apple Calendar vía un
+  endpoint `.ics` nuevo — `GET /v1/public-campaign/calendar.ics`, genera el
+  archivo on-demand sin persistir nada) y redes sociales de la org (íconos
+  SVG inline — no `data:` URI, que Gmail bloquea — solo se muestran las
+  redes con URL cargada). Bloque "Impulsado por: {org}" antes de las redes.
+- **Aviso de cierre** — audiencia: todas las confirmadas (nacional +
+  internacional). Mismas funciones que la invitación al evento (subtítulo,
+  imagen, mensaje, asunto, personalización) salvo fecha/hora/lugar/agendar,
+  que no aplican sin un evento. Incluye conteo final + redes + "Impulsado
+  por".
+- **Mensaje libre** — el viejo "Notificar a firmantes" (mensaje sin
+  plantilla), movido acá desde el panel de ciclo de vida donde vivía
+  suelto.
+
+**Cada pestaña tiene el mismo patrón**: formulario → "Vista previa" (el
+backend renderiza el HTML real, mostrado en un iframe — no una réplica en
+el frontend) → campo de emails de prueba + "Enviar prueba" → "Enviar a
+firmantes" (real, con conteo de destinatarios y confirmación antes de
+disparar).
+
+**Borradores por localStorage**: cada pestaña autoguarda lo editado
+(sobrevive a cambiar de pestaña o cerrar el popup), con aviso de "borrador
+restaurado" + botón para descartarlo. Se limpia solo al completar un envío
+real. Sin backend nuevo — ver sección de specs pendientes para la versión
+server-side (historial/programación).
+
+**Redes sociales de la campaña — 2 campos nuevos**: "X" y "Email" en el
+editor admin (`CampanaEditorClient.tsx`), sumados a los ya existentes
+(sitio web, Instagram, Facebook, TikTok, WhatsApp, newsletter). El campo
+"Email" guarda solo la dirección — el sistema arma el `mailto:` solo.
+
+**Hallazgo importante, documentado pero no corregido**: `Consent.notify_updates`
+nunca se ha capturado — no hay ningún checkbox en el flujo de firma que lo
+setee a `true` (el de `StepThanks.tsx` llama a un `onSubscribe` sin cablear
+en `SignFlow.tsx`). Por eso el viejo "Notificar a firmantes" probablemente
+siempre mandó 0 emails en cualquier campaña, y por eso ninguno de los 3
+tipos de esta feature filtra por ese consentimiento — la base legal usada
+es que informar del cierre/evento es parte del proceso mismo de la
+petición, no marketing opcional. Arreglar el consentimiento real queda
+para una spec futura (`embudo-post-firma`/`novedades-campana`).
+
+**82 → 88 tests nuevos** en `test_comunicaciones_cierre.py` (builders de
+HTML, schemas, `_social_href`). **Suite completa: 88/88 pasan.**
+`tsc --noEmit` sin errores en cada ronda. Verificado en vivo contra la DB
+de dev (curl/httpx: preview, envío de prueba, conteo, ICS válido) y
+renderizado de la página admin confirmado por HTTP con cookie de sesión
+real — **sin probar clic a clic en un navegador real** (sin herramienta de
+browser/screenshot disponible esta sesión).
 
 ---
 
-## Estado de los commits y del deploy
+## Specs de esta sesión
 
-**Todo mergeado y desplegado.** 3 commits en `fix/dashboard-firmas-entrega`
-→ PR #9 → mergeado a `main` (`64cb136`) → deploy corrido por el usuario
-(`docker compose up -d --build petition-api` con migraciones 030-032
-aplicadas por el pipeline de `deploy.yml`). Historial completo:
+- **`comunicaciones-cierre-campana`** — `in_progress`. Implementada
+  completa (ver arriba), incluye varios addendums documentando el feedback
+  de diseño iterativo del usuario (9 ajustes de estilo/contenido del email
+  de evento, luego 3 más de reordenamiento/íconos/org).
+- **`programacion-historial-comunicaciones`** — `spec_ready`, **queda
+  pendiente para una próxima sesión, sin implementar**. Programar envío
+  (prioridad 1) + historial de envíos (prioridad 2) para los 3 tipos de la
+  feature anterior. Requiere la primera migración de esta rama (tablas
+  `scheduled_email` + `email_send_log`) y un loop asíncrono propio
+  (sin Celery/APScheduler) arrancado en el lifespan de FastAPI. Ver
+  `specs/programacion-historial-comunicaciones/design.md` para el diseño
+  completo ya resuelto — falta implementar.
+- **`email-cumplimiento-masivo`** — `pending`, sin spec todavía. Hallazgo:
+  ningún email masivo tiene términos de uso/política de privacidad de
+  plataforma, desuscripción real, ni "ver en el navegador". Bloqueado en
+  parte por el mismo hallazgo de `notify_updates` roto.
+
+---
+
+## Estado de los commits y del branch
+
+**Nada commiteado.** Todo el trabajo de esta sesión está en el working
+tree de `feat/comunicaciones-cierre-campana`, rama nueva partida de `main`
+(no de `dev`) — instrucción explícita del usuario al iniciar la sesión,
+dado que `dev` sigue con su propia cadena (retención-datos, supresión-
+admin, derechos-arco, 4 commits sin mergear desde sesión 30) sin tocar.
 
 ```
-5491687 fix: dashboard de firmas — descarga absoluta, nombre por rol, columna origen, recordatorio a pendientes
-dcf58f4 fix: RLS de consents_org_admin sin guard NULLIF ante cast a uuid
-b9bbeae fix: el nombre del firmante se guarda siempre + remediación de firmas ya afectadas
+git status --short
+ M apps/api/app/routers/admin_signatures.py
+ M apps/api/app/routers/campaigns.py
+ M apps/api/app/routers/public_campaign.py
+ M apps/api/app/schemas/campaign.py
+ M apps/api/app/services/admin_signature_service.py
+ M apps/api/app/services/campaign_service.py
+ M apps/api/app/services/email_service.py
+ M apps/api/app/services/signature_service.py
+ M apps/web/.../CampanaEditorClient.tsx
+ M apps/web/.../LifecyclePanelAdmin.tsx
+ M apps/web/src/lib/admin-lifecycle-api.ts
+ M apps/web/src/lib/types.ts
+ M feature_list.json
+?? apps/api/tests/test_comunicaciones_cierre.py
+?? apps/web/.../AdherentCommsModal.tsx
+?? specs/comunicaciones-cierre-campana/
+?? specs/programacion-historial-comunicaciones/
 ```
 
-**Nota de reconciliación futura**: las migraciones 030-032 parten de la
-017 (head de `main`), NO de la cadena 018-022 de `dev` (retención,
-supresión, ARCO — siguen sin mergear). Cuando `dev` finalmente se mergee a
-`main`, van a aparecer dos heads de Alembic (022 y 032) que van a requerir
-una migración de merge explícita (`alembic merge`). Mismo tema para
-`progress/current.md`/`history.md`: los de `dev` siguen en "sesión 30"; a
-reconciliar manualmente en ese momento.
-
-**Local `main` estaba muy desactualizado** (commit "sesión 20", sin
-relación de ancestro real con `origin/main` — probablemente un rebase/
-squash upstream en algún punto). Se resolvió con `git reset --hard
-origin/main` al cerrar esta sesión (sin pérdida: el único commit local
-único no tenía contenido no superado por el historial remoto).
+**Nota de reconciliación futura**: cuando `dev` finalmente se mergee a
+`main` (el usuario indicó que el congelamiento se liberaba el 2026-07-20 —
+**verificar si ya ocurrió**, no confirmado dentro de esta sesión), y
+cuando esta rama también se mergee, va a hacer falta revisar el orden
+respecto a la cadena de migraciones de `dev` (018-022) — sobre todo si en
+la próxima sesión se implementa `programacion-historial-comunicaciones`,
+que sería la primera migración de esta rama.
 
 ---
 
@@ -137,55 +156,39 @@ origin/main` al cerrar esta sesión (sin pérdida: el único commit local
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Migración activa | `032` |
-| Nota | DB dev reseteada esta sesión (`docker volume rm` + migrate + seed) para poder correr las migraciones de esta rama; se perdieron los datos de prueba de sesiones anteriores. |
+| Campaña de prueba | "Campaña de Prueba — Cauce Dev" |
+| Nota | Docker (`docker-compose.dev.yml`) quedó corriendo durante toda la sesión — no hizo falta levantar nada al empezar. |
 
 ## Datos producción
 
 | Campo | Valor |
 |-------|-------|
-| Primera campaña real | `https://cauce.ecuadornotlc.org/c/soberania-tlc-ecu-usa` |
-| Título interno | `Camp-01_AMICUS_TLC_USA` |
+| Campaña real | `https://cauce.ecuadornotlc.org/c/soberania-tlc-ecu-usa` |
 | Campaign ID | `63867787-5498-401e-90f7-990f46b1e09e` |
-| Organización | Plataforma por la Soberanía Alimentaria |
-| Migraciones en prod | 001-017 + 030-032 aplicadas (018-022 de `dev` siguen sin mergear/aplicar) |
-| Remediación de nombres | Corrida el 2026-07-13 — 247/247 emails enviados |
+| Estado | El usuario indicó que hoy (2026-07-20) cierra la campaña — no confirmado dentro de esta sesión si ya se ejecutó. |
 
 ---
 
-## Estado de features
-
-- `dashboard-firmas` → `in_progress`, ampliado esta sesión (descarga
-  absoluta, nombre por rol, origen, recordatorio a pendientes).
-- `export-entrega` → `done` (ya lo había marcado el usuario); descripción
-  actualizada para reflejar la implementación real (simplificada, sin OTP).
-- `remediacion-nombres-incompletos` → **nueva**, `in_progress` — primera
-  corrida real completada, queda pendiente ampliar el recordatorio a
-  anónima/secreta.
-- Sigue vigente el congelamiento de `dev` (retención-datos, supresión-
-  admin, derechos-arco) hasta que se libere la campaña real.
-
 ## Pendientes para próxima sesión
 
-Las 3 alertas de deliverability de Resend (mailto con dominio equivocado,
-DMARC faltante, remitente `noreply@`) **quedaron resueltas esta misma
-sesión** — ver sección 4 arriba. Queda para adelante:
-
-1. Ampliar el recordatorio de confirmación (botón admin) para incluir
-   `anonima`/`secreta` `pending_confirmation` — requiere copy de email
-   distinto (sin mención al nombre). Pedido explícito del usuario.
-2. Opcional: servir el QR del email de agradecimiento desde un endpoint
-   propio en vez de `data:image` (resuelve el bloqueo de Gmail + la alerta
-   de deliverability de Resend de una vez).
-3. Verificar en el dashboard de firmas de producción que los 247 firmantes
-   vayan completando su nombre / confirmando en los próximos días (el link
-   de completar vence a los 7 días).
-4. Sigue en espera por congelamiento: `dev` (retención-datos, supresión-
-   admin, derechos-arco) — decidir cuándo se libera la campaña real para
-   traer ese trabajo a `main`.
+1. **Probar en navegador real** el popup completo (3 tabs, previews,
+   envíos de prueba, borradores) antes de dar por buena la feature.
+2. **`programacion-historial-comunicaciones`** — implementar (spec ya
+   aprobada como `spec_ready`, prioridad: programar envío primero,
+   historial después).
+3. Decidir si mergear `feat/comunicaciones-cierre-campana` a `main` (y
+   cuándo, en relación a `dev`).
+4. Sigue pendiente de sesiones anteriores: `email-cumplimiento-masivo`
+   (sin spec), extender el recordatorio de confirmación a
+   `anonima`/`secreta` (mencionado en sesión 31), y el hallazgo de
+   `notify_updates`/checkbox roto de `StepThanks.tsx` (bloquea parte de
+   `email-cumplimiento-masivo`).
+5. Confirmar si `dev` ya se liberó (congelamiento dicho para 2026-07-20) y
+   si la campaña real ya cerró.
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
+git checkout feat/comunicaciones-cierre-campana
 ```

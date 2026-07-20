@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 import uuid
 from datetime import datetime
 
@@ -132,10 +132,12 @@ class ThankYouUpdate(BaseModel):
 class SocialLinksUpdate(BaseModel):
     instagram: str | None = None
     facebook: str | None = None
+    x: str | None = None
     tiktok: str | None = None
     whatsapp: str | None = None
     newsletter: str | None = None
     website: str | None = None
+    email: str | None = None
     share_text: str | None = None
 
 
@@ -185,6 +187,33 @@ class NotifySignersRequest(BaseModel):
         if not v.strip():
             raise ValueError("El mensaje no puede estar vacío")
         return v
+
+
+class EventInvitationRequest(BaseModel):
+    event_title: str | None = None
+    event_subtitle: str | None = None
+    event_datetime: datetime
+    event_location: str
+    event_map_url: str | None = None
+    event_image_url: str | None = None
+    message: str | None = None
+    subject: str | None = None
+    test_emails: list[EmailStr] | None = None
+
+    @field_validator("event_location")
+    @classmethod
+    def location_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("El lugar no puede estar vacío")
+        return v
+
+
+class ClosingNotificationRequest(BaseModel):
+    subtitle: str | None = None
+    image_url: str | None = None
+    message: str | None = None
+    subject: str | None = None
+    test_emails: list[EmailStr] | None = None
 
 
 class CampaignResponse(BaseModel):

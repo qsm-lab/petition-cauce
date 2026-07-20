@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 
 _TOKEN_TTL_HOURS = 24
 
+# Caso especial de sesión 32, NO generalizable a otras campañas: el bug que
+# guardaba name=NULL en firmas no públicas ya se corrigió en create_signature
+# (commit b9bbeae, sesión 31). Para soberania-tlc-ecu-usa quedaron firmas
+# name IS NULL previas al fix que no deben contar en el total público ni en
+# el email de cierre (no se puede validar un firmante sin nombre). Siguen
+# visibles y contadas en el dashboard admin — solo se excluyen acá.
+_LEGACY_NULL_NAME_EXCLUSION_CAMPAIGN_ID = uuid.UUID("63867787-5498-401e-90f7-990f46b1e09e")
+
 _DEFAULT_FORM_CONFIG = {
     "signer_types": ["natural"],
     "location_modes": ["nacional"],
@@ -308,23 +316,22 @@ async def get_recent_signatures(
 
 
 async def get_signature_count(db: AsyncSession, campaign_id: uuid.UUID) -> int:
-    result = await db.execute(
-        select(func.count()).where(
-            Signature.campaign_id == campaign_id,
-            Signature.status == "confirmed",
-        )
-    )
+    filters = [Signature.campaign_id == campaign_id, Signature.status == "confirmed"]
+    if campaign_id == _LEGACY_NULL_NAME_EXCLUSION_CAMPAIGN_ID:
+        filters.append(Signature.name.is_not(None))
+    result = await db.execute(select(func.count()).where(*filters))
     return result.scalar() or 0
 
 
 async def get_total_signature_count(db: AsyncSession, campaign_id: uuid.UUID) -> int:
     """Confirmed + pending_confirmation — usado en la pantalla de gracias post-firma."""
-    result = await db.execute(
-        select(func.count()).where(
-            Signature.campaign_id == campaign_id,
-            Signature.status.in_(["confirmed", "pending_confirmation"]),
-        )
-    )
+    filters = [
+        Signature.campaign_id == campaign_id,
+        Signature.status.in_(["confirmed", "pending_confirmation"]),
+    ]
+    if campaign_id == _LEGACY_NULL_NAME_EXCLUSION_CAMPAIGN_ID:
+        filters.append(Signature.name.is_not(None))
+    result = await db.execute(select(func.count()).where(*filters))
     return result.scalar() or 0
 
 
