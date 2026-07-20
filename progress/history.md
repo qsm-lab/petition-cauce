@@ -3,6 +3,60 @@
 
 ---
 
+## 2026-07-20 — Sesión 32: comunicación con adherentes (evento, cierre, mensaje) + 2 fixes puntuales — mergeado y deployado
+
+Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Rama
+`feat/comunicaciones-cierre-campana`, partida de `main` a pedido explícito
+del usuario (`dev` sigue con su cadena LOPDP sin mergear). **PR #12
+mergeado y deployado.** Luego, un fix adicional post-deploy (**PR #13,
+también mergeado y deployado**): `remind_pending_signatures` ("Recordar a
+pendientes") dejó de filtrar `visibility='publica'` — ahora abarca
+también `anonima`/`secreta`, sin necesitar copy de email nuevo (gap
+documentado desde sesión 31). Uso previsto: recordatorio único en
+producción a toda adhesión sin confirmar hasta el cierre de la campaña.
+
+**2 fixes puntuales** (parte de PR #12): columna `org` en el CSV normal
+del dashboard de firmas; corrección del conteo público
+(`get_signature_count`/`get_total_signature_count`) excluyendo firmas
+`name IS NULL` — caso especial hardcodeado solo para `soberania-tlc-ecu-usa`
+(el bug de origen del nombre nulo ya se corrigió en sesión 31, no se
+generaliza a otras campañas).
+
+**Feature grande — "Comunicación con adherentes"**: popup único con 3
+pestañas (invitación al evento de entrega, aviso de cierre, mensaje libre)
+que reemplaza y consolida lo que antes era el botón suelto "Notificar a
+firmantes". Cada pestaña: formulario → vista previa real (HTML exacto
+renderizado por el backend, mostrado en iframe) → envío de prueba a
+direcciones libres → envío real con conteo de destinatarios y
+confirmación. Invitación al evento: personalizada por nombre del
+firmante, con links de agendar (Google Calendar/Outlook/Apple Calendar vía
+endpoint `.ics` nuevo) y redes sociales de la org en íconos SVG inline
+(no `data:` URI, evita el bloqueo de Gmail ya conocido desde sesión 27).
+Aviso de cierre: mismas funciones que el de evento salvo fecha/hora/lugar.
+Bloque "Impulsado por: {org}" en ambos. Borradores autoguardados en
+localStorage (sin backend). 2 campos nuevos en redes sociales del editor
+admin: X y Email (arma `mailto:` solo). 88/88 tests, `tsc --noEmit` limpio,
+verificado en vivo contra dev vía curl/httpx — **sin probar en navegador
+real** (sin herramienta de browser disponible esta sesión).
+
+**Hallazgo documentado sin corregir**: `Consent.notify_updates` nunca se
+capturó de verdad (checkbox roto en `StepThanks.tsx`/`SignFlow.tsx`) —
+ninguno de los 3 tipos de envío filtra por ese consentimiento; la base
+legal usada es que informar del cierre/evento es parte del proceso mismo
+de la petición firmada, no marketing opcional.
+
+**2 specs nuevas quedan para la próxima sesión**: `programacion-historial-comunicaciones`
+(`spec_ready` — programar envío + historial, primera migración de esta
+rama, prioridad: programar primero) y `email-cumplimiento-masivo`
+(`pending`, sin spec — términos/privacidad/desuscripción/ver en navegador
+para todos los emails masivos).
+
+Pendiente confirmar si el congelamiento de `dev` ya se liberó (dicho para
+hoy, 2026-07-20) y si la campaña real ya cerró — no confirmado dentro de
+esta sesión.
+
+---
+
 ## 2026-07-08 — Sesión 25: cifrado-reposo en producción + rectificaciones y pulido
 
 **cifrado-reposo implementado y desplegado**: AES-256-GCM (`enc:v1:`), clave
@@ -493,3 +547,25 @@ antes de recolectar firmas reales); completar TEST-5 en prod.
 **Deploy:** sin migraciones ni env nuevas — solo `git push`.
 
 **Lección técnica:** las tablas con RLS por org rompen silenciosamente los endpoints públicos y los flujos cross-org (Encargado↔Responsable); toda lectura pública por FK directa necesita contexto RLS explícito. `onAnimationIteration` permite rotar contenido de una animación CSS infinita justo cuando está oculta.
+
+---
+
+## 2026-07-13 — Sesión 31: dashboard de firmas, 2 fixes de RLS, y remediación real de 247 firmas
+
+**Foco:** pedido puntual de la campaña real activa — rama `fix/dashboard-firmas-entrega` partida de `origin/main` (no de `dev`, que sigue congelado con retención/supresión/ARCO sin mergear). PR #9 mergeado y desplegado a producción durante la sesión.
+
+**Entregado:**
+- **Dashboard de firmas** (3 puntos pedidos): "Descarga absoluta" (contraseña sin OTP, excluye siempre `secreta`, notifica a org+plataforma, auditoría `pii_export_audit`); nombre visible según rol (`gestor` no ve `secreta`, `admin` sí); columna Nombre con formato `(org) nombre`; columna Provincia → Origen (color por provincia/país, filtro Internacional); extra: botón "Recordar a pendientes" (reenvía confirmación a `publica`+`pending_confirmation`).
+- **Fix RLS `consents_org_admin`**: mismo bug de `sig_org_admin` pre-migración-008 (falta `NULLIF` antes del cast a uuid), nunca portado a `consents` — causaba errores intermitentes al crear firmas. Migración 031.
+- **Fix RLS confirmación de `secreta`**: daba 500 siempre — ninguna política le daba visibilidad a la fila `confirmed`+`secreta` resultante, ni al propio firmante. Bypass transaccional `app.is_platform_admin`.
+- **El nombre se guarda siempre** (antes solo si `visibility='publica'`): el formulario le promete al anónimo que su firma va al documento de entrega — imposible sin el nombre. Hallazgo colateral: el email de confirmación ya mostraba el primer nombre en anónimas (usaba `data.name` crudo, no el `sig.name` nuleado) — confirmado con un payload real de Resend; techo de recuperación: solo primer nombre, nunca el completo.
+- **Remediación del histórico** (migración 032): script CLI `send_name_completion_emails` (`--dry-run`/`--force`) + popup en la landing (`?completar=token`, 7 días) que completa el nombre y promueve `pending_confirmation` → `confirmed` en el mismo paso. Excluye `secreta` (su firma nunca va al documento de entrega) y `anulada`. **Corrida real contra `soberania-tlc-ecu-usa`: 247/247 enviados** (239 anónimas + 8 públicas con nombre incompleto, 0 secretas, verificado sin contaminación de `is_test`).
+- **Infra de email** (fuera de código, en Cloudflare/VPS): revisión de 4 alertas de deliverability de Resend, **3 resueltas por el usuario en la misma sesión**. `database/init.sh` sin permiso de ejecución corregido (bloqueaba cualquier volumen nuevo de DB dev). Mailto con dominio equivocado → Cloudflare Email Routing (`info@ecuadornotlc.org` → buzón real en GreenGeeks `info@ecuadornotlc.com`), regla de ruteo creada y verificada, `contact_email` de la org actualizado. Registro DMARC cargado en Cloudflare DNS. `RESEND_FROM_EMAIL` cambiado de `noreply@` a dirección real, confirmado funcionando. (La cuarta alerta, el link `wa.me` del botón de WhatsApp, es un falso positivo inherente a cualquier botón de compartir — no accionable.)
+
+**Verificación:** 65 tests API (8 nuevos de masking) · `tsc --noEmit` 0 · flujo completo probado en dev con datos simulados (secreta/anónima/pública/org, distintas provincias/países) antes de tocar producción. DB dev reseteada para poder correr las migraciones de esta rama (partía de `main`, sin la cadena 018-022 de `dev`).
+
+**Deploy:** 3 commits → PR #9 → merge a `main` → `docker compose up -d --build petition-api` (migraciones 030-032 vía pipeline de `deploy.yml`). `main` local estaba desactualizado desde "sesión 20" (sin relación de ancestro con `origin/main`); resuelto con `git reset --hard origin/main` sin pérdida de trabajo.
+
+**Nota de reconciliación futura:** las migraciones 030-032 parten de la 017 (head de `main`), no de la cadena 018-022 de `dev` — al mergear `dev` a `main` van a aparecer dos heads de Alembic que van a requerir `alembic merge` explícito. Mismo tema para los `progress/*.md` de `dev` (siguen en sesión 30).
+
+**Lección técnica:** en RLS, un `SET LOCAL` transaccional (`is_local=true`) sobre un GUC custom nunca antes tocado en la sesión crea un placeholder cuyo valor de reset es cadena vacía (`''`), no `NULL` — cualquier policy con `current_setting(...) != ''` sin `NULLIF` puede reventar en una conexión pooleada reutilizada después de esa transacción, aunque la lógica parezca correcta en aislamiento. Para UPDATE bajo RLS, el estado resultante de la fila también necesita una política que otorgue visibilidad de lectura — no alcanza con que el `WITH CHECK` pase.

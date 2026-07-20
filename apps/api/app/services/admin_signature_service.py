@@ -153,7 +153,7 @@ class AdminSignatureService:
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow([
-            "id", "nombre", "cedula_parcial", "email_parcial", "provincia",
+            "id", "nombre", "org", "cedula_parcial", "email_parcial", "provincia",
             "visibilidad", "estado", "confirmada_el", "registrada_el",
         ])
         for sig in signatures:
@@ -171,6 +171,7 @@ class AdminSignatureService:
             writer.writerow([
                 str(sig.id),
                 _visible_name(sig, role) or "",
+                sig.org_name or "",
                 cedula_parcial,
                 email_parcial,
                 sig.provincia or "",
@@ -196,19 +197,22 @@ class AdminSignatureService:
         user_id: uuid.UUID,
         admin_email: str,
         ip_hmac: str,
-    ) -> tuple[StreamingResponse, int, int]:
+    ) -> tuple[StreamingResponse, int, int, int]:
         """Descarga con PII sin enmascarar para armar el documento de entrega.
 
         Excluye SIEMPRE `visibility='secreta'` — el formulario le promete a
         ese firmante que su firma "no se incluirá en el documento de entrega
-        oficial a autoridades" (StepForm.tsx). Solo firmas confirmadas.
+        oficial a autoridades" (StepForm.tsx). Incluye `confirmed` y
+        `pending_confirmation` (excluye `anulada`) — la columna `estado` del
+        CSV distingue cuáles no completaron el doble opt-in todavía.
         Registra la operación en pii_export_audit (sin PII) y retorna el
-        conteo de filas + de secretas excluidas para la notificación.
+        conteo de filas, de secretas excluidas y de pendientes incluidas
+        para la notificación.
         """
         base_filters = [
             Signature.campaign_id == campaign_id,
             Signature.org_id == org_id,
-            Signature.status == "confirmed",
+            Signature.status.in_(["confirmed", "pending_confirmation"]),
         ]
         result = await db.execute(
             select(Signature)
@@ -221,6 +225,7 @@ class AdminSignatureService:
             select(func.count(Signature.id)).where(*base_filters, Signature.visibility == "secreta")
         )
         secret_excluded_count = secret_count_q.scalar_one()
+        pending_included_count = sum(1 for sig in signatures if sig.status == "pending_confirmation")
 
         export_id = uuid.uuid4()
         output = io.StringIO()
@@ -267,6 +272,7 @@ class AdminSignatureService:
             ip_hmac=ip_hmac,
             row_count=len(signatures),
             secret_excluded_count=secret_excluded_count,
+            pending_included_count=pending_included_count,
         ))
         await db.commit()
 
@@ -276,4 +282,4 @@ class AdminSignatureService:
             media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-        return response, len(signatures), secret_excluded_count
+        return response, len(signatures), secret_excluded_count, pending_included_count

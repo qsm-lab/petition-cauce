@@ -103,8 +103,10 @@ export default function ExportAbsolutoButton({ campaignId, total }: Props) {
             </h2>
             <p className="text-[13px] leading-relaxed mb-3" style={{ color: "var(--bink)" }}>
               Vas a descargar <strong>toda la información sin enmascarar</strong> (nombre, cédula
-              y correo en claro) de las firmas públicas y anónimas confirmadas de esta campaña,
-              para armar el documento de entrega oficial. Las firmas secretas nunca se incluyen.
+              y correo en claro) de las firmas públicas y anónimas de esta campaña —
+              confirmadas y también las que aún no completaron la confirmación por email
+              (la columna "estado" del archivo distingue cuáles), para armar el documento de
+              entrega oficial. Las firmas secretas nunca se incluyen.
             </p>
             <p className="text-[12.5px] leading-relaxed mb-4" style={{ color: "var(--bmut)" }}>
               El resguardo de este archivo es tu responsabilidad desde el momento de la descarga.

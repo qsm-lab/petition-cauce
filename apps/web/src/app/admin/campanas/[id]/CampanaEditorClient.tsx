@@ -205,10 +205,12 @@ export default function CampanaEditorClient({
   const initSocial = (campaign?.social_links ?? {}) as Record<string, string>;
   const [socialInstagram, setSocialInstagram] = useState(initSocial.instagram ?? "");
   const [socialFacebook, setSocialFacebook] = useState(initSocial.facebook ?? "");
+  const [socialX, setSocialX] = useState(initSocial.x ?? "");
   const [socialTiktok, setSocialTiktok] = useState(initSocial.tiktok ?? "");
   const [socialWhatsapp, setSocialWhatsapp] = useState(initSocial.whatsapp ?? "");
   const [socialNewsletter, setSocialNewsletter] = useState(initSocial.newsletter ?? "");
   const [socialWebsite, setSocialWebsite] = useState(initSocial.website ?? "");
+  const [socialEmail, setSocialEmail] = useState(initSocial.email ?? "");
 
   // — Archivos descargables
   const [attachments, setAttachments] = useState<{ title: string; url: string }[]>(
@@ -314,10 +316,12 @@ export default function CampanaEditorClient({
     social_links: {
       instagram:   socialInstagram.trim()   || null,
       facebook:    socialFacebook.trim()    || null,
+      x:           socialX.trim()           || null,
       tiktok:      socialTiktok.trim()      || null,
       whatsapp:    socialWhatsapp.trim()    || null,
       newsletter:  socialNewsletter.trim()  || null,
       website:     socialWebsite.trim()     || null,
+      email:       socialEmail.trim()       || null,
     },
   });
 
@@ -617,16 +621,18 @@ export default function CampanaEditorClient({
               <SectionHeader title="Redes sociales" />
               <div className="px-5 py-4 flex flex-col gap-3">
                 {([
-                  ["Sitio web",    socialWebsite,    setSocialWebsite,    "https://miorganizacion.org"],
-                  ["Instagram",    socialInstagram,  setSocialInstagram,  "https://instagram.com/…"],
-                  ["Facebook",     socialFacebook,   setSocialFacebook,   "https://facebook.com/…"],
-                  ["TikTok",       socialTiktok,     setSocialTiktok,     "https://tiktok.com/@…"],
-                  ["WhatsApp",     socialWhatsapp,   setSocialWhatsapp,   "https://wa.me/…"],
-                  ["Newsletter",   socialNewsletter, setSocialNewsletter, "https://…"],
-                ] as [string, string, (v: string) => void, string][]).map(([label, val, setter, ph]) => (
+                  ["Sitio web",    socialWebsite,    setSocialWebsite,    "https://miorganizacion.org", "url"],
+                  ["Instagram",    socialInstagram,  setSocialInstagram,  "https://instagram.com/…", "url"],
+                  ["Facebook",     socialFacebook,   setSocialFacebook,   "https://facebook.com/…", "url"],
+                  ["X",            socialX,          setSocialX,          "https://x.com/…", "url"],
+                  ["TikTok",       socialTiktok,     setSocialTiktok,     "https://tiktok.com/@…", "url"],
+                  ["WhatsApp",     socialWhatsapp,   setSocialWhatsapp,   "https://wa.me/…", "url"],
+                  ["Newsletter",   socialNewsletter, setSocialNewsletter, "https://…", "url"],
+                  ["Email",        socialEmail,      setSocialEmail,      "contacto@miorganizacion.org", "email"],
+                ] as [string, string, (v: string) => void, string, string][]).map(([label, val, setter, ph, inputType]) => (
                   <div key={label}>
                     <label className="text-[11px] mb-1 block" style={{ color: "var(--bmut)" }}>{label}</label>
-                    <input type="url" value={val} onChange={(e) => setter(e.target.value)} placeholder={ph} className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
+                    <input type={inputType} value={val} onChange={(e) => setter(e.target.value)} placeholder={ph} className="w-full bg-transparent text-[13px] outline-none placeholder:opacity-40" style={{ color: "var(--bink)", borderBottom: "1px solid var(--bbord)", paddingBottom: 4 }} />
                   </div>
                 ))}
               </div>

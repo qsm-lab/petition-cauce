@@ -121,7 +121,7 @@
     {
       "id": "dashboard-firmas",
       "title": "Fase 1 — MVP: dashboard admin de firmas",
-      "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm.",
+      "description": "Panel admin: lista de firmas con paginación, conteo total, filtros básicos (fecha, región, visibilidad). Export CSV básico protegido por org_id (RLS). Acceso protegido por JWT. Heredar auth y RLS de forms-qsm. Sesión 31: nombre visible según rol (gestor no ve secreta, admin sí), columna Provincia → Origen (color por provincia/país, filtro Internacional agrupa países), botón 'Recordar a pendientes' (reenvía confirmación a publica+pending_confirmation de un clic).",
       "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
@@ -191,6 +191,33 @@
       "phase": 2
     },
     {
+      "id": "comunicaciones-cierre-campana",
+      "title": "Fase 2 — Comunicaciones del cierre: invitación a entrega, aviso de cierre, recordatorio",
+      "description": "Sesión 32: 3 emails nuevos/editados alrededor del cierre de campaña (spec en specs/comunicaciones-cierre-campana/). (1) Invitación al evento de entrega física ante la autoridad — nueva, audiencia nacional+confirmada, personalizada por nombre del firmante (fecha/hora/lugar/subtítulo/mapa/imagen/asunto editable), con links de agendar (Google Calendar/Outlook/Apple Calendar vía endpoint .ics nuevo) y redes sociales de la org (solo las que tengan URL cargada). (2) Aviso de cierre de campaña — nuevo, a todos los confirmados, con conteo final + enlaces de social_links de la org (reutiliza dato ya existente, sin bloque nuevo en el landing público — eso queda para otra spec). (3) Recordatorio a pendientes — mismo mecanismo existente, copy editado con la nueva terminología 'adhesión'/'confirmada'/'pendiente de confirmar' (no cambia el contador público). Popup único 'Comunicaciones de cierre' con vista previa real (mismo HTML que se envía) + envío de prueba a direcciones libres antes del envío masivo real. Implementado en rama feat/comunicaciones-cierre-campana (main sin tocar, dev sigue congelado) — pendiente de probar visualmente en navegador y de mergear. Hallazgo documentado sin corregir: Consent.notify_updates nunca se capturó (checkbox roto en StepThanks.tsx/SignFlow.tsx) — por eso ninguno de los 3 emails filtra por ese consentimiento; queda para spec futura de embudo-post-firma/novedades-campana.",
+      "status": "in_progress",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "programacion-historial-comunicaciones",
+      "title": "Fase 2 — Programar envío + historial para los 3 tipos de comunicación con adherentes",
+      "description": "Sesión 32, spec en specs/programacion-historial-comunicaciones/. Extiende comunicaciones-cierre-campana: (1) programar cualquiera de los 3 envíos (evento/cierre/mensaje) para una fecha futura, disparado por un loop asíncrono in-process (sin Celery/APScheduler nuevo) arrancado en el lifespan de FastAPI — primera migración de esta rama (tablas scheduled_email + email_send_log). (2) historial de envíos reales y de prueba, sin guardar contenido/HTML, solo metadatos de auditoría. Prioridad del usuario: programar envío primero, historial después. Requiere migración — coordinar con el usuario el orden de merge respecto a la cadena de dev (retención/supresión/ARCO) para evitar dos heads de Alembic. NO implementado todavía — spec pendiente de aprobación.",
+      "status": "spec_ready",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
+    },
+    {
+      "id": "email-cumplimiento-masivo",
+      "title": "Fase 3 — LOPDP: cumplimiento de emails masivos (términos, privacidad, desuscripción, ver en navegador)",
+      "description": "Hallazgo sesión 32: ningún email masivo de la plataforma (notify-signers, recordatorio, invitación al evento, aviso de cierre) incluye enlaces a términos de uso ni política de privacidad de la PLATAFORMA (distinto de la política de privacidad por campaña, que sí existe), ni una opción real de desuscripción, ni un link de 'ver en el navegador'/abrir en pestaña aparte. Requiere: (1) páginas públicas de términos de uso y política de privacidad de la plataforma (hoy no existen), (2) mecanismo de desuscripción (LOPDP: derecho de oposición) — probablemente ligado a arreglar el consentimiento notify_updates roto (ver hallazgo de comunicaciones-cierre-campana), (3) footer estándar reutilizable en email_service.py con esos 3 elementos para que todo email nuevo lo herede, (4) opción de 'ver en el navegador' por email (requiere endpoint público que sirva el HTML ya generado). No implementado — pendiente de spec propia.",
+      "status": "pending",
+      "sdd": true,
+      "area": "backend",
+      "phase": 3
+    },
+    {
       "id": "derechos-arco",
       "title": "Fase 3 — LOPDP: flujo ARCO + portabilidad + oposición (self-service)",
       "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma.",
@@ -229,8 +256,17 @@
     {
       "id": "export-entrega",
       "title": "Fase 3 — LOPDP: descarga completa de PII para entrega oficial (step-up auth)",
-      "description": "Botón 'Descarga de entrega' en el dashboard de firmas, disponible desde la etapa Entrega (lifecycle_stage >= 2). Step-up auth: re-validación de contraseña + OTP de 6 dígitos al email del admin (TTL 10 min, hasheado en Redis, 3 intentos, rate 3/hora) → token de descarga de un solo uso (TTL 5 min) → CSV con cédula y email descifrados. Solo firmas confirmadas; las secretas nunca integran el archivo (solo cuentan). Auditoría pii_export_audit (sin PII) + notificación al Responsable y a admins de plataforma. Insumo de documento-entrega (fase 4). Análisis aprobado en sesión 27.",
+      "description": "Implementado en sesión 31 como 'Descarga absoluta' en el dashboard de firmas — versión simplificada del análisis de sesión 27: re-validación de SOLO contraseña (sin OTP, decisión explícita del usuario) → CSV con nombre/cédula/email descifrados + org, origen (provincia/país), tipo de firma (visibilidad) y estado; fila final de sello (admin/fecha/hora). Sin gating por lifecycle_stage (disponible en cualquier etapa). Solo firmas confirmadas; las secretas nunca integran el archivo (solo cuentan, conteo en pii_export_audit.secret_excluded_count). Auditoría pii_export_audit (sin PII) + notificación por email al contacto de la org y a platform_admin_emails. Insumo de documento-entrega (fase 4).",
       "status": "done",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 3
+    },
+    {
+      "id": "remediacion-nombres-incompletos",
+      "title": "Fase 3 — LOPDP: remediación de firmas con nombre null/incompleto",
+      "description": "Hallazgo sesión 31: el nombre del firmante se descartaba en DB para visibility != 'publica' (ya corregido en signature_service — se guarda siempre desde ahora), pero el formulario le promete al anónimo que su firma va al documento de entrega. Remediación del histórico ya afectado: script CLI (send_name_completion_emails, --dry-run/--force) ubica firmas con name null o de una sola palabra (excluye secreta y anulada), genera completion_token (7 días) y manda email con link a un popup en la landing (?completar=<token>) para completar el nombre; si la firma seguía pending_confirmation, queda confirmed en el mismo paso. Además, botón 'Recordar a pendientes' (parte de dashboard-firmas) para publica+pending_confirmation. Primera corrida real en campaña soberania-tlc-ecu-usa: 247/247 enviados exitosamente (sesión 31). Pendiente: sumar anonima/secreta pending_confirmation al recordatorio (requiere copy sin mención al nombre).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3

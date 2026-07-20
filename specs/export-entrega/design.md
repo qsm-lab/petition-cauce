@@ -105,3 +105,36 @@ petition:dl:export:<token>                          → user_id:campaign_id · T
 - Independiente de `retencion-datos` / `supresion-admin` / `derechos-arco`;
   respeta sus marcas (`archived_at`, `anonymized_at`) cuando existan.
 - Insumo futuro de `documento-entrega` (fase 4).
+
+---
+
+## Addendum — implementación real (sesión 31)
+
+Se implementó como **"Descarga absoluta"**, con estas desviaciones deliberadas
+del diseño original (decisiones tomadas en conversación con el usuario, no
+un cambio de alcance no autorizado):
+
+- **Sin OTP**: solo re-validación de contraseña (R2-R4 del análisis original
+  no se implementaron). El control compensatorio pasó a ser la notificación
+  automática (R9) a la org y a la plataforma en cada descarga — se aceptó el
+  trade-off de menos fricción por velocidad, dado el contexto urgente de la
+  campaña real activa.
+- **Sin gating por `lifecycle_stage`** (R1): el botón está disponible en
+  cualquier etapa, no solo desde "Entrega" — la campaña real necesitaba
+  prepararse antes de que el ciclo de vida llegara formalmente a esa etapa.
+- **Columnas adicionales al CSV** no contempladas en R5: `org` (`org_name`
+  cuando `signer_type='org'`), `tipo_firma` (la visibilidad: pública/anónima),
+  `pais` (para firmantes internacionales). `export_id` se mantiene (R7).
+- **Fila de sello** en vez de columna: en lugar de solo el `export_id` por
+  fila, se agrega una fila final `SELLO_DESCARGA` con el admin, fecha/hora y
+  `export_id` — mismo propósito de trazabilidad (R8) con más contexto legible
+  para quien abre el CSV.
+- **Incluye `pending_confirmation` además de `confirmed`** (contradice R5,
+  cambio pedido explícitamente por el usuario después del deploy inicial):
+  la columna `estado` del CSV distingue cuáles no completaron el doble
+  opt-in. `pii_export_audit.pending_included_count` (migración 033) registra
+  cuántas de las filas incluidas están sin confirmar, para trazabilidad —
+  mismo patrón que `secret_excluded_count`. `anulada` se sigue excluyendo
+  siempre (no estaba en el filtro original ni en el nuevo).
+- El resto del diseño (exclusión de `secreta`, auditoría `pii_export_audit`,
+  `decrypt_pii` como vía de lectura) se mantiene igual al análisis original.

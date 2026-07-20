@@ -55,10 +55,12 @@ export interface Form {
 export interface SocialLinks {
   instagram?: string;
   facebook?: string;
+  x?: string;
   tiktok?: string;
   whatsapp?: string;
   newsletter?: string;
   website?: string;
+  email?: string;
   share_text?: string;
 }
 
