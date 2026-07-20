@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from app.services.email_service import (
     _build_delivery_event_invitation_html,
     _build_campaign_closing_html,
+    _fmt_event_datetime,
 )
 from app.schemas.campaign import EventInvitationRequest, ClosingNotificationRequest
 import pytest
@@ -228,3 +229,24 @@ def test_closing_html_redes_son_iconos_svg():
     )
     assert "aria-label=\"Instagram\"" in html
     assert "<svg" in html
+
+
+def test_fmt_event_datetime_convierte_utc_a_hora_local_ecuador():
+    # 15:00 UTC == 10:00 en América/Guayaquil (UTC-5, sin horario de verano) —
+    # el formulario captura la hora local, el navegador la manda en UTC.
+    assert _fmt_event_datetime(_dt()) == "1 de agosto de 2026 · 10:00"
+
+
+def test_fmt_event_datetime_naive_se_asume_utc_igual_que_los_links_de_calendario():
+    naive = datetime(2026, 8, 1, 15, 0)
+    assert _fmt_event_datetime(naive) == "1 de agosto de 2026 · 10:00"
+
+
+def test_invitation_html_muestra_hora_local_no_utc():
+    html = _build_delivery_event_invitation_html(
+        campaign_title="X", event_title="Entrega",
+        event_datetime=datetime(2026, 8, 1, 15, 0, tzinfo=timezone.utc),
+        event_location="Quito",
+    )
+    assert "10:00" in html
+    assert "15:00" not in html

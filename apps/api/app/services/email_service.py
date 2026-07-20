@@ -2,12 +2,19 @@ import logging
 from datetime import timedelta, timezone
 from typing import Sequence
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Los formularios de comunicación capturan la hora en horario local de
+# Ecuador (siempre continental, sin horario de verano) — el datetime llega
+# al backend ya convertido a UTC por el navegador; hay que revertir la
+# conversión para mostrar la hora que el admin realmente cargó.
+_TZ_EC = ZoneInfo("America/Guayaquil")
 
 _CONFIRM_PATH = "/v1/public-campaign/confirm/"
 
@@ -559,7 +566,9 @@ _MESES_ES = [
 
 
 def _fmt_event_datetime(dt) -> str:
-    return f"{dt.day} de {_MESES_ES[dt.month - 1]} de {dt.year} · {dt.strftime('%H:%M')}"
+    aware = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    local = aware.astimezone(_TZ_EC)
+    return f"{local.day} de {_MESES_ES[local.month - 1]} de {local.year} · {local.strftime('%H:%M')}"
 
 
 def _ics_escape(text: str) -> str:
