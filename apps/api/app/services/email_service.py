@@ -632,68 +632,22 @@ def _social_href(key: str, value: str) -> str:
     return value
 
 
-# Íconos en SVG inline (no <img src="data:...">, que Gmail bloquea — ver
-# hallazgo del QR del email de agradecimiento, sesión 27). El SVG embebido
-# como markup no es una carga de imagen, así que no le aplica ese bloqueo.
-# Mismos trazos que ya usa el frontend (ShareSection.tsx, StepThanks.tsx)
-# para consistencia visual; TikTok/sitio web/newsletter son íconos genéricos
-# ya que no había uno existente en el código para reutilizar.
+# PNG estáticos (círculo de color + glifo horneado en el propio archivo),
+# servidos desde el dominio de la web (apps/web/public/icons/social/) —
+# reemplaza el SVG inline anterior. Ese SVG se eligió en su momento para
+# evitar el bloqueo de Gmail a <img src="data:...">, pero Gmail tampoco
+# renderiza <svg> inline (lo elimina del cuerpo del email): un <img> con
+# URL pública normal evita ambos problemas. Mismos trazos que ya usaba el
+# frontend (ShareSection.tsx, StepThanks.tsx).
 _SOCIAL_ICONS = {
-    "website": (
-        "#3d6b35",
-        "Sitio web",
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>'
-        '<path d="M12 2a15 15 0 010 20 15 15 0 010-20"/></svg>'
-    ),
-    "instagram": (
-        "#C13584",
-        "Instagram",
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-        '<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/>'
-        '<circle cx="17.5" cy="6.5" r="0.5" fill="#fff" stroke="none"/></svg>'
-    ),
-    "facebook": (
-        "#1877F2",
-        "Facebook",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">'
-        '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.026 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.971h-1.514c-1.491 0-1.955.931-1.955 1.887v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>'
-    ),
-    "x": (
-        "#000000",
-        "X",
-        '<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff">'
-        '<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
-    ),
-    "tiktok": (
-        "#000000",
-        "TikTok",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
-    ),
-    "whatsapp": (
-        "#25D366",
-        "WhatsApp",
-        '<svg width="16" height="16" viewBox="0 0 32 32" fill="#fff">'
-        '<path d="M16 3C8.82 3 3 8.82 3 16c0 2.3.62 4.47 1.7 6.34L3 29l6.85-1.65A13 13 0 0016 29c7.18 0 13-5.82 13-13S23.18 3 16 3zm0 2c6.07 0 11 4.93 11 11s-4.93 11-11 11c-2.02 0-3.9-.55-5.52-1.5l-.39-.23-4.06.98.99-3.96-.26-.42A10.96 10.96 0 015 16C5 9.93 9.93 5 16 5zm-3.4 5.5c-.2 0-.52.08-.8.38-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.14.2 2.07 3.24 5.08 4.42.71.31 1.26.49 1.69.62.71.22 1.36.19 1.87.12.57-.08 1.75-.72 2-1.41.25-.7.25-1.3.18-1.42-.08-.12-.27-.2-.57-.34-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.34.22-.64.08-.3-.15-1.27-.47-2.42-1.49-.9-.8-1.5-1.78-1.68-2.08-.17-.3-.02-.46.13-.61.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.14-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01z"/></svg>'
-    ),
-    "newsletter": (
-        "#3d6b35",
-        "Newsletter",
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'
-    ),
-    "email": (
-        "#7a8a72",
-        "Email",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>'
-    ),
+    "website": "Sitio web",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+    "x": "X",
+    "tiktok": "TikTok",
+    "whatsapp": "WhatsApp",
+    "newsletter": "Newsletter",
+    "email": "Email",
 }
 
 
@@ -708,12 +662,14 @@ def _powered_by_block(org_name: str) -> str:
 
 def _social_icon_links(social_links: dict | None) -> str:
     social_links = social_links or {}
+    icons_base = f"{settings.next_public_app_url.rstrip('/')}/icons/social"
     return "".join(
         f"<a href=\"{_social_href(key, social_links[key])}\" target=\"_blank\" rel=\"noopener\" "
         f"aria-label=\"{label}\" title=\"{label}\" "
-        f"style=\"display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;"
-        f"border-radius:50%;background:{color};margin:0 8px 8px 0;text-decoration:none;\">{svg}</a>"
-        for key, (color, label, svg) in _SOCIAL_ICONS.items()
+        f"style=\"display:inline-block;margin:0 8px 8px 0;line-height:0;\">"
+        f"<img src=\"{icons_base}/{key}.png\" width=\"36\" height=\"36\" alt=\"{label}\" "
+        f"style=\"display:block;width:36px;height:36px;border-radius:50%;\"></a>"
+        for key, label in _SOCIAL_ICONS.items()
         if social_links.get(key)
     )
 
