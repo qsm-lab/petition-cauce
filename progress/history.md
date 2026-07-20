@@ -3,6 +3,54 @@
 
 ---
 
+## 2026-07-20 — Sesión 32: comunicación con adherentes (evento, cierre, mensaje) + 2 fixes puntuales
+
+Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Rama nueva
+`feat/comunicaciones-cierre-campana`, partida de `main` a pedido explícito
+del usuario (`dev` sigue con su cadena LOPDP sin mergear). Nada commiteado.
+
+**2 fixes puntuales**: columna `org` en el CSV normal del dashboard de
+firmas; corrección del conteo público (`get_signature_count`/
+`get_total_signature_count`) excluyendo firmas `name IS NULL` — caso
+especial hardcodeado solo para `soberania-tlc-ecu-usa` (el bug de origen
+del nombre nulo ya se corrigió en sesión 31, no se generaliza a otras
+campañas).
+
+**Feature grande — "Comunicación con adherentes"**: popup único con 3
+pestañas (invitación al evento de entrega, aviso de cierre, mensaje libre)
+que reemplaza y consolida lo que antes era el botón suelto "Notificar a
+firmantes". Cada pestaña: formulario → vista previa real (HTML exacto
+renderizado por el backend, mostrado en iframe) → envío de prueba a
+direcciones libres → envío real con conteo de destinatarios y
+confirmación. Invitación al evento: personalizada por nombre del
+firmante, con links de agendar (Google Calendar/Outlook/Apple Calendar vía
+endpoint `.ics` nuevo) y redes sociales de la org en íconos SVG inline
+(no `data:` URI, evita el bloqueo de Gmail ya conocido desde sesión 27).
+Aviso de cierre: mismas funciones que el de evento salvo fecha/hora/lugar.
+Bloque "Impulsado por: {org}" en ambos. Borradores autoguardados en
+localStorage (sin backend). 2 campos nuevos en redes sociales del editor
+admin: X y Email (arma `mailto:` solo). 88/88 tests, `tsc --noEmit` limpio,
+verificado en vivo contra dev vía curl/httpx — **sin probar en navegador
+real** (sin herramienta de browser disponible esta sesión).
+
+**Hallazgo documentado sin corregir**: `Consent.notify_updates` nunca se
+capturó de verdad (checkbox roto en `StepThanks.tsx`/`SignFlow.tsx`) —
+ninguno de los 3 tipos de envío filtra por ese consentimiento; la base
+legal usada es que informar del cierre/evento es parte del proceso mismo
+de la petición firmada, no marketing opcional.
+
+**2 specs nuevas quedan para la próxima sesión**: `programacion-historial-comunicaciones`
+(`spec_ready` — programar envío + historial, primera migración de esta
+rama, prioridad: programar primero) y `email-cumplimiento-masivo`
+(`pending`, sin spec — términos/privacidad/desuscripción/ver en navegador
+para todos los emails masivos).
+
+Pendiente confirmar si el congelamiento de `dev` ya se liberó (dicho para
+hoy, 2026-07-20) y si la campaña real ya cerró — no confirmado dentro de
+esta sesión.
+
+---
+
 ## 2026-07-08 — Sesión 25: cifrado-reposo en producción + rectificaciones y pulido
 
 **cifrado-reposo implementado y desplegado**: AES-256-GCM (`enc:v1:`), clave
