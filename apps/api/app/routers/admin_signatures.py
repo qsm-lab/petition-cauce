@@ -173,17 +173,15 @@ async def remind_pending_signatures(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
-    """Reenvía el email de confirmación a firmas públicas aún pendientes.
+    """Reenvía el email de confirmación a firmas pendientes de cualquier
+    visibilidad (publica/anonima/secreta).
 
     Regenera el token de confirmación (el original ya expiró hace tiempo
-    para firmas viejas) y lo reenvía. Solo `visibility='publica'` — ya
-    tienen el nombre completo, no requieren el flujo de completar-nombre.
-
-    PENDIENTE (pedido explícito del usuario, no implementado aún): sumar
-    también a firmas 'anonima'/'secreta' pending_confirmation — hoy quedan
-    fuera de este recordatorio porque no requieren nombre, pero igual deben
-    poder confirmarse. Requiere copy de email distinto (sin la mención al
-    nombre) antes de sumarlas acá.
+    para firmas viejas) y lo reenvía. `send_confirmation_reminder_email`
+    ya omite el saludo por nombre si `sig.name` viene vacío (firmas viejas
+    de antes del fix de sesión 31) y usa `_VISIBILITY_EXPLANATIONS` para
+    explicar cada visibilidad sin necesidad de un copy separado por tipo —
+    sumar anonima/secreta acá no requirió texto nuevo.
     """
     if current_user.role not in ("admin", "gestor"):
         raise HTTPException(status_code=403, detail="Acceso denegado")
@@ -196,7 +194,6 @@ async def remind_pending_signatures(
         select(Signature).where(
             Signature.campaign_id == campaign.id,
             Signature.status == "pending_confirmation",
-            Signature.visibility == "publica",
         )
     )
     pending = result.scalars().all()

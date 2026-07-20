@@ -8,14 +8,14 @@ interface Props {
   campaignId: string;
 }
 
-/** Reenvía el email de confirmación a todas las firmas públicas aún
- *  pendientes de la campaña, de un solo clic (regenera el token). */
+/** Reenvía el email de confirmación a todas las firmas aún pendientes de
+ *  la campaña (cualquier visibilidad), de un solo clic (regenera el token). */
 export default function RemindPendingButton({ campaignId }: Props) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
   async function handleClick() {
-    if (!window.confirm("Se reenviará el email de confirmación a todas las firmas públicas que aún no confirmaron. ¿Continuar?")) {
+    if (!window.confirm("Se reenviará el email de confirmación a todas las firmas que aún no confirmaron. ¿Continuar?")) {
       return;
     }
     setSending(true);
