@@ -3,18 +3,24 @@
 
 ---
 
-## 2026-07-20 — Sesión 32: comunicación con adherentes (evento, cierre, mensaje) + 2 fixes puntuales
+## 2026-07-20 — Sesión 32: comunicación con adherentes (evento, cierre, mensaje) + 2 fixes puntuales — mergeado y deployado
 
-Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Rama nueva
+Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Rama
 `feat/comunicaciones-cierre-campana`, partida de `main` a pedido explícito
-del usuario (`dev` sigue con su cadena LOPDP sin mergear). Nada commiteado.
+del usuario (`dev` sigue con su cadena LOPDP sin mergear). **PR #12
+mergeado y deployado.** Luego, un fix adicional post-deploy (**PR #13,
+también mergeado y deployado**): `remind_pending_signatures` ("Recordar a
+pendientes") dejó de filtrar `visibility='publica'` — ahora abarca
+también `anonima`/`secreta`, sin necesitar copy de email nuevo (gap
+documentado desde sesión 31). Uso previsto: recordatorio único en
+producción a toda adhesión sin confirmar hasta el cierre de la campaña.
 
-**2 fixes puntuales**: columna `org` en el CSV normal del dashboard de
-firmas; corrección del conteo público (`get_signature_count`/
-`get_total_signature_count`) excluyendo firmas `name IS NULL` — caso
-especial hardcodeado solo para `soberania-tlc-ecu-usa` (el bug de origen
-del nombre nulo ya se corrigió en sesión 31, no se generaliza a otras
-campañas).
+**2 fixes puntuales** (parte de PR #12): columna `org` en el CSV normal
+del dashboard de firmas; corrección del conteo público
+(`get_signature_count`/`get_total_signature_count`) excluyendo firmas
+`name IS NULL` — caso especial hardcodeado solo para `soberania-tlc-ecu-usa`
+(el bug de origen del nombre nulo ya se corrigió en sesión 31, no se
+generaliza a otras campañas).
 
 **Feature grande — "Comunicación con adherentes"**: popup único con 3
 pestañas (invitación al evento de entrega, aviso de cierre, mensaje libre)
