@@ -214,22 +214,28 @@ def test_invitation_html_mensaje_va_antes_de_agendar_y_redes():
     assert html.index("Traigan banderas.") < html.index("Seguí la causa")
 
 
-def test_invitation_html_redes_son_iconos_svg_no_texto():
+def test_invitation_html_redes_son_iconos_png_hosteados():
     html = _build_delivery_event_invitation_html(
         campaign_title="X", event_title="Entrega", event_datetime=_dt(), event_location="Quito",
         social_links={"website": "https://x.org", "whatsapp": "https://wa.me/123"},
     )
-    assert html.count("<svg") >= 2  # al menos un ícono por red con valor (además de los ya existentes)
+    # No más SVG inline (Gmail lo elimina del cuerpo del email) — íconos como
+    # <img> hosteados en el dominio de la web.
+    assert "<svg" not in html
+    assert html.count("/icons/social/") >= 2
+    assert "icons/social/website.png" in html
+    assert "icons/social/whatsapp.png" in html
     assert "aria-label=\"Sitio web\"" in html
     assert "aria-label=\"WhatsApp\"" in html
 
 
-def test_closing_html_redes_son_iconos_svg():
+def test_closing_html_redes_son_iconos_png_hosteados():
     html = _build_campaign_closing_html(
         campaign_title="X", final_count=1, social_links={"instagram": "https://instagram.com/x"},
     )
     assert "aria-label=\"Instagram\"" in html
-    assert "<svg" in html
+    assert "<svg" not in html
+    assert "icons/social/instagram.png" in html
 
 
 def test_fmt_event_datetime_convierte_utc_a_hora_local_ecuador():
