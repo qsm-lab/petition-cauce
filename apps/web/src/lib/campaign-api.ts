@@ -20,6 +20,7 @@ export interface FormConfig {
   location_modes: ("nacional" | "internacional")[];
   required_fields: string[];
   visibility_options: ("publica" | "anonima" | "secreta")[];
+  request_celular: boolean;
 }
 
 export const DEFAULT_FORM_CONFIG: FormConfig = {
@@ -27,6 +28,7 @@ export const DEFAULT_FORM_CONFIG: FormConfig = {
   location_modes: ["nacional"],
   required_fields: ["nombre", "email", "cedula", "location"],
   visibility_options: ["publica", "anonima"],
+  request_celular: false,
 };
 
 export interface PublicCampaign {

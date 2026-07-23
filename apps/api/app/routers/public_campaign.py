@@ -58,6 +58,7 @@ _DEFAULT_FORM_CONFIG = {
     "location_modes": ["nacional"],
     "required_fields": ["nombre", "email", "cedula", "location"],
     "visibility_options": ["publica", "anonima"],
+    "request_celular": False,
 }
 
 

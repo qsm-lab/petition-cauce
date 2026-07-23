@@ -31,6 +31,7 @@ def test_override_completo():
         "location_modes": ["nacional", "internacional"],
         "required_fields": ["email"],
         "visibility_options": ["publica", "anonima", "secreta"],
+        "request_celular": True,
     }
     cfg = _get_form_config(_campaign({"form_config": custom}))
     assert cfg == custom

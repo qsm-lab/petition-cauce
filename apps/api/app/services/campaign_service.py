@@ -298,6 +298,7 @@ class CampaignService:
                 Consent.campaign_id == campaign_id,
                 Consent.notify_updates.is_(True),
                 Signature.status == "confirmed",
+                Signature.archived_at.is_(None),
             )
         )
         emails: list[str] = []

@@ -5,6 +5,7 @@ import ExportCsvButton from "./ExportCsvButton";
 import ExportAbsolutoButton from "./ExportAbsolutoButton";
 import RemindPendingButton from "./RemindPendingButton";
 import VisibilityCell from "./VisibilityCell";
+import ArchiveModal from "./ArchiveModal";
 
 function displayName(sig: AdminSignatureItem): string {
   if (sig.signer_type === "org" && sig.org_name) {
@@ -226,7 +227,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
               <table className="w-full" role="table">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--bbord)", backgroundColor: "var(--bbg)" }}>
-                    {(["Nombre", "Origen", "Visibilidad", "Estado", "Confirmada el", "Registrada el"] as const).map(
+                    {(["Nombre", "Origen", "Visibilidad", "Estado", "Confirmada el", "Registrada el", "Acciones"] as const).map(
                       (col) => (
                         <th
                           key={col}
@@ -243,7 +244,7 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
                 <tbody>
                   {data.items.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-12 text-center">
+                      <td colSpan={7} className="px-4 py-12 text-center">
                         <p className="font-semibold text-[14px] mb-1" style={{ color: "var(--bink)" }}>
                           {hasFilters
                             ? "No hay firmas que coincidan"
@@ -284,6 +285,9 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
                         </td>
                         <td className="px-4 py-3 text-[12.5px]" style={{ color: "var(--bmut)" }}>
                           {fmtDate(sig.created_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <ArchiveModal campaignId={params.id} signature={sig} />
                         </td>
                       </tr>
                     ))

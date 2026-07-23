@@ -220,8 +220,8 @@
     {
       "id": "derechos-arco",
       "title": "Fase 3 — LOPDP: flujo ARCO + portabilidad + oposición (self-service)",
-      "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma.",
-      "status": "spec_ready",
+      "description": "Canal self-service para que un firmante ejerza sus derechos: acceso (ver sus datos), rectificación, eliminación/supresión, oposición, portabilidad (formato estructurado). Autenticado por email verificado + cédula. Cierra el ciclo de revocación iniciado en formulario-firma. Backend implementado y verificado (sesión 30, migraciones 020+021). Frontend (/mis-datos + portal) pendiente de ronda de Claude Design antes de implementar (T12-T14).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3
@@ -229,8 +229,8 @@
     {
       "id": "supresion-admin",
       "title": "Fase 3 — LOPDP: supresión de firma desde admin (ventana 15 días)",
-      "description": "Botón Archivar en el dashboard de firmas para solicitudes de supresión recibidas por canal no digital. Archiva → notifica al firmante por email → job purga la PII a los 15 días (reversible en ventana). La firma sigue cuantificándose (fila anonimizada conserva campaign_id/status). Reutiliza anonymize_signature de retencion-datos y auditoría arco_requests de derechos-arco.",
-      "status": "spec_ready",
+      "description": "Botón Archivar en el dashboard de firmas para solicitudes de supresión recibidas por canal no digital. Archiva → notifica al firmante por email → job purga la PII a los 15 días (reversible en ventana). La firma sigue cuantificándose (fila anonimizada conserva campaign_id/status). Reutiliza anonymize_signature de retencion-datos y auditoría arco_requests (creada adelantada en esta feature; derechos-arco la reutilizará).",
+      "status": "in_progress",
       "sdd": true,
       "area": "fullstack",
       "phase": 3
@@ -239,7 +239,7 @@
       "id": "retencion-datos",
       "title": "Fase 3 — LOPDP: job de retención y purga/anonimización",
       "description": "Job programado que purga o anonimiza datos de firmantes según la política de retención definida en privacy_config de cada campaña. Se ejecuta tras presentar el expediente o al expirar el plazo. Registra la acción en audit log.",
-      "status": "spec_ready",
+      "status": "in_progress",
       "sdd": true,
       "area": "backend",
       "phase": 3
@@ -341,6 +341,15 @@
       "status": "pending",
       "sdd": true,
       "area": "backend",
+      "phase": 4
+    },
+    {
+      "id": "landing-respaldo-entrega",
+      "title": "Fase 4 — Landing informativa de respaldo para autoridades (URL única + QR)",
+      "description": "Spec en specs/landing-respaldo-entrega/. Página pública de solo lectura en /c/{slug}/respaldo, pensada para adjuntar al documento de entrega como soporte ante la autoridad receptora: detalles de la campaña (título, org, autoridad destinataria, asks), cuantificación de firmas confirmadas por tipo de visibilidad y por origen (provincia/país, sin PII individual), fechas (lanzamiento, cierre, 'datos actualizados al'), texto fijo de plataforma (no editable por campaña) sobre seguridad del sistema y fiabilidad de las firmas — acotado a lo realmente implementado hoy (Turnstile, rate limiting, cifrado AES-256-GCM, RLS, doble opt-in, validación de cédula módulo 10, dedup por email) —, resumen de política de privacidad con link a la vigente, y botón de descarga de QR generado client-side (sin persistencia nueva). A diferencia del resto de páginas públicas, sigue accesible con la campaña archivada/cerrada. Meta noindex. Sin migraciones. Requiere diseño Claude Design aprobado antes de implementar (regla del proyecto). NO implementado — spec pendiente de aprobación del usuario.",
+      "status": "spec_ready",
+      "sdd": true,
+      "area": "fullstack",
       "phase": 4
     },
     {

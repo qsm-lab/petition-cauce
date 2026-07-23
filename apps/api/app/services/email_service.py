@@ -405,6 +405,234 @@ async def send_visibility_change_email(
     await _send(to_email, f"Confirma el cambio de visibilidad: {campaign_title}", html)
 
 
+_ARCO_VERIFY_PATH = "/mis-datos/portal"
+
+_ARCO_RIGHT_LABELS = {
+    "supresion": "supresión de datos",
+    "rectificacion": "rectificación de datos",
+}
+
+
+async def send_arco_verification_email(
+    to_email: str,
+    token: str,
+    signer_name: str = "",
+    campaign_count: int = 1,
+) -> None:
+    """Enlace de verificación de identidad para el portal de derechos ARCO (R1-R3, R1b).
+
+    Platform-wide: no está atado a una campaña específica — el enlace abre
+    una sesión de portal con todas las campañas encontradas. Válido 1h, un
+    solo uso.
+    """
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+    verify_url = f"{app_url}{_ARCO_VERIFY_PATH}?token={token}"
+
+    if not settings.resend_api_key:
+        logger.info("[dev] arco verification email | to=%s | url=%s", to_email, verify_url)
+        return
+
+    campaign_phrase = (
+        "una campaña de Cauce" if campaign_count <= 1 else f"{campaign_count} campañas de Cauce"
+    )
+    html = _signer_action_html(
+        heading="Accede a tus datos",
+        body_html=(
+            f"Recibimos una solicitud para acceder a tus datos en {campaign_phrase}.<br>"
+            "Haz clic en el botón para entrar al portal. El enlace es válido por 1 hora y de un solo uso."
+        ),
+        cta_label="Acceder a mis datos →",
+        cta_url=verify_url,
+        footer="Si no solicitaste esto, ignora este mensaje — nadie más puede acceder a tus datos sin este enlace.",
+        signer_name=signer_name,
+        org_name="Cauce",
+        org_logo_url="",
+    )
+    await _send(to_email, "Accede a tus datos en Cauce", html)
+
+
+async def send_arco_change_notification(
+    to_email: str,
+    action_label: str,
+    campaign_title: str | None = None,
+    signer_name: str = "",
+) -> None:
+    """R18: notifica al propio titular tras cualquier cambio hecho desde el portal ARCO
+    (transparencia/seguridad — permite detectar uso no autorizado de la sesión)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] arco change email | to=%s | action=%s | campaign=%s", to_email, action_label, campaign_title)
+        return
+
+    scope = f" en <strong>{campaign_title}</strong>" if campaign_title else " en tu cuenta de Cauce"
+    html = _signer_action_html(
+        heading="Actualizamos tus datos",
+        body_html=(
+            f"{action_label}{scope}.<br>"
+            "Si no fuiste vos, escribinos de inmediato — alguien más pudo haber accedido a tu enlace."
+        ),
+        cta_label="Ir a mis datos →",
+        cta_url=f"{(settings.next_public_app_url or 'http://localhost:3002').rstrip('/')}/mis-datos",
+        footer="Este aviso se envía por cada cambio realizado desde el portal de derechos ARCO.",
+        signer_name=signer_name,
+        org_name="Cauce",
+        org_logo_url="",
+    )
+    await _send(to_email, "Actualizamos tus datos en Cauce", html)
+
+
+async def send_arco_org_notification(
+    to_email: str,
+    campaign_title: str,
+    right_type: str,
+    requested_at: str,
+) -> None:
+    """Notifica al Responsable el ejercicio de un derecho ARCO (R11). Fire-and-forget, sin PII del titular."""
+    if not to_email:
+        return
+    label = _ARCO_RIGHT_LABELS.get(right_type, right_type)
+
+    if not settings.resend_api_key:
+        logger.info("[dev] arco org notification | to=%s | right=%s | campaign=%s", to_email, right_type, campaign_title)
+        return
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">Petición Cauce</p>
+          <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1a2516;line-height:1.2;">Ejercicio de derecho ARCO: {campaign_title}</h1>
+          <p style="margin:0 0 8px;font-size:15px;color:#4a5644;">
+            Un titular ejerció su derecho de <strong>{label}</strong> sobre sus datos en esta campaña.
+          </p>
+          <p style="margin:8px 0 0;font-size:13px;color:#7a8a72;">Fecha: {requested_at}</p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"[Cauce] Ejercicio de derecho ARCO — {campaign_title}", html)
+
+
+async def send_arco_deletion_notification(
+    to_email: str,
+    campaign_title: str,
+    signer_name: str = "",
+    org_name: str = "",
+    org_logo_url: str = "",
+    org_contact_email: str = "",
+) -> None:
+    """Confirma al titular que sus datos fueron eliminados de inmediato (R7, supresión self-service)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] arco deletion email | to=%s | campaign=%s", to_email, campaign_title)
+        return
+
+    contact_block = ""
+    if org_contact_email:
+        contact_block = (
+            " Si tienes dudas, escríbenos a "
+            f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+            f"{org_contact_email}</a>."
+        )
+
+    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    greeting = f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Hola {first_name},</p>" if first_name else ""
+    logo_block = (
+        f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
+        f"style=\"display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;margin:0 0 12px;\">"
+        if org_logo_url else ""
+    )
+    org_label = org_name or "Petición Cauce"
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          {logo_block}
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">{org_label}</p>
+          <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1a2516;line-height:1.2;">Tus datos fueron eliminados</h1>
+          {greeting}
+          <p style="margin:0 0 20px;font-size:15px;color:#4a5644;line-height:1.6;">
+            A tu solicitud, tus datos personales en <strong>{campaign_title}</strong> fueron eliminados definitivamente.
+            Tu apoyo a la campaña seguirá contando de forma anónima.{contact_block}
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"Tus datos fueron eliminados: {campaign_title}", html)
+
+
+async def send_archive_notification(
+    to_email: str,
+    campaign_title: str,
+    purge_date: str,
+    signer_name: str = "",
+    org_name: str = "",
+    org_logo_url: str = "",
+    org_contact_email: str = "",
+) -> None:
+    """Notifica la supresión solicitada por canal no digital (archivado admin, ventana 15 días — R3)."""
+    if not settings.resend_api_key:
+        logger.info("[dev] archive email | to=%s | purge_date=%s", to_email, purge_date)
+        return
+
+    contact_block = ""
+    if org_contact_email:
+        contact_block = (
+            " Si deseas revertir esta acción antes de esa fecha, escríbenos a "
+            f"<a href=\"mailto:{org_contact_email}\" style='color:#3d6b35;font-weight:600;'>"
+            f"{org_contact_email}</a>."
+        )
+
+    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    greeting = f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Hola {first_name},</p>" if first_name else ""
+    logo_block = (
+        f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
+        f"style=\"display:block;width:48px;height:48px;object-fit:contain;border-radius:10px;margin:0 0 12px;\">"
+        if org_logo_url else ""
+    )
+    org_label = org_name or "Petición Cauce"
+
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f5f0;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#fff;border-radius:20px;padding:36px 32px;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <tr><td>
+          {logo_block}
+          <p style="margin:0 0 4px;font-size:13px;color:#7a8a72;letter-spacing:.04em;text-transform:uppercase;">{org_label}</p>
+          <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#1a2516;line-height:1.2;">Tus datos fueron archivados</h1>
+          {greeting}
+          <p style="margin:0 0 20px;font-size:15px;color:#4a5644;line-height:1.6;">
+            A tu solicitud, tus datos personales en <strong>{campaign_title}</strong> quedaron archivados
+            y serán eliminados definitivamente el <strong>{purge_date}</strong>.<br><br>
+            Tu apoyo a la campaña seguirá contando de forma anónima.{contact_block}
+          </p>
+        </td></tr>
+      </table>
+      {_PLATFORM_FOOTER_HTML}
+    </td></tr>
+  </table>
+</body>
+</html>"""
+    await _send(to_email, f"Tus datos fueron archivados: {campaign_title}", html)
+
+
 async def send_name_completion_email(
     to_email: str,
     token: str,
@@ -632,68 +860,22 @@ def _social_href(key: str, value: str) -> str:
     return value
 
 
-# Íconos en SVG inline (no <img src="data:...">, que Gmail bloquea — ver
-# hallazgo del QR del email de agradecimiento, sesión 27). El SVG embebido
-# como markup no es una carga de imagen, así que no le aplica ese bloqueo.
-# Mismos trazos que ya usa el frontend (ShareSection.tsx, StepThanks.tsx)
-# para consistencia visual; TikTok/sitio web/newsletter son íconos genéricos
-# ya que no había uno existente en el código para reutilizar.
+# PNG estáticos (círculo de color + glifo horneado en el propio archivo),
+# servidos desde el dominio de la web (apps/web/public/icons/social/) —
+# reemplaza el SVG inline anterior. Ese SVG se eligió en su momento para
+# evitar el bloqueo de Gmail a <img src="data:...">, pero Gmail tampoco
+# renderiza <svg> inline (lo elimina del cuerpo del email): un <img> con
+# URL pública normal evita ambos problemas. Mismos trazos que ya usaba el
+# frontend (ShareSection.tsx, StepThanks.tsx).
 _SOCIAL_ICONS = {
-    "website": (
-        "#3d6b35",
-        "Sitio web",
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>'
-        '<path d="M12 2a15 15 0 010 20 15 15 0 010-20"/></svg>'
-    ),
-    "instagram": (
-        "#C13584",
-        "Instagram",
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-        '<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/>'
-        '<circle cx="17.5" cy="6.5" r="0.5" fill="#fff" stroke="none"/></svg>'
-    ),
-    "facebook": (
-        "#1877F2",
-        "Facebook",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">'
-        '<path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.026 1.792-4.697 4.533-4.697 1.312 0 2.686.235 2.686.235v2.971h-1.514c-1.491 0-1.955.931-1.955 1.887v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>'
-    ),
-    "x": (
-        "#000000",
-        "X",
-        '<svg width="13" height="13" viewBox="0 0 24 24" fill="#fff">'
-        '<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>'
-    ),
-    "tiktok": (
-        "#000000",
-        "TikTok",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
-    ),
-    "whatsapp": (
-        "#25D366",
-        "WhatsApp",
-        '<svg width="16" height="16" viewBox="0 0 32 32" fill="#fff">'
-        '<path d="M16 3C8.82 3 3 8.82 3 16c0 2.3.62 4.47 1.7 6.34L3 29l6.85-1.65A13 13 0 0016 29c7.18 0 13-5.82 13-13S23.18 3 16 3zm0 2c6.07 0 11 4.93 11 11s-4.93 11-11 11c-2.02 0-3.9-.55-5.52-1.5l-.39-.23-4.06.98.99-3.96-.26-.42A10.96 10.96 0 015 16C5 9.93 9.93 5 16 5zm-3.4 5.5c-.2 0-.52.08-.8.38-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.14.2 2.07 3.24 5.08 4.42.71.31 1.26.49 1.69.62.71.22 1.36.19 1.87.12.57-.08 1.75-.72 2-1.41.25-.7.25-1.3.18-1.42-.08-.12-.27-.2-.57-.34-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.34.22-.64.08-.3-.15-1.27-.47-2.42-1.49-.9-.8-1.5-1.78-1.68-2.08-.17-.3-.02-.46.13-.61.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.14-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01z"/></svg>'
-    ),
-    "newsletter": (
-        "#3d6b35",
-        "Newsletter",
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'
-    ),
-    "email": (
-        "#7a8a72",
-        "Email",
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" '
-        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>'
-    ),
+    "website": "Sitio web",
+    "instagram": "Instagram",
+    "facebook": "Facebook",
+    "x": "X",
+    "tiktok": "TikTok",
+    "whatsapp": "WhatsApp",
+    "newsletter": "Newsletter",
+    "email": "Email",
 }
 
 
@@ -708,12 +890,14 @@ def _powered_by_block(org_name: str) -> str:
 
 def _social_icon_links(social_links: dict | None) -> str:
     social_links = social_links or {}
+    icons_base = f"{settings.next_public_app_url.rstrip('/')}/icons/social"
     return "".join(
         f"<a href=\"{_social_href(key, social_links[key])}\" target=\"_blank\" rel=\"noopener\" "
         f"aria-label=\"{label}\" title=\"{label}\" "
-        f"style=\"display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;"
-        f"border-radius:50%;background:{color};margin:0 8px 8px 0;text-decoration:none;\">{svg}</a>"
-        for key, (color, label, svg) in _SOCIAL_ICONS.items()
+        f"style=\"display:inline-block;margin:0 8px 8px 0;line-height:0;\">"
+        f"<img src=\"{icons_base}/{key}.png\" width=\"36\" height=\"36\" alt=\"{label}\" "
+        f"style=\"display:block;width:36px;height:36px;border-radius:50%;\"></a>"
+        for key, label in _SOCIAL_ICONS.items()
         if social_links.get(key)
     )
 

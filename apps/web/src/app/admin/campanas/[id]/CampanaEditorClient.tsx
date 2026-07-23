@@ -175,6 +175,7 @@ export default function CampanaEditorClient({
   const [signerTypes, setSignerTypes] = useState<string[]>((fc.signer_types as string[]) ?? ["natural"]);
   const [locationModes, setLocationModes] = useState<string[]>((fc.location_modes as string[]) ?? ["nacional"]);
   const [visibilityOptions, setVisibilityOptions] = useState<string[]>((fc.visibility_options as string[]) ?? ["publica", "anonima"]);
+  const [requestCelular, setRequestCelular] = useState((fc.request_celular as boolean) ?? false);
 
   // — Texto de difusión
   const [shareText, setShareText] = useState((meta.share_text as string) ?? "");
@@ -295,7 +296,7 @@ export default function CampanaEditorClient({
     org_id: orgId || undefined,
     show_goal: showGoal,
     show_authority: showAuthority,
-    form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions },
+    form_config: { signer_types: signerTypes, location_modes: locationModes, visibility_options: visibilityOptions, request_celular: requestCelular },
     show_qr: showQr,
     share_text: shareText.trim() || null,
     lifecycle_config: lifecycleConfig,
@@ -768,6 +769,12 @@ export default function CampanaEditorClient({
                   <p className="text-[11px] font-bold uppercase tracking-[.05em] mb-1.5" style={{ color: "var(--bmut)" }}>Visibilidad</p>
                   <MultiCheck options={[{ value: "publica", label: "Pública" }, { value: "anonima", label: "Anónima" }, { value: "secreta", label: "Secreta" }]} selected={visibilityOptions} onChange={setVisibilityOptions} />
                   <p className="text-[10.5px] mt-1.5" style={{ color: "var(--bmut)" }}>Si Pública está habilitada, es la opción preseleccionada en el formulario de firma.</p>
+                </div>
+                <div className="pt-1" style={{ borderTop: "1px solid var(--bbord)" }}>
+                  <div className="pt-3">
+                    <Toggle checked={requestCelular} onChange={setRequestCelular} label="Solicitar celular" />
+                    <p className="text-[10.5px] mt-1.5" style={{ color: "var(--bmut)" }}>Campo opcional adicional en el formulario de firma — nunca es obligatorio.</p>
+                  </div>
                 </div>
               </div>
             </PanelSection>

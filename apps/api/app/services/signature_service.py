@@ -14,7 +14,13 @@ from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
 from app.crypto import compute_hmac, encrypt_pii, verify_cedula
 from app.schemas.signature import SignatureCreate
+from app.services.admin_signature_service import _mask_cedula, _mask_phone
 from app.services.email_service import send_confirmation_email
+
+# TTL del enlace de acceso directo al portal ARCO incluido en el email de
+# confirmación ("Corregir mis datos") — mismo mecanismo que R15, coincide con
+# la vida del propio enlace de confirmación (24h).
+_ARCO_REVIEW_TTL_HOURS = 24
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +39,7 @@ _DEFAULT_FORM_CONFIG = {
     "location_modes": ["nacional"],
     "required_fields": ["nombre", "email", "cedula", "location"],
     "visibility_options": ["publica", "anonima"],
+    "request_celular": False,
 }
 
 
@@ -83,6 +90,11 @@ async def create_signature(
     token = uuid.uuid4().hex
     expires_at = datetime.now(timezone.utc) + timedelta(hours=_TOKEN_TTL_HOURS)
 
+    # Acceso directo al portal ARCO desde el email de confirmación — permite
+    # corregir datos ANTES de confirmar, evitando la rectificación después.
+    arco_review_token = uuid.uuid4().hex
+    arco_review_expires_at = datetime.now(timezone.utc) + timedelta(hours=_ARCO_REVIEW_TTL_HOURS)
+
     # Snapshot del aviso realmente mostrado: política asignada primero, legacy después.
     text_snapshot, aviso_version, legal_basis = "", "1", "consentimiento_expreso"
     if campaign.privacy_policy_id:
@@ -117,6 +129,7 @@ async def create_signature(
         email_hash=email_hash,
         cedula_encrypted=encrypt_pii(data.cedula) if data.cedula else None,
         cedula_hash=cedula_hash,
+        celular_encrypted=encrypt_pii(data.celular.strip()) if data.celular and data.celular.strip() else None,
         provincia=data.provincia if data.location_mode == "nacional" else None,
         country=data.country if data.location_mode == "internacional" else None,
         signer_type=data.signer_type,
@@ -126,6 +139,8 @@ async def create_signature(
         status="pending_confirmation",
         confirmation_token=token,
         confirmation_token_expires_at=expires_at,
+        arco_verification_token=compute_hmac(arco_review_token),
+        arco_verification_expires_at=arco_review_expires_at,
         ip_hmac=ip_hmac,
         is_test=is_test,
     )
@@ -158,6 +173,10 @@ async def create_signature(
             select(Organization).where(Organization.id == campaign.org_id)
         )
         org = org_result.scalar_one_or_none()
+        from app.config import settings as _settings
+
+        app_url = (_settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+        arco_review_url = f"{app_url}/mis-datos/portal?token={arco_review_token}&campaign={campaign.id}"
         await send_confirmation_email(
             to_email=email_normalized,
             token=sig.confirmation_token,
@@ -168,6 +187,14 @@ async def create_signature(
             visibility=data.visibility,
             privacy_url=build_privacy_url(campaign.slug),
             org_contact_email=(org.contact_email or "") if org else "",
+            entered_name=data.name or "",
+            entered_cedula_masked=_mask_cedula(data.cedula) if data.cedula else "",
+            entered_org_name=data.org_name.strip() if data.signer_type == "org" and data.org_name else "",
+            entered_location=(
+                (data.provincia or "") if data.location_mode == "nacional" else (data.country or "")
+            ),
+            entered_celular_masked=_mask_phone(data.celular.strip()) if data.celular and data.celular.strip() else "",
+            arco_review_url=arco_review_url,
         )
     except Exception:
         logger.warning("[email] failed to send confirmation for sig %s", sig.id)
@@ -206,6 +233,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     now = datetime.now(timezone.utc)
 
     newly_confirmed = False
+    arco_direct_token: str | None = None
     if sig.status == "pending_confirmation":
         if sig.confirmation_token_expires_at:
             exp = sig.confirmation_token_expires_at
@@ -216,6 +244,10 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
         sig.status = "confirmed"
         sig.confirmed_at = now
         newly_confirmed = True
+        # R15: token de acceso directo al portal ARCO (24h) — incluido en el email de agradecimiento
+        arco_direct_token = uuid.uuid4().hex
+        sig.arco_verification_token = compute_hmac(arco_direct_token)
+        sig.arco_verification_expires_at = now + timedelta(hours=24)
         await db.flush()
 
     count_result = await db.execute(
@@ -247,6 +279,10 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
             from app.config import settings
 
             app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+            arco_portal_url = (
+                f"{app_url}/mis-datos/portal?token={arco_direct_token}&campaign={campaign.id}"
+                if arco_direct_token else ""
+            )
             await send_thanks_share_email(
                 to_email=email,
                 campaign_title=campaign.petition_title or campaign.title,
@@ -256,6 +292,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
                 org_logo_url=(org.logo_url or "") if org else "",
                 share_text=(meta.get("share_text") or ""),
                 qr_code_data=(campaign.qr_code_data or "") if meta.get("show_qr") else "",
+                arco_portal_url=arco_portal_url,
             )
         except Exception:
             logger.warning("[email] failed to send thanks email for sig %s", sig.id)
@@ -281,6 +318,7 @@ async def get_recent_signatures(
             Signature.campaign_id == campaign_id,
             Signature.status == "confirmed",
             Signature.visibility == "publica",
+            Signature.archived_at.is_(None),
         )
         .order_by(Signature.confirmed_at.desc())
         .limit(limit)

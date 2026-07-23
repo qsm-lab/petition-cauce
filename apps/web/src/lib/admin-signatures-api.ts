@@ -12,6 +12,9 @@ export interface AdminSignatureItem {
   status: "confirmed" | "pending_confirmation" | "anulada";
   confirmed_at: string | null;
   created_at: string;
+  archived_at: string | null;
+  purge_after: string | null;
+  anonymized_at: string | null;
 }
 
 export interface AdminSignaturesResponse {

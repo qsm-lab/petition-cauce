@@ -9,6 +9,7 @@ class SignatureCreate(BaseModel):
     name: str
     email: str
     cedula: str | None = None
+    celular: str | None = None
     location_mode: Literal["nacional", "internacional"] = "nacional"
     provincia: str | None = None
     country: str | None = None

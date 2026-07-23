@@ -162,6 +162,14 @@ export default function RecentSignatures({ campaignId, initial, categoryColor }:
       <p style={{ fontSize: 12, fontWeight: 500, color: "rgba(22,38,31,0.65)", marginTop: 10, lineHeight: 1.5 }}>
         Las firmas se muestran según la visibilidad elegida por cada firmante: pública, anónima o secreta.
       </p>
+
+      {/* Acceso self-service a derechos ARCO (ver/corregir/eliminar datos ya firmados) */}
+      <a
+        href={`/mis-datos?campaign=${campaignId}`}
+        style={{ fontSize: 12, fontWeight: 700, color: "#16261F", marginTop: 6, display: "inline-block", textDecoration: "underline" }}
+      >
+        ¿Ya firmaste? Accedé a tus datos
+      </a>
     </div>
   );
 }
