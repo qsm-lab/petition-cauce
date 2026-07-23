@@ -3,6 +3,108 @@
 
 ---
 
+## 2026-07-21/22 — Sesión 34: reconciliación completa de dev y main (2 semanas divergidos)
+
+El usuario confirmó el cierre de la campaña real y pidió retomar `dev`,
+resolviendo cualquier commit/función pendiente en ramas temporales. Lo que
+parecía una limpieza de ramas terminó siendo una reconciliación de fondo:
+`dev` y `main` llevaban divergidos desde sesión 27 (2026-07-08) por dos
+líneas de trabajo que nunca se habían cruzado. `main` tenía 5 PRs
+(`fix/dashboard-firmas-entrega`, `feat/comunicaciones-cierre-campana` x2)
+que `dev` no tenía; `dev` tenía 3 features LOPDP completas de sesión 30
+(`retencion-datos`, `supresion-admin`, `derechos-arco`) que **nunca se
+habían pusheado a `origin`** — el `origin/dev` remoto se había recreado
+desde `main` en algún punto, perdiendo esa referencia (nada se perdió,
+seguían en el reflog local). Un commit adicional (`fe70bf3`, fix de
+íconos PNG de sesión 33) había quedado huérfano: se pusheó después de que
+el PR de esa rama ya se había mergeado.
+
+Con aprobación explícita del usuario en cada paso: se rebasaron los 3
+commits LOPDP sobre el `origin/dev` real, resolviendo 8 conflictos de
+código genuinos (dos features tocando los mismos archivos —
+`admin_signatures.py`, `admin_signature_service.py`, `email_service.py`
+con funciones ARCO entrelazadas línea a línea con las de
+comunicaciones-cierre-campana, `models/__init__.py`, `feature_list.json`,
+`progress/history.md`); se trajo el commit huérfano a `dev`; y se detectó
+un **doble head de Alembic** generado por la propia reconciliación
+(cadena LOPDP `018→022` vs cadena export-entrega `030→033`, ambas desde
+`017` — el riesgo que ya estaba anotado en sesiones previas), resuelto
+con una migración de solo-merge (`034_merge_lopdp_export_heads.py`, sin
+cambios de schema). Se mergeó `dev` → `main` (`8fe69f9`).
+
+Todo se verificó contra Docker real (no solo lectura de código):
+`alembic upgrade head` corrió limpio de punta a punta hasta el head único
+`034`; `pytest` encontró 1 test roto por el propio merge
+(`test_supresion_admin.py` llamaba a `export_csv()` sin el parámetro
+`role` que había agregado otra feature ya integrada) — corregido,
+**148/148 tests pasan**; `tsc --noEmit` limpio. Se restauró también el
+trabajo pendiente de sesión 33 (`feature_list.json` + spec completa de
+`landing-respaldo-entrega`) sobre el `main` ya reconciliado.
+
+**Nada se pusheó ni se pulleó** — a pedido del usuario, de acá en
+adelante todo push/pull y todo commit adicional es manual. `main` local
+quedó 8 commits por delante de `origin/main`, y el fix de test +
+`feature_list.json` + la spec nueva quedaron sin commitear, esperando
+revisión del usuario. Sin decidir todavía: borrar las ramas locales ya
+redundantes (`fix/dashboard-firmas-entrega`, sin commits propios;
+`fix/recordatorio-todas-visibilidades`, su único commit ya está en `main`
+bajo otro hash idéntico; `feat/comunicaciones-cierre-campana`, ya
+integrada vía `dev`).
+
+---
+
+## 2026-07-20 — Sesión 33: fixes sobre comunicaciones-cierre-campana (hora local, formato de mensaje, íconos PNG) + spec landing-respaldo-entrega
+
+PR de sesión 32 en revisión en producción (`feat/comunicaciones-cierre-campana`,
+sin mergear en ese momento). Se verificó primero que el cambio de etapa
+de ciclo de vida NO dispara mailing masivo a adherentes (estaba bien
+separado desde sesión 32, no era un bug). Luego 2 fixes reportados desde
+el VPS sobre el email de invitación al evento: **hora en UTC en vez de
+hora local de Ecuador** (el navegador manda la hora en UTC,
+`_fmt_event_datetime` no la reconvertía — fix con `zoneinfo`/
+`America/Guayaquil`) y **sin formato en "mensaje adicional"** (se agregó
+`_render_message_html`: escapa el input del admin —cierra un XSS que
+tenían las 3 plantillas— y soporta `**negrita**`, `*cursiva*`, saltos de
+línea y párrafos; toolbar B/I en el frontend). Se confirmó además que la
+personalización con nombre real del firmante sí funciona en el envío
+masivo real (el "Nombre" que se ve en preview/prueba es un placeholder
+intencional, no atado a ningún firmante).
+
+Los 2 fixes se prepararon como 2 commits separados sobre la misma rama
+del PR, y se entregó título/descripción de PR al usuario. Con un envío de
+prueba real hecho desde el VPS, el usuario compartió 3 warnings de
+deliverability de Resend: 2 inherentes/no accionables y **1 bug real**:
+"Avoid SVG images" — Gmail no renderiza `<svg>` inline, así que los
+íconos de redes sociales (elegidos como SVG en sesión 27 para evitar el
+bloqueo de Gmail a `data:` URI) probablemente no se veían en absoluto
+para destinatarios Gmail. Se rasterizaron los 8 íconos a PNG (círculo +
+glifo horneado, mismos trazos/colores, con `rsvg-convert` instalado
+temporal en el contenedor dev) alojados en
+`apps/web/public/icons/social/` — 3er commit al mismo PR, pusheado (este
+commit, `fe70bf3`, quedó huérfano tras el merge del PR y se reconcilió
+recién en sesión 34, ver arriba).
+
+**96/96 tests, `tsc --noEmit` limpio.** Verificado end-to-end contra la
+API real de dev (curl/httpx): hora convertida correctamente, mensaje con
+negrita/cursiva renderizado, 0 `<svg>` y URLs de íconos PNG resolviendo
+200.
+
+Pedido nuevo del usuario: landing pública informativa (detalles de
+campaña, cuantificación de firmas por tipo/origen, fechas, seguridad,
+fiabilidad de firmas, resumen de privacidad) en URL única + QR, para
+adjuntar al documento de entrega como soporte ante la autoridad
+receptora. Se armó spec completa sin implementar nada
+(`specs/landing-respaldo-entrega/`: requirements.md de 18 R, design.md,
+tasks.md) + entrada nueva en `feature_list.json`
+(`landing-respaldo-entrega`, Fase 4, `spec_ready`). Decisiones tomadas
+con el usuario: URL `/c/{slug}/respaldo` (subruta existente), contenido
+de seguridad/fiabilidad/privacidad fijo por plataforma (no editable por
+campaña), y debe seguir accesible con la campaña archivada/cerrada. Sin
+migraciones. Queda pendiente la aprobación de la spec y el diseño en
+Claude Design antes de implementar.
+
+---
+
 ## 2026-07-20 — Sesión 32: comunicación con adherentes (evento, cierre, mensaje) + 2 fixes puntuales — mergeado y deployado
 
 Cierre de la campaña real (`soberania-tlc-ecu-usa`) en curso. Rama
