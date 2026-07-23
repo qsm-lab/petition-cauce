@@ -3,6 +3,53 @@
 
 ---
 
+## 2026-07-23 — Sesión 35: revisión de riesgo pre-PR, retorno al flujo dev→PR→main, deploy a producción
+
+Sesión de cierre del ciclo abierto en sesión 34: se revisó en profundidad
+el diff de los 8 commits LOPDP pendientes (`origin/main..main`,
+~4660 líneas/55 archivos) antes de mandarlos a producción, se retomó el
+flujo normal de ramas, y se deployó.
+
+**Revisión de riesgo (subagente + verificación manual directa en código):**
+dos hallazgos confirmados que **no se corrigieron esta sesión** (quedan
+en la DB de producción tal cual):
+- `retention_runs` y `arco_requests` (migraciones `018`/`019`) se crean
+  **sin RLS** — inconsistente con `pii_export_audit` (migración `030`),
+  que sí lo tiene. Contradice la regla del proyecto de RLS desde la
+  migración inicial.
+- `anonymize_signature()` (`retention_service.py:36-47`) **no limpia
+  `celular_encrypted`** — el campo se agregó en la migración `022`,
+  posterior a esa función, que nunca se actualizó. Afecta las 3 vías de
+  supresión (job de retención, archivado admin, autoservicio ARCO).
+
+Otros puntos anotados sin acción: acceso al portal ARCO vía email de
+confirmación sin Turnstile/2FA (ya especificado y decidido en el spec,
+solo se pidió reconfirmación), fallback de URL faltante en
+`_social_icon_links()` de `email_service.py` (bajo riesgo).
+
+**Retorno al flujo dev→PR→main:** el usuario confirmó que el flujo
+correcto es `dev` fijo en local → PR en GitHub → `main`, con deploy
+manual aparte — lo hecho en sesión 34 (merge local `dev`→`main`) fue una
+excepción puntual, no el patrón a repetir. Se pusheó primero los 7
+commits que llevaban congelados en `dev` local desde sesión 34 (nunca
+habían llegado a `origin/dev`), y por separado 3 commits nuevos ya
+verificados como de bajo riesgo:
+- `f4198f3` fix de `test_supresion_admin.py` (parámetro `role` faltante
+  tras el merge de sesión 34).
+- `0e21626` spec nueva `landing-respaldo-entrega` (`spec_ready`, sin
+  implementar).
+- `7b24a8c` docs de cierre de sesión 34.
+
+Se armó PR #16 `dev → main` en GitHub (título y descripción preparados
+por Claude, incluyendo los 2 hallazgos de RLS/`celular_encrypted` como
+"pendientes conocidos" en el cuerpo del PR) y el usuario confirmó que ya
+se mergeó y se deployó a producción.
+
+**Memoria actualizada:** `feedback_git_workflow.md` — flujo confirmado
+`dev` fijo → PR GitHub → `main`, deploy manual separado.
+
+---
+
 ## 2026-07-21/22 — Sesión 34: reconciliación completa de dev y main (2 semanas divergidos)
 
 El usuario confirmó el cierre de la campaña real y pidió retomar `dev`,

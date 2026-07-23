@@ -1,113 +1,89 @@
-# Estado actual — tras sesión 34 (2026-07-21/22)
+# Estado actual — tras sesión 35 (2026-07-23)
 
-## Resumen de sesión 34
+## Resumen de sesión 35
 
-El usuario confirmó que la campaña real (`soberania-tlc-ecu-usa`) ya
-cerró y que se podía retomar `dev`. La sesión terminó siendo casi
-enteramente de **reconciliación de git**: `dev` y `main` habían
-divergido desde sesión 27 (2026-07-08) por dos líneas de trabajo
-independientes que nunca se cruzaron — se detectó, diagnosticó y
-resolvió por completo, con verificación real contra Docker.
+Cierre del ciclo abierto en sesión 34. Se revisó en profundidad el
+riesgo del bloque de 8 commits LOPDP antes de mandarlo a producción, se
+retomó el flujo normal de ramas (`dev` fijo → PR GitHub → `main`), y
+**ya se deployó a producción** (en revisión por el usuario al cierre de
+esta sesión).
 
 ---
 
 ## Lo que se hizo
 
-### 1. Diagnóstico: dev y main llevaban 2 semanas divergidos
+### 1. Revisión de riesgo del diff `origin/main..main` (8 commits, ~4660 líneas/55 archivos)
 
-- `main` había recibido 5 PRs (`fix/dashboard-firmas-entrega`,
-  `feat/comunicaciones-cierre-campana` x2) que `dev` nunca tuvo.
-- `dev` tenía 3 features LOPDP completas (`retencion-datos`,
-  `supresion-admin`, `derechos-arco`, sesión 30) que **solo existían en
-  el `dev` local — nunca se habían pusheado a `origin`**. El `origin/dev`
-  remoto había sido recreado desde `main` en algún punto entre sesiones,
-  perdiendo esa referencia (nada se perdió: seguían en el reflog local).
-- Un commit quedó huérfano en `origin/feat/comunicaciones-cierre-campana`
-  (`fe70bf3`, fix de íconos PNG): se pusheó después de que el PR que
-  contenía esa rama ya se había mergeado, así que nunca llegó a `dev` ni
-  a `main`.
+Delegada a un subagente con contexto LOPDP/RLS del proyecto, y verificados
+directamente en código los 2 hallazgos críticos antes de reportarlos:
 
-### 2. Reconciliación: rebase de dev + merge a main
+- **`retention_runs` y `arco_requests` sin RLS** (migraciones `018`
+  `apps/api/migrations/versions/018_retention.py` y `019`
+  `019_supresion_admin.py`) — contradice la regla del proyecto ("RLS
+  desde la migración inicial"). Contrasta con `pii_export_audit`
+  (migración `030`), que sí tiene RLS. **No corregido — sigue así en
+  producción.**
+- **`anonymize_signature()` no limpia `celular_encrypted`**
+  (`apps/api/app/services/retention_service.py:36-47`) — el campo se
+  agregó en la migración `022`, posterior a esa función. Afecta las 3
+  vías de supresión (job de retención, archivado admin, autoservicio
+  ARCO). **No corregido — sigue así en producción.**
 
-Con aprobación explícita del usuario en cada paso:
+Otros puntos anotados, sin acción esta sesión (ver detalle completo en
+`progress/history.md` sesión 35): alcance amplio del acceso al portal
+ARCO vía email de confirmación (ya specc'd y decidido, solo se pidió
+reconfirmación), fallback de URL faltante en `_social_icon_links()` de
+`email_service.py` (bajo riesgo).
 
-- Rebasé los 3 commits LOPDP de `dev` local sobre el `origin/dev` real,
-  resolviendo **8 conflictos de código genuinos** (dos features tocando
-  los mismos archivos: `admin_signatures.py`, `admin_signature_service.py`,
-  `email_service.py` —el más grande, funciones ARCO entrelazadas línea a
-  línea con las de comunicaciones-cierre-campana—, `models/__init__.py`,
-  `feature_list.json`, `progress/history.md`). Cada resolución se verificó
-  con `ast.parse` (sintaxis) y diffs de "nada se pierde, solo se agrega"
-  antes de continuar.
-- Traje el commit huérfano `fe70bf3` a `dev` (merge limpio).
-- **Hallazgo adicional**: la reconciliación generó un doble head de
-  Alembic (cadena LOPDP `018→022` vs cadena export-entrega `030→033`,
-  ambas partiendo de `017`) — exactamente el riesgo que ya estaba
-  anotado en sesiones previas. Se creó `034_merge_lopdp_export_heads.py`
-  (revisión de solo-merge, sin cambios de schema) para unificar en un
-  solo head.
-- Mergeé `dev` → `main` (`8fe69f9`, a pedido explícito del usuario).
+El resto del diff se revisó sin hallazgos: resolución del conflicto más
+grande (`email_service.py`, funciones ARCO entrelazadas con
+comunicaciones-cierre-campana) limpia; migraciones `018`-`022` con
+`downgrade()` simétrico; `034` confirmada como merge puro de heads sin
+cambios de schema; `StepForm.tsx`/`SignFlow.tsx` sin riesgo de regresión.
 
-### 3. Verificación real con Docker (no solo lectura de código)
+### 2. Retorno al flujo dev→PR→main
 
-Con Docker ya levantado por el usuario:
+El usuario confirmó explícitamente: `dev` es la rama fija en local, pasa
+a `main` vía **Pull Request en GitHub** (no merge local), deploy manual
+aparte. Lo hecho en sesión 34 (merge local `dev`→`main`) fue una
+excepción puntual para destrabar la reconciliación, no el patrón a
+repetir.
 
-- `alembic upgrade head`: corrió limpio `017→018→019→020→021→022`, luego
-  el merge `022+033→034`. Un solo head al final.
-- `pytest`: 1 test roto por el propio merge (`test_supresion_admin.py`
-  llamaba a `export_csv()` sin el parámetro `role` que agregó otra
-  feature ya integrada) — corregido. **148/148 tests pasan.**
-- `tsc --noEmit`: limpio.
-
-### 4. Restauración de trabajo pendiente de sesión 33
-
-El stash con la entrada `landing-respaldo-entrega` en `feature_list.json`
-+ la carpeta `specs/landing-respaldo-entrega/` (spec completa, sin
-implementar) seguía sin commitear desde la sesión anterior. Se restauró
-sobre el `main` ya reconciliado — los cambios viejos a
-`progress/current.md`/`history.md` de ese stash se descartaron a
-propósito (quedaban obsoletos frente a este mismo cierre de sesión).
-
----
-
-## Estado de los commits — nada pusheado, nada commiteado salvo lo aprobado explícitamente
-
-Por pedido del usuario: **de acá en adelante, todo commit, push y pull es
-manual**. Solo se commitearon 2 cosas con aprobación explícita puntual
-(la migración de merge y el merge `dev`→`main`); el resto de los cambios
-de código quedan sin commitear a propósito.
-
-**`main` local, 8 commits por delante de `origin/main`, sin pushear:**
-```
-8fe69f9 Merge branch 'dev' into main
-fb09c93 fix: merge de heads de Alembic (022 LOPDP + 033 export-entrega)
-f38ee2d Merge branch 'feat/comunicaciones-cierre-campana' into dev
-502cadd docs: cierre sesión 30 — retencion-datos, supresion-admin y derechos-arco
-af10af8 feat: derechos ARCO self-service multi-campaña (derechos-arco)
-e87debe feat: supresión de firma desde admin con ventana de gracia de 15 días (supresion-admin)
-3acd136 feat: job de retención y purga/anonimización de firmas (retencion-datos)
-fe70bf3 fix: íconos de redes sociales en emails como PNG, no SVG inline
-```
-`dev` local está en `fb09c93` (mismo estado, sin el merge a `main` arriba).
-
-**Sin commitear en `main` (working tree), esperando revisión del usuario:**
-- `apps/api/tests/test_supresion_admin.py` — fix del test roto por el merge.
-- `feature_list.json` — entrada nueva `landing-respaldo-entrega`.
-- `specs/landing-respaldo-entrega/` — spec completa (requirements.md 18 R,
-  design.md, tasks.md), sin implementar, pendiente de aprobación y de
-  diseño en Claude Design.
-
-**Pendiente de decisión del usuario:**
-- Pushear `main` y `dev` a `origin` (nada se pusheó esta sesión).
-- Borrar las 2 ramas locales ya redundantes: `fix/dashboard-firmas-entrega`
-  (sin commits propios, todo ya en `main`) y
-  `fix/recordatorio-todas-visibilidades` (su único commit es idéntico
-  byte-a-byte a uno ya en `main`). No se tocaron.
-- La rama `feat/comunicaciones-cierre-campana` ya está completamente
-  integrada en `main` (vía `dev`) — también candidata a borrar cuando el
-  usuario confirme.
+Orden seguido esta sesión:
+1. Push de los 7 commits que llevaban congelados en `dev` local desde
+   sesión 34 (nunca habían llegado a `origin/dev`) — solos, para aislar
+   ese push grande de los commits nuevos.
+2. 3 commits nuevos sobre `dev`, ya verificados como de bajo riesgo antes
+   de redactarlos (no tocan los 2 hallazgos críticos, que quedaron
+   deliberadamente fuera):
+   - `f4198f3` fix de `test_supresion_admin.py` (parámetro `role`
+     faltante tras el merge de sesión 34).
+   - `0e21626` spec nueva `landing-respaldo-entrega` (`spec_ready`, sin
+     implementar).
+   - `7b24a8c` docs de cierre de sesión 34.
+3. Push de esos 3 a `origin/dev`.
+4. PR #16 `dev → main` en GitHub (título + descripción preparados por
+   Claude, con los 2 hallazgos críticos listados como "pendientes
+   conocidos" en el cuerpo del PR) — mergeado por el usuario
+   (`9580807` en `origin/main`).
+5. **Deploy a producción ya hecho** — en revisión por el usuario al
+   cierre de esta sesión.
 
 ---
+
+## Estado real de git al cierre
+
+- `origin/dev` y `dev` local: sincronizados, sin diferencias.
+- `origin/main`: en `9580807` (PR #16 mergeado), incluye todo lo de
+  `dev` hasta `7b24a8c`.
+- **`main` local está desactualizado y con historia divergente**: sigue
+  en `8fe69f9` (el merge local ad-hoc de sesión 34), que ya no existe en
+  `origin/main` — fue reemplazado por el merge limpio del PR #16. Al
+  inicio de la próxima sesión conviene sincronizar `main` local contra
+  `origin/main` (probablemente `git checkout main && git reset --hard
+  origin/main`, dado que el único commit único de `main` local,
+  `8fe69f9`, ya fue superado por el PR).
+- Working tree limpio (sin cambios sin commitear) en `dev`.
 
 ## Datos dev
 
@@ -116,40 +92,66 @@ fe70bf3 fix: íconos de redes sociales en emails como PNG, no SVG inline
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Nota | Docker (`docker-compose.dev.yml`) quedó corriendo, ya con las migraciones nuevas aplicadas (head en `034`). |
+| Docker | Levantado y sano al cierre (`petition-db-dev`, `petition-web-dev`, `petition-api-dev`, `petition-redis-dev`, todos `Up`/`healthy`). |
 
 ## Datos producción
 
 | Campo | Valor |
 |-------|-------|
-| Campaña real | `https://cauce.ecuadornotlc.org/c/soberania-tlc-ecu-usa` |
-| Campaign ID | `63867787-5498-401e-90f7-990f46b1e09e` |
-| Estado | **Cerrada** (confirmado por el usuario al inicio de esta sesión). |
-| Deploy | Nada se deployó esta sesión — todo el trabajo quedó en `main` local, sin pushear. |
+| Deploy | **Hecho esta sesión** (tras merge de PR #16 a `main`). En revisión por el usuario al cierre. |
+| Migraciones | El head de Alembic en producción debería quedar en `034` tras este deploy — pendiente de confirmar que el `alembic upgrade head` corrió limpio en el VPS. |
+| Campaña real | `soberania-tlc-ecu-usa` — cerrada (sin cambios esta sesión). |
 
 ---
 
-## Pendientes para próxima sesión
+## Pendientes para la próxima sesión — el usuario pidió continuar directamente con estas decisiones
 
-1. **Pushear `main` y `dev`** cuando el usuario lo decida (política:
-   push/pull siempre manual desde ahora).
-2. **Commitear** el fix de test + `feature_list.json` + spec
-   `landing-respaldo-entrega` (working tree de `main`, ver arriba).
-3. **Revisar y aprobar la spec `landing-respaldo-entrega`** + producir el
-   diseño en Claude Design antes de implementar.
-4. Decidir sobre las ramas locales redundantes/ya integradas
-   (`fix/dashboard-firmas-entrega`, `fix/recordatorio-todas-visibilidades`,
-   `feat/comunicaciones-cierre-campana`).
-5. Sigue pendiente de sesiones anteriores: `programacion-historial-comunicaciones`
-   (`spec_ready`, implementar), `email-cumplimiento-masivo` (sin spec),
-   hallazgo de `notify_updates` roto (`StepThanks.tsx`/`SignFlow.tsx`).
-6. Si se deployará a producción: recordar que el head de Alembic ahora es
-   `034` (merge) — correr `alembic upgrade head` en el VPS aplicará
-   `018` a `034` de una vez.
+### 🔴 Urgente — ya en producción
+1. **`/mis-datos` y `/mis-datos/portal` no existen en el frontend** —
+   confirmado (no hay ninguna ruta bajo esos nombres en
+   `apps/web/src/app/`). Los emails de confirmación/agradecimiento y
+   `RecentSignatures.tsx` en la landing pública ya apuntan ahí, ahora en
+   producción real. Decisión pendiente: priorizar diseño Claude Design +
+   implementación del portal, o poner un placeholder/desactivar el link
+   mientras tanto.
+
+### 🔴 Hallazgos LOPDP sin resolver, ya en la DB de producción
+2. **RLS faltante en `retention_runs` y `arco_requests`** — requeriría
+   una migración nueva de solo-RLS (`ALTER TABLE ... ENABLE ROW LEVEL
+   SECURITY` + políticas, mismo patrón que `pii_export_audit`).
+3. **`anonymize_signature()` no limpia `celular_encrypted`** — fix de
+   código simple, pero revisar primero si el job de retención ya corrió
+   en producción (cron diario 03:00) desde el deploy; si corrió, puede
+   haber filas ya anonimizadas con celular residual que necesiten un
+   script de corrección además del fix de la función.
+
+### 🟠 Para confirmar, no bloqueante
+4. Alcance del acceso al portal ARCO vía email de confirmación (sin
+   Turnstile/2FA, agrupa todas las campañas de la persona) — reconfirmar
+   que se acepta el trade-off ahora que está en producción real.
+5. Fallback de URL faltante en `_social_icon_links()` de
+   `email_service.py` — bajo riesgo, fix simple.
+
+### 🟡 Backlog, sin apuro
+6. Sincronizar `main` local contra `origin/main` (ver "Estado real de
+   git" arriba).
+7. Spec `landing-respaldo-entrega` — pendiente de aprobación del usuario
+   + diseño en Claude Design antes de implementar.
+8. 3 ramas locales ya integradas/redundantes candidatas a borrar:
+   `fix/dashboard-firmas-entrega`, `fix/recordatorio-todas-visibilidades`,
+   `feat/comunicaciones-cierre-campana`.
+9. De sesiones previas: `programacion-historial-comunicaciones`
+   (spec aprobada, sin implementar), `email-cumplimiento-masivo` (sin
+   spec), hallazgo de `notify_updates` roto en `StepThanks.tsx`/
+   `SignFlow.tsx`.
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # si no está levantado
-git status   # main tiene cambios sin commitear + 8 commits sin pushear
+git checkout dev && git status                    # debería estar limpio
+git fetch origin && git log --oneline main..origin/main  # confirmar desfase de main local
 ```
+
+Continuar directamente con los pendientes 🔴 de arriba (pedido explícito
+del usuario al cierre de esta sesión).
