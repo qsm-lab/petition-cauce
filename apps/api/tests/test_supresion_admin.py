@@ -140,7 +140,7 @@ async def test_exclusiones_archivada_fuera_de_export_notify_y_feed(db):
         emails = await CampaignService.get_signer_emails_for_notify(db, campaign.id)
         assert emails == []
 
-        response = await AdminSignatureService.export_csv(db, campaign_id=campaign.id, org_id=None, slug=campaign.slug)
+        response = await AdminSignatureService.export_csv(db, campaign_id=campaign.id, org_id=None, slug=campaign.slug, role="admin")
         csv_text = "".join([chunk async for chunk in response.body_iterator])
         assert str(sig.id) not in csv_text
     finally:
