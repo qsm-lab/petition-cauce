@@ -344,6 +344,15 @@
       "phase": 4
     },
     {
+      "id": "landing-respaldo-entrega",
+      "title": "Fase 4 — Landing informativa de respaldo para autoridades (URL única + QR)",
+      "description": "Spec en specs/landing-respaldo-entrega/. Página pública de solo lectura en /c/{slug}/respaldo, pensada para adjuntar al documento de entrega como soporte ante la autoridad receptora: detalles de la campaña (título, org, autoridad destinataria, asks), cuantificación de firmas confirmadas por tipo de visibilidad y por origen (provincia/país, sin PII individual), fechas (lanzamiento, cierre, 'datos actualizados al'), texto fijo de plataforma (no editable por campaña) sobre seguridad del sistema y fiabilidad de las firmas — acotado a lo realmente implementado hoy (Turnstile, rate limiting, cifrado AES-256-GCM, RLS, doble opt-in, validación de cédula módulo 10, dedup por email) —, resumen de política de privacidad con link a la vigente, y botón de descarga de QR generado client-side (sin persistencia nueva). A diferencia del resto de páginas públicas, sigue accesible con la campaña archivada/cerrada. Meta noindex. Sin migraciones. Requiere diseño Claude Design aprobado antes de implementar (regla del proyecto). NO implementado — spec pendiente de aprobación del usuario.",
+      "status": "spec_ready",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 4
+    },
+    {
       "id": "cache-contador",
       "title": "Fase 5 — Escala: caché Redis del contador de firmas",
       "description": "Caché del contador de firmas por campaña en Redis (prefijo petition:counter:<campaign_id>) para no golpear la BD en picos virales. TTL corto + invalidación en cada firma nueva.",
