@@ -63,6 +63,7 @@ async def _make_signature(db, campaign: Campaign, org: Organization, *, created_
         email_hash=compute_hmac(email),
         cedula_encrypted=encrypt_pii("1710034065"),
         cedula_hash=compute_hmac("1710034065"),
+        celular_encrypted=encrypt_pii("0991234567"),
         provincia="Pichincha",
         country="Ecuador",
         visibility="publica",
@@ -149,6 +150,7 @@ async def test_anonimizacion_completa_preserva_campos_agregables(db):
         assert sig.org_name_hash is None
         assert sig.cedula_encrypted is None
         assert sig.cedula_hash is None
+        assert sig.celular_encrypted is None
         assert sig.ip_hmac is None
         assert sig.confirmation_token is None
         assert sig.email_encrypted == "anonymized"
