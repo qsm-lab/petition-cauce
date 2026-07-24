@@ -3,6 +3,50 @@
 
 ---
 
+## 2026-07-23/24 — Sesión 36: resolución de los 2 hallazgos LOPDP de sesión 35 + implementación de /mis-datos
+
+Continuación directa de los pendientes 🔴 que sesión 35 dejó ya en
+producción. Los 3 quedaron resueltos en `dev`, commiteados y pusheados a
+`origin/dev` — el PR a `main` y el deploy quedan para la próxima sesión.
+
+**RLS faltante en `retention_runs`/`arco_requests` (commit `a615ac3`):**
+migración `035` con policy única `platform_admin` en `retention_runs`
+(no tiene columna de scoping por org) y columna `org_id` denormalizada +
+trigger `BEFORE INSERT` + políticas `org_admin`/`platform_admin` en
+`arco_requests` (mismo patrón que `pii_export_audit`, sin tocar los ~9
+sitios de la app que insertan filas). Verificado en dev con una llamada
+HTTP real: la fila de auditoría quedó invisible sin contexto de sesión y
+visible con `is_platform_admin` — RLS funcionando de punta a punta.
+
+**`anonymize_signature()` no limpiaba `celular_encrypted` (commit
+`711004f`):** fix de una línea + regresión nueva en `test_retention.py`.
+Confirmado antes del fix que el cron de retención (03:00) aún no había
+corrido en producción desde el deploy de sesión 35 — no hizo falta
+script de corrección de datos históricos.
+
+**Frontend `/mis-datos` + `/mis-datos/portal` (commit `4123212`):**
+hallazgo clave antes de implementar — el diseño ya estaba **aprobado
+desde sesión 30** (`specs/derechos-arco/design-export.html`), algo que
+`progress/current.md` de sesión 35 decía erróneamente que faltaba. Se
+confirmó que la paleta/tipografías del diseño coinciden con los tokens
+vigentes (`globals.css`) — no estaba desactualizado. Implementado directo
+sobre ese diseño (decisión explícita del usuario, sin nueva ronda de
+Claude Design): formulario de solicitud + confirmación anti-enumeración,
+portal multi-campaña 3 niveles, modal de supresión. Cliente
+`arco-api.ts` nuevo (primer uso de Bearer token en el frontend). Probado
+con llamadas HTTP reales contra el backend en dev (firma de prueba +
+token inyectado en DB para simular el email) ejerciendo todos los
+endpoints que usa el frontend, y revisado manualmente en navegador por
+el usuario — confirmado OK.
+
+`specs/derechos-arco/tasks.md`: T13/T14 marcados `[x]`.
+
+**Git:** también se sincronizó `main` local contra `origin/main`
+(pendiente que había quedado de sesión 35 — `git reset --hard
+origin/main`, ya no había commits propios que perder).
+
+---
+
 ## 2026-07-23 — Sesión 35: revisión de riesgo pre-PR, retorno al flujo dev→PR→main, deploy a producción
 
 Sesión de cierre del ciclo abierto en sesión 34: se revisó en profundidad
