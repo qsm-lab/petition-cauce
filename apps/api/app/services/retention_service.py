@@ -40,6 +40,7 @@ def anonymize_signature(sig: Signature, now: datetime) -> None:
     sig.org_name_hash = None
     sig.cedula_encrypted = None
     sig.cedula_hash = None
+    sig.celular_encrypted = None
     sig.ip_hmac = None
     sig.confirmation_token = None
     sig.email_encrypted = "anonymized"

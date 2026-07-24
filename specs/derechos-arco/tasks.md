@@ -95,11 +95,18 @@
       datos" → `/mis-datos?campaign={id}` (R16)
 - [x] **T13c** Toggle "Solicitar celular" en `CampanaEditorClient.tsx`, panel
       "Configuración formulario" (R20)
-- [ ] **T13** Página `/mis-datos`: formulario email+cédula+Turnstile (Frames 1-2)
-- [ ] **T14** Portal `/mis-datos/portal`: verificación (Frames 3-4) + 3 niveles
+- [x] **T13** Página `/mis-datos`: formulario email+cédula+Turnstile (Frames 1-2)
+      — `apps/web/src/app/mis-datos/{page.tsx,RequestAccessForm.tsx}` (sesión 35)
+- [x] **T14** Portal `/mis-datos/portal`: verificación (Frames 3-4) + 3 niveles
       (datos personales/descarga compartidos, selector de campaña, tarjeta
       unificada con confirmación manual/tipo de firmante/ubicación/visibilidad/
-      oposición/supresión) (Frame 5) + modal de supresión (Frame 6)
+      oposición/supresión) (Frame 5) + modal de supresión (Frame 6) —
+      `apps/web/src/app/mis-datos/portal/{page.tsx,PortalClient.tsx,CampaignCard.tsx}`
+      + `apps/web/src/lib/arco-api.ts` (sesión 35). Verificado con llamadas HTTP
+      reales contra el backend en dev (verify/data/personal-data/campaign-profile/
+      visibility/oppose/export/delete), `next build` limpio y `tsc --noEmit`
+      limpio. Sin verificación visual en navegador real (no hay herramienta de
+      automatización de navegador disponible en esta sesión).
 
 ## Tests (R13)
 

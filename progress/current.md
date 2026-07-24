@@ -1,113 +1,92 @@
-# Estado actual — tras sesión 34 (2026-07-21/22)
+# Estado actual — tras sesión 36 (2026-07-23/24)
 
-## Resumen de sesión 34
+## Resumen de sesión 36
 
-El usuario confirmó que la campaña real (`soberania-tlc-ecu-usa`) ya
-cerró y que se podía retomar `dev`. La sesión terminó siendo casi
-enteramente de **reconciliación de git**: `dev` y `main` habían
-divergido desde sesión 27 (2026-07-08) por dos líneas de trabajo
-independientes que nunca se cruzaron — se detectó, diagnosticó y
-resolvió por completo, con verificación real contra Docker.
+Continuación directa de los pendientes 🔴 dejados por sesión 35 (ya en
+producción): los 2 hallazgos LOPDP sin resolver (RLS faltante,
+`celular_encrypted` sin limpiar) y la implementación del portal
+`/mis-datos`. Los 3 quedaron resueltos en `dev`, commiteados y pusheados
+a `origin/dev` — **pendientes de PR a `main` y deploy** (no se hizo en
+esta sesión, sigue el flujo normal dev→PR→main).
 
 ---
 
 ## Lo que se hizo
 
-### 1. Diagnóstico: dev y main llevaban 2 semanas divergidos
+### 1. RLS faltante en `retention_runs` y `arco_requests` (commit `a615ac3`)
 
-- `main` había recibido 5 PRs (`fix/dashboard-firmas-entrega`,
-  `feat/comunicaciones-cierre-campana` x2) que `dev` nunca tuvo.
-- `dev` tenía 3 features LOPDP completas (`retencion-datos`,
-  `supresion-admin`, `derechos-arco`, sesión 30) que **solo existían en
-  el `dev` local — nunca se habían pusheado a `origin`**. El `origin/dev`
-  remoto había sido recreado desde `main` en algún punto entre sesiones,
-  perdiendo esa referencia (nada se perdió: seguían en el reflog local).
-- Un commit quedó huérfano en `origin/feat/comunicaciones-cierre-campana`
-  (`fe70bf3`, fix de íconos PNG): se pusheó después de que el PR que
-  contenía esa rama ya se había mergeado, así que nunca llegó a `dev` ni
-  a `main`.
+Migración `035_rls_retention_arco.py`:
+- `retention_runs`: policy única `platform_admin` (la tabla no tiene
+  `campaign_id`/`org_id` propio — es un log global del job, cruza todas
+  las campañas).
+- `arco_requests`: columna `org_id` denormalizada (mismo patrón que
+  `pii_export_audit`, migración `030`), backfill desde `campaigns.org_id`,
+  poblada en adelante por un trigger `BEFORE INSERT` — así los ~9 sitios
+  de `arco_service.py`/`admin_signature_service.py` que insertan filas no
+  se tocaron. Políticas `org_admin`/`platform_admin`.
+- Verificado en dev: `upgrade`/`downgrade`/`upgrade` limpio, backfill sin
+  nulos, y confirmado con una llamada HTTP real a `/v1/arco/request-access`
+  que la fila de auditoría queda invisible sin contexto de sesión y
+  visible con `app.is_platform_admin` — RLS funcionando de punta a punta.
+- El endpoint admin de listado de `arco_requests` por org (mencionado
+  como posible extensión) queda en backlog, no bloqueaba este fix.
 
-### 2. Reconciliación: rebase de dev + merge a main
+### 2. `anonymize_signature()` no limpiaba `celular_encrypted` (commit `711004f`)
 
-Con aprobación explícita del usuario en cada paso:
+Fix de una línea en `retention_service.py` + regresión agregada en
+`test_retention.py` (la firma de prueba ahora incluye `celular_encrypted`
+y se afirma que quede `None` tras anonimizar — cubre el hueco que dejó
+pasar el bug original). Confirmado en producción antes del fix: el cron
+de retención (03:00 Guayaquil) **todavía no había corrido** desde el
+deploy de sesión 35 (`retention_runs` tenía 0 filas) — no hizo falta
+script de corrección de datos históricos.
 
-- Rebasé los 3 commits LOPDP de `dev` local sobre el `origin/dev` real,
-  resolviendo **8 conflictos de código genuinos** (dos features tocando
-  los mismos archivos: `admin_signatures.py`, `admin_signature_service.py`,
-  `email_service.py` —el más grande, funciones ARCO entrelazadas línea a
-  línea con las de comunicaciones-cierre-campana—, `models/__init__.py`,
-  `feature_list.json`, `progress/history.md`). Cada resolución se verificó
-  con `ast.parse` (sintaxis) y diffs de "nada se pierde, solo se agrega"
-  antes de continuar.
-- Traje el commit huérfano `fe70bf3` a `dev` (merge limpio).
-- **Hallazgo adicional**: la reconciliación generó un doble head de
-  Alembic (cadena LOPDP `018→022` vs cadena export-entrega `030→033`,
-  ambas partiendo de `017`) — exactamente el riesgo que ya estaba
-  anotado en sesiones previas. Se creó `034_merge_lopdp_export_heads.py`
-  (revisión de solo-merge, sin cambios de schema) para unificar en un
-  solo head.
-- Mergeé `dev` → `main` (`8fe69f9`, a pedido explícito del usuario).
+### 3. Frontend `/mis-datos` + `/mis-datos/portal` (commit `4123212`)
 
-### 3. Verificación real con Docker (no solo lectura de código)
+Descubrimiento clave antes de implementar: el diseño **ya estaba
+aprobado desde sesión 30** (`specs/derechos-arco/design-export.html`, 7
+frames) — `progress/current.md` de sesión 35 decía erróneamente que
+faltaba una ronda de Claude Design. Se verificó que la paleta/tipografías
+del diseño coinciden exactamente con los tokens vigentes en
+`globals.css` — no estaba desactualizado. Se implementó directo sobre
+ese diseño, sin pasar de nuevo por Claude Design (decisión del usuario).
 
-Con Docker ya levantado por el usuario:
+Archivos nuevos:
+- `apps/web/src/lib/arco-api.ts` — cliente con Bearer token (primer uso
+  de header `Authorization` en el frontend, sin precedente previo).
+- `apps/web/src/app/mis-datos/{page.tsx,RequestAccessForm.tsx}` —
+  formulario + confirmación genérica anti-enumeración (Frames 1-2).
+- `apps/web/src/app/mis-datos/portal/{page.tsx,PortalClient.tsx,CampaignCard.tsx}` —
+  verificación/enlace inválido (Frames 3-4), portal multi-campaña 3
+  niveles + modal de supresión (Frames 5-6).
 
-- `alembic upgrade head`: corrió limpio `017→018→019→020→021→022`, luego
-  el merge `022+033→034`. Un solo head al final.
-- `pytest`: 1 test roto por el propio merge (`test_supresion_admin.py`
-  llamaba a `export_csv()` sin el parámetro `role` que agregó otra
-  feature ya integrada) — corregido. **148/148 tests pasan.**
-- `tsc --noEmit`: limpio.
+Verificado: `tsc --noEmit` y `next build` limpios; flujo completo
+probado con HTTP real contra el backend en dev (firma de prueba creada,
+token de verificación inyectado directo en DB para simular el email,
+ejercidos todos los endpoints que llama el frontend — verify/data/
+personal-data/campaign-profile/visibility/oppose/export JSON+CSV/
+delete); **revisado manualmente en navegador por el usuario — confirmado
+OK**.
 
-### 4. Restauración de trabajo pendiente de sesión 33
-
-El stash con la entrada `landing-respaldo-entrega` en `feature_list.json`
-+ la carpeta `specs/landing-respaldo-entrega/` (spec completa, sin
-implementar) seguía sin commitear desde la sesión anterior. Se restauró
-sobre el `main` ya reconciliado — los cambios viejos a
-`progress/current.md`/`history.md` de ese stash se descartaron a
-propósito (quedaban obsoletos frente a este mismo cierre de sesión).
-
----
-
-## Estado de los commits — nada pusheado, nada commiteado salvo lo aprobado explícitamente
-
-Por pedido del usuario: **de acá en adelante, todo commit, push y pull es
-manual**. Solo se commitearon 2 cosas con aprobación explícita puntual
-(la migración de merge y el merge `dev`→`main`); el resto de los cambios
-de código quedan sin commitear a propósito.
-
-**`main` local, 8 commits por delante de `origin/main`, sin pushear:**
-```
-8fe69f9 Merge branch 'dev' into main
-fb09c93 fix: merge de heads de Alembic (022 LOPDP + 033 export-entrega)
-f38ee2d Merge branch 'feat/comunicaciones-cierre-campana' into dev
-502cadd docs: cierre sesión 30 — retencion-datos, supresion-admin y derechos-arco
-af10af8 feat: derechos ARCO self-service multi-campaña (derechos-arco)
-e87debe feat: supresión de firma desde admin con ventana de gracia de 15 días (supresion-admin)
-3acd136 feat: job de retención y purga/anonimización de firmas (retencion-datos)
-fe70bf3 fix: íconos de redes sociales en emails como PNG, no SVG inline
-```
-`dev` local está en `fb09c93` (mismo estado, sin el merge a `main` arriba).
-
-**Sin commitear en `main` (working tree), esperando revisión del usuario:**
-- `apps/api/tests/test_supresion_admin.py` — fix del test roto por el merge.
-- `feature_list.json` — entrada nueva `landing-respaldo-entrega`.
-- `specs/landing-respaldo-entrega/` — spec completa (requirements.md 18 R,
-  design.md, tasks.md), sin implementar, pendiente de aprobación y de
-  diseño en Claude Design.
-
-**Pendiente de decisión del usuario:**
-- Pushear `main` y `dev` a `origin` (nada se pusheó esta sesión).
-- Borrar las 2 ramas locales ya redundantes: `fix/dashboard-firmas-entrega`
-  (sin commits propios, todo ya en `main`) y
-  `fix/recordatorio-todas-visibilidades` (su único commit es idéntico
-  byte-a-byte a uno ya en `main`). No se tocaron.
-- La rama `feat/comunicaciones-cierre-campana` ya está completamente
-  integrada en `main` (vía `dev`) — también candidata a borrar cuando el
-  usuario confirme.
+`specs/derechos-arco/tasks.md`: T13 y T14 marcados `[x]`.
 
 ---
+
+## Estado real de git al cierre
+
+- `dev` local y `origin/dev`: sincronizados en `4123212`.
+- `main` local y `origin/main`: sincronizados (el desfase que quedó
+  pendiente de sesión 35 ya se resolvió — `main` local estaba en el
+  merge ad-hoc `8fe69f9`, superado por el PR #16; se hizo `git checkout
+  main && git reset --hard origin/main`).
+- `dev` le lleva 4 commits a `main` (`965dc8a` cierre de sesión 35,
+  `a615ac3` RLS, `711004f` celular, `4123212` frontend mis-datos) — **sin
+  PR todavía**, es el próximo paso natural pero no se hizo esta sesión.
+- Working tree limpio.
+- Nota: el commit `965dc8a` tiene el mensaje mal formado (se pegó el
+  subject de un commit viejo con el texto nuevo, sin separación
+  título/cuerpo). El usuario decidió dejarlo así — ya está pusheado en
+  `origin/dev`. No amendar sin volver a confirmar con el usuario.
 
 ## Datos dev
 
@@ -116,40 +95,49 @@ fe70bf3 fix: íconos de redes sociales en emails como PNG, no SVG inline
 | Email | `admin@cauce.ec` |
 | Password | `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Nota | Docker (`docker-compose.dev.yml`) quedó corriendo, ya con las migraciones nuevas aplicadas (head en `034`). |
+| Docker | Levantado y sano (`petition-db-dev`, `petition-web-dev`, `petition-api-dev`, `petition-redis-dev`, todos `Up`/`healthy`). |
+| Datos de prueba | 2 firmas de prueba creadas en `campana-dev-001` durante la verificación del portal ARCO (`prueba.arco.portal@test.local`, ya suprimida vía el flujo; `manual.browser.test@test.local`, confirmada). Artefactos de prueba inofensivos, no requieren limpieza. |
 
 ## Datos producción
 
-| Campo | Valor |
-|-------|-------|
-| Campaña real | `https://cauce.ecuadornotlc.org/c/soberania-tlc-ecu-usa` |
-| Campaign ID | `63867787-5498-401e-90f7-990f46b1e09e` |
-| Estado | **Cerrada** (confirmado por el usuario al inicio de esta sesión). |
-| Deploy | Nada se deployó esta sesión — todo el trabajo quedó en `main` local, sin pushear. |
+Sin cambios esta sesión — sigue en `9580807` (deploy de sesión 35), head
+de Alembic `034`. Los fixes de esta sesión (`035` + celular + frontend)
+**todavía no están en producción**, esperan PR dev→main.
 
 ---
 
-## Pendientes para próxima sesión
+## Pendientes para la próxima sesión
 
-1. **Pushear `main` y `dev`** cuando el usuario lo decida (política:
-   push/pull siempre manual desde ahora).
-2. **Commitear** el fix de test + `feature_list.json` + spec
-   `landing-respaldo-entrega` (working tree de `main`, ver arriba).
-3. **Revisar y aprobar la spec `landing-respaldo-entrega`** + producir el
-   diseño en Claude Design antes de implementar.
-4. Decidir sobre las ramas locales redundantes/ya integradas
-   (`fix/dashboard-firmas-entrega`, `fix/recordatorio-todas-visibilidades`,
-   `feat/comunicaciones-cierre-campana`).
-5. Sigue pendiente de sesiones anteriores: `programacion-historial-comunicaciones`
-   (`spec_ready`, implementar), `email-cumplimiento-masivo` (sin spec),
-   hallazgo de `notify_updates` roto (`StepThanks.tsx`/`SignFlow.tsx`).
-6. Si se deployará a producción: recordar que el head de Alembic ahora es
-   `034` (merge) — correr `alembic upgrade head` en el VPS aplicará
-   `018` a `034` de una vez.
+### 🟢 Siguiente paso natural (no se hizo esta sesión, a propósito)
+1. PR `dev → main` de los 4 commits pendientes, y deploy — incluye
+   `alembic upgrade head` (034→035) en el VPS.
+
+### 🟠 Para confirmar, no bloqueante (sin cambios desde sesión 35)
+2. Alcance del acceso al portal ARCO vía email de confirmación (sin
+   Turnstile/2FA, agrupa todas las campañas de la persona) — reconfirmar
+   que se acepta el trade-off ahora que está en producción real.
+3. Fallback de URL faltante en `_social_icon_links()` de
+   `email_service.py` — bajo riesgo, fix simple.
+
+### 🟡 Backlog, sin apuro (sin cambios desde sesión 35)
+4. 3 ramas locales ya integradas/redundantes candidatas a borrar:
+   `fix/dashboard-firmas-entrega`, `fix/recordatorio-todas-visibilidades`,
+   `feat/comunicaciones-cierre-campana`.
+5. `programacion-historial-comunicaciones` (spec aprobada, sin
+   implementar), `email-cumplimiento-masivo` (sin spec), hallazgo de
+   `notify_updates` roto en `StepThanks.tsx`/`SignFlow.tsx`.
+6. Spec `landing-respaldo-entrega` — pendiente de aprobación del usuario
+   + diseño en Claude Design antes de implementar.
+7. Endpoint admin de listado de `arco_requests` por organización
+   (mencionado en el punto 1 de esta sesión) — no especificado, backlog.
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # si no está levantado
-git status   # main tiene cambios sin commitear + 8 commits sin pushear
+git checkout dev && git status                    # debería estar limpio
+git fetch origin                                  # dev/main deberían estar sincronizados
 ```
+
+Evaluar con el usuario si se arma el PR `dev → main` (pendiente 🟢 #1)
+antes de seguir con nuevas features.
