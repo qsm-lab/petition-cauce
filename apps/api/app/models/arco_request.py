@@ -12,6 +12,8 @@ class ArcoRequest(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     campaign_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
+    # Poblada por trigger BEFORE INSERT (migración 035) desde campaigns.org_id — no se setea desde la aplicación.
+    org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     right_type: Mapped[str] = mapped_column(String(20), nullable=False)
     email_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     requested_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
