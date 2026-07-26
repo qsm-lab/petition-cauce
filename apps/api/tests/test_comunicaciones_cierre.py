@@ -205,6 +205,20 @@ def test_social_href_no_duplica_mailto_si_ya_viene_con_prefijo():
     assert _social_href("x", "https://x.com/foo") == "https://x.com/foo"
 
 
+def test_social_href_antepone_https_si_falta_esquema():
+    from app.services.email_service import _social_href
+    # Valor sin esquema → fallback https:// (evita href relativo roto en email)
+    assert _social_href("website", "cauce.org") == "https://cauce.org"
+    assert _social_href("instagram", "instagram.com/cauce") == "https://instagram.com/cauce"
+    # http:// y https:// existentes se respetan tal cual
+    assert _social_href("website", "http://cauce.org") == "http://cauce.org"
+    assert _social_href("x", "https://x.com/foo") == "https://x.com/foo"
+    # Esquema en mayúsculas también se respeta
+    assert _social_href("website", "HTTPS://cauce.org") == "HTTPS://cauce.org"
+    # Espacios accidentales no rompen la detección de esquema
+    assert _social_href("website", "  https://cauce.org  ") == "https://cauce.org"
+
+
 def test_invitation_html_mensaje_va_antes_de_agendar_y_redes():
     html = _build_delivery_event_invitation_html(
         campaign_title="X", event_title="Entrega", event_datetime=_dt(), event_location="Quito",
