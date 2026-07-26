@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.exc import IntegrityError
 
 from app.models.campaign import Campaign
@@ -21,6 +21,10 @@ from app.services.email_service import send_confirmation_email
 # confirmación ("Corregir mis datos") — mismo mecanismo que R15, coincide con
 # la vida del propio enlace de confirmación (24h).
 _ARCO_REVIEW_TTL_HOURS = 24
+
+# TTL del token de consentimiento de Anuncios post-firma: cubre la sesión en
+# StepThanks sin ser eterno (embudo-post-firma, R5).
+_NEWSLETTER_TOKEN_TTL_HOURS = 2
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +99,10 @@ async def create_signature(
     arco_review_token = uuid.uuid4().hex
     arco_review_expires_at = datetime.now(timezone.utc) + timedelta(hours=_ARCO_REVIEW_TTL_HOURS)
 
+    # Token del consentimiento de Anuncios post-firma (StepThanks, R5).
+    newsletter_token = uuid.uuid4().hex
+    newsletter_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=_NEWSLETTER_TOKEN_TTL_HOURS)
+
     # Snapshot del aviso realmente mostrado: política asignada primero, legacy después.
     text_snapshot, aviso_version, legal_basis = "", "1", "consentimiento_expreso"
     if campaign.privacy_policy_id:
@@ -141,6 +149,8 @@ async def create_signature(
         confirmation_token_expires_at=expires_at,
         arco_verification_token=compute_hmac(arco_review_token),
         arco_verification_expires_at=arco_review_expires_at,
+        newsletter_token=newsletter_token,
+        newsletter_token_expires_at=newsletter_token_expires_at,
         ip_hmac=ip_hmac,
         is_test=is_test,
     )
@@ -200,6 +210,45 @@ async def create_signature(
         logger.warning("[email] failed to send confirmation for sig %s", sig.id)
 
     return sig
+
+
+async def set_newsletter_consent(db: AsyncSession, token: str, notify_updates: bool) -> bool:
+    """Setea `Consent.notify_updates` de la firma cuyo `newsletter_token` coincide
+    y no expiró (embudo-post-firma, R1/R2/R7). Idempotente respecto al valor
+    final. Devuelve True si se aplicó, False si el token es inválido/expirado
+    (sin revelar cuál, R6). No toca el `status` de la firma — no es un bypass del
+    doble opt-in (R8).
+    """
+    result = await db.execute(
+        select(Signature).where(Signature.newsletter_token == token)
+    )
+    sig = result.scalar_one_or_none()
+    if not sig:
+        return False
+
+    exp = sig.newsletter_token_expires_at
+    if exp is not None:
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp < datetime.now(timezone.utc):
+            return False
+
+    # Contexto de org para RLS de consents (misma policy que usa el alta).
+    await db.execute(
+        text("SELECT set_config('app.current_org_id', :org_id, true)"),
+        {"org_id": str(sig.org_id)},
+    )
+    consent_result = await db.execute(
+        select(Consent).where(Consent.signature_id == sig.id)
+    )
+    consent = consent_result.scalar_one_or_none()
+    if not consent:
+        return False
+
+    consent.notify_updates = notify_updates
+    consent.notify_updates_at = datetime.now(timezone.utc)
+    await db.commit()
+    return True
 
 
 async def confirm_signature(db: AsyncSession, token: str) -> dict | None:

@@ -13,7 +13,12 @@ from app.models.organization import Organization
 from app.models.privacy_config import PrivacyConfig
 from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
-from app.schemas.signature import CompleteNameRequest, ResendConfirmationRequest, SignatureCreate
+from app.schemas.signature import (
+    CompleteNameRequest,
+    NewsletterConsentRequest,
+    ResendConfirmationRequest,
+    SignatureCreate,
+)
 from app.services.email_service import send_confirmation_email
 from app.services.signature_service import (
     complete_signature_name,
@@ -23,6 +28,7 @@ from app.services.signature_service import (
     get_recent_signatures,
     get_signature_count,
     get_total_signature_count,
+    set_newsletter_consent,
 )
 from app.services.turnstile_service import verify_turnstile
 
@@ -216,7 +222,13 @@ async def submit_signature(
             )
         raise HTTPException(status_code=422, detail={"error": code})
 
-    return {"id": str(sig.id), "status": sig.status}
+    return {
+        "id": str(sig.id),
+        "status": sig.status,
+        # Token efímero para setear el consentimiento de Anuncios desde StepThanks
+        # (embudo-post-firma, R5).
+        "newsletter_token": sig.newsletter_token,
+    }
 
 
 @router.post("/{campaign_id}/signatures/resend-confirmation", status_code=204)
@@ -312,6 +324,20 @@ async def submit_completion_name(
     if not result:
         raise HTTPException(status_code=404, detail="Enlace inválido o expirado")
     return {"ok": True, "newly_confirmed": result["newly_confirmed"]}
+
+
+@router.patch("/signatures/newsletter-consent", status_code=204)
+@limiter.limit("10/minute")
+async def newsletter_consent(
+    data: NewsletterConsentRequest, request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Setea el consentimiento de Anuncios de una firma recién creada, autorizado
+    por su `newsletter_token` efímero (embudo-post-firma). Respuesta genérica sin
+    PII: 204 si se aplicó, 404 si el token es inválido/expirado (R6)."""
+    ok = await set_newsletter_consent(db, data.token, data.notify_updates)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Enlace inválido o expirado")
+    return Response(status_code=204)
 
 
 @router.get("/confirm-visibility/{token}")

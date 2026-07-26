@@ -19,6 +19,9 @@ class Consent(Base):
     ip_hmac: Mapped[str | None] = mapped_column(String(128))
     subscribe_newsletter: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notify_updates: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Momento del opt-in/opt-off de Anuncios cuando se fija después del alta
+    # (embudo-post-firma, R11 — trazabilidad LOPDP).
+    notify_updates_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     signature = relationship("Signature", back_populates="consents")

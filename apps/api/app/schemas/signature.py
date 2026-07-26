@@ -61,3 +61,8 @@ class ResendConfirmationRequest(BaseModel):
 
 class CompleteNameRequest(BaseModel):
     name: str
+
+
+class NewsletterConsentRequest(BaseModel):
+    token: str
+    notify_updates: bool
