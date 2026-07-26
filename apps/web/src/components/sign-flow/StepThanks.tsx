@@ -13,7 +13,7 @@ interface Props {
   heroImageUrl?: string | null;
   welcomeTitle?: string | null;
   welcomeSlogan?: string | null;
-  onSubscribe: (val: boolean) => void;
+  onSubscribe: (val: boolean) => Promise<{ ok: boolean; expired: boolean }>;
 }
 
 const WA_ICON = (
@@ -45,6 +45,23 @@ export default function StepThanks({
 }: Props) {
   const firstName = name.trim().split(" ")[0] || name.trim();
   const [copied, setCopied] = useState(false);
+
+  // Consentimiento de Anuncios post-firma (embudo-post-firma, R10): estado del
+  // checkbox + feedback; ante fallo de red se revierte, si el token expiró se
+  // degrada al portal por correo.
+  const [subChecked, setSubChecked] = useState(false);
+  const [subFeedback, setSubFeedback] = useState<null | "on" | "off" | "error" | "expired">(null);
+  const [subBusy, setSubBusy] = useState(false);
+
+  async function handleSubscribe(next: boolean) {
+    setSubChecked(next);
+    setSubBusy(true);
+    const { ok, expired } = await onSubscribe(next);
+    setSubBusy(false);
+    if (ok) setSubFeedback(next ? "on" : "off");
+    else if (expired) { setSubChecked(false); setSubFeedback("expired"); }
+    else { setSubChecked(!next); setSubFeedback("error"); }
+  }
 
   // Emojis compatibles con WhatsApp (Unicode 6.0, ampliamente soportados)
   // 🌿 (U+1F33F, Unicode 7.0) falla en algunos dispositivos → usar ✊ (U+270A, Unicode 6.0)
@@ -264,25 +281,43 @@ export default function StepThanks({
           </div>
         </div>
 
-        {/* Newsletter — separado, más visible */}
+        {/* Anuncios — consentimiento post-firma (embudo-post-firma) */}
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(22,38,31,0.12)" }}>
-          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", cursor: "pointer" }}>
+          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", cursor: subFeedback === "expired" ? "default" : "pointer", opacity: subFeedback === "expired" ? 0.55 : 1 }}>
             <input
               type="checkbox"
-              defaultChecked={false}
-              onChange={(e) => onSubscribe(e.target.checked)}
+              checked={subChecked}
+              disabled={subBusy || subFeedback === "expired"}
+              onChange={(e) => handleSubscribe(e.target.checked)}
               style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, accentColor: categoryColor }}
-              aria-label="Suscribirme a novedades de esta causa"
+              aria-label="Quiero recibir los anuncios de esta campaña"
             />
             <span style={{ fontFamily: FONT_BODY }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#16261F", display: "block", marginBottom: 3 }}>
-                Quiero recibir noticias de esta campaña
+                Quiero recibir los anuncios de esta campaña
               </span>
               <span style={{ fontSize: 12, color: "rgba(22,38,31,0.55)", lineHeight: 1.4, display: "block" }}>
                 Consentimiento independiente de tu firma · puedo retirarme cuando quiera.
               </span>
             </span>
           </label>
+          {subFeedback && (
+            <p style={{
+              margin: "10px 0 0", fontSize: 12.5, fontWeight: 600, borderRadius: 9, padding: "8px 12px", lineHeight: 1.4,
+              ...(subFeedback === "on"
+                ? { background: "color-mix(in srgb,#3d6b35 10%,transparent)", color: "#3d6b35" }
+                : subFeedback === "off"
+                ? { background: "#EDF4F1", color: "rgba(22,38,31,0.55)" }
+                : subFeedback === "expired"
+                ? { background: "color-mix(in srgb,#b45309 12%,transparent)", color: "#b45309" }
+                : { background: "color-mix(in srgb,#c2410c 9%,transparent)", color: "#c2410c" }),
+            }}>
+              {subFeedback === "on" && "✓ Te avisaremos de los anuncios de esta campaña."}
+              {subFeedback === "off" && "Suscripción cancelada. No te enviaremos anuncios."}
+              {subFeedback === "expired" && "Activá los anuncios desde el enlace que te enviamos por correo."}
+              {subFeedback === "error" && "No se pudo guardar. Revisá tu conexión e intentá de nuevo."}
+            </p>
+          )}
         </div>
 
       </div>

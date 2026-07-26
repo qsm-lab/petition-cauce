@@ -3,6 +3,63 @@
 
 ---
 
+## 2026-07-24/25 — Sesión 37: diseño SDD de 4 features + implementación de embudo-post-firma y del backend de config-email-org
+
+Sesión larga de diseño e implementación. Al inicio se confirmó que el deploy de
+sesión 36 (PR #17) ya está en producción (`d872706`, Alembic `035`). Todo el
+trabajo de esta sesión quedó en el working tree de `dev` **sin commitear**.
+
+**Pendientes de sesión 36 cerrados:** fix `_social_href` (antepone `https://` a
+social_links sin esquema, con test); reconfirmado el trade-off del portal ARCO
+(aceptado); borradas 3 ramas locales (hallazgo: `fix/recordatorio-todas-
+visibilidades` tenía 1 commit no en `main`, pero su cambio ya estaba
+re-implementado en `dev`); el hallazgo del checkbox `notify_updates` roto derivó
+en la feature `embudo-post-firma`.
+
+**Cuatro specs nuevas** (con diseños Claude Design y decisiones tomadas con el
+usuario): `embudo-post-firma`, `config-email-org`, `centro-comunicaciones`
+(7 frames, absorbe `comunicaciones-cierre-campana` +
+`programacion-historial-comunicaciones`), `admin-sidebar-colapsable`. Decisiones
+clave: email multi-proveedor **por organización** (campaña solo cosmético,
+Fase 1 solo Resend); clave de cifrado dedicada; administra `platform_admin`;
+renombre de producto **"novedades" → "Anuncios"**; token dedicado para el
+consentimiento post-firma; cuota de Resend legible por headers `x-resend-*-quota`.
+
+**`embudo-post-firma` — IMPLEMENTADO y verificado** (migración `036`): cablea el
+consentimiento de Anuncios post-firma (`newsletter_token` efímero devuelto al
+crear la firma → `PATCH .../signatures/newsletter-consent` → setea
+`notify_updates`+`notify_updates_at` sin tocar `status`). Frontend `StepThanks`
+con 5 estados de micro-feedback + renombre a "Anuncios". Suite **167 passed**,
+`tsc` limpio, flujo HTTP e2e real en dev.
+
+**Migración `037` — fix bug latente de PRODUCCIÓN:** la policy RLS
+`arco_requests_org_admin` (mig. `035`, ya en prod) usa el patrón
+`!= '' AND ::uuid` que falla con `''::uuid` cuando una conexión del pool queda
+con `app.current_org_id=''` — misma regresión que `021`/`031` corrigieron en
+`consents`. Reescrita con guard `NULLIF`. Descubierto por los tests de embudo;
+afecta producción actual.
+
+**`config-email-org` — núcleo backend implementado** (migración `038`): cifrado
+dedicado de credenciales (`sec:v1:`, fallback a `pii_encryption_key`); modelo
+`OrgEmailConfig` con RLS `NULLIF`; transporte multi-proveedor (`email_transport.py`:
+`EmailTransport`, `ResendTransport` con captura de headers de cuota,
+`resolve_transport_for_org`, `resolve_sender`); **refactor de `_send`
+retrocompatible** (todos los emails pasan por la abstracción); capa admin (service
++ endpoints CRUD/test bajo `/v1/admin/organizaciones/{id}/email-config`, solo
+`platform_admin`); properties `sender_*` en `Campaign.meta`. Tests
+`test_config_email_org.py` (14) + smoke test HTTP (la api_key nunca se expone).
+Pendiente: integración de la resolución con los flujos de email, contador de
+cuota Redis y frontend — todo junto con `centro-comunicaciones`.
+
+**Cadena de migraciones** (dev local en `038`, prod en `035`):
+`035 → 036 embudo → 037 fix-RLS-arco → 038 org_email_config`, todas reversibles;
+`039+` sería el centro. **Nada de esto está commiteado ni en producción.**
+
+**Cierre:** Docker daemon se cayó al final (relevantar con
+`docker compose -f docker-compose.dev.yml up -d`).
+
+---
+
 ## 2026-07-23/24 — Sesión 36: resolución de los 2 hallazgos LOPDP de sesión 35 + implementación de /mis-datos
 
 Continuación directa de los pendientes 🔴 que sesión 35 dejó ya en

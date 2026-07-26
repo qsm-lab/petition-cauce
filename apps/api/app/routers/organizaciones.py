@@ -3,10 +3,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db_with_org, get_current_user
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate, OrganizationResponse
+from app.schemas.org_email_config import (
+    OrgEmailConfigResponse,
+    OrgEmailConfigUpdate,
+    OrgEmailTestRequest,
+)
 from app.services.organization_service import OrganizationService
+from app.services.org_email_config_service import OrgEmailConfigService, to_response
 from app.models.user import User
 
 router = APIRouter()
+
+
+def _require_platform_admin(current_user: User) -> None:
+    # En este sistema el rol 'admin' es el platform_admin (get_db_with_org le
+    # setea is_platform_admin=true). Solo él gestiona la config de email (D5).
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
 
 
 @router.get("/organizaciones", response_model=list[dict])
@@ -97,3 +110,54 @@ async def get_org_campaigns(
         .order_by(Campaign.created_at.desc())
     )
     return [{"id": str(r.id), "title": r.title, "status": r.status, "slug": r.slug} for r in result]
+
+
+# ── Configuración de email por organización (config-email-org) ───────────────
+
+@router.get("/organizaciones/{org_id}/email-config", response_model=OrgEmailConfigResponse)
+async def get_org_email_config(
+    org_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    _require_platform_admin(current_user)
+    cfg = await OrgEmailConfigService.get(db, org_id)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="Sin configuración de email (usa la de plataforma)")
+    return to_response(cfg)
+
+
+@router.put("/organizaciones/{org_id}/email-config", response_model=OrgEmailConfigResponse)
+async def upsert_org_email_config(
+    org_id: uuid.UUID,
+    data: OrgEmailConfigUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    _require_platform_admin(current_user)
+    cfg = await OrgEmailConfigService.upsert(db, org_id, data, created_by=current_user.id)
+    return to_response(cfg)
+
+
+@router.delete("/organizaciones/{org_id}/email-config", status_code=204)
+async def delete_org_email_config(
+    org_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    _require_platform_admin(current_user)
+    await OrgEmailConfigService.delete(db, org_id)
+
+
+@router.post("/organizaciones/{org_id}/email-config/test")
+async def test_org_email_config(
+    org_id: uuid.UUID,
+    data: OrgEmailTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    _require_platform_admin(current_user)
+    ok = await OrgEmailConfigService.send_test(db, org_id, data.to)
+    if not ok:
+        raise HTTPException(status_code=400, detail="No se pudo enviar la prueba — revisá la configuración")
+    return {"ok": True}

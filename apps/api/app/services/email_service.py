@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import settings
+from app.services.email_transport import EmailMessage, EmailTransport, platform_transport
 
 logger = logging.getLogger(__name__)
 
@@ -101,35 +102,31 @@ def _signer_action_html(
 _STAGE_NAMES = ["Lanzada", "Recolección", "Entrega", "Diálogo", "Decisión"]
 
 
-async def _send(to: str | Sequence[str], subject: str, html: str) -> bool:
+async def _send(
+    to: str | Sequence[str],
+    subject: str,
+    html: str,
+    *,
+    transport: "EmailTransport | None" = None,
+    from_: str | None = None,
+    reply_to: str | None = None,
+) -> bool:
+    """Envía un email a través del transporte resuelto (config-email-org). Sin
+    `transport` usa el de plataforma (Resend global) — retrocompat con todos los
+    llamadores existentes. `from_`/`reply_to` permiten el remitente por campaña."""
     recipients = [to] if isinstance(to, str) else list(to)
     if not recipients:
         return False
-    if not settings.resend_api_key:
-        logger.info("[dev] email | to=%s | subject=%s", recipients, subject)
-        return True
-    async with httpx.AsyncClient(timeout=10) as client:
-        try:
-            resp = await client.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {settings.resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": settings.resend_from_email,
-                    "to": recipients,
-                    "subject": subject,
-                    "html": html,
-                },
-            )
-            if resp.status_code not in (200, 201):
-                logger.error("[resend] error %s: %s", resp.status_code, resp.text)
-                return False
-            return True
-        except Exception as exc:
-            logger.error("[resend] send failed: %s", exc)
-            return False
+    tr = transport or platform_transport()
+    msg = EmailMessage(
+        to=recipients,
+        subject=subject,
+        html=html,
+        from_=from_ or settings.resend_from_email,
+        reply_to=reply_to,
+    )
+    result = await tr.send(msg)
+    return result.ok
 
 
 def _lifecycle_base_html(campaign_title: str, old_stage: str, new_stage: str, notes: str | None, changed_by: str | None) -> str:
@@ -855,9 +852,17 @@ def _calendar_links(*, title: str, event_datetime, location: str, details: str) 
 def _social_href(key: str, value: str) -> str:
     """El campo 'email' de social_links es una dirección, no una URL —
     se arma el mailto: acá para que el admin solo tenga que cargar el correo."""
+    value = value.strip()
     if key == "email":
         return value if value.startswith("mailto:") else f"mailto:{value}"
-    return value
+    # El resto son URLs. Los social_links se guardan sin normalizar
+    # (SocialLinksUpdate acepta strings libres), así que si el admin cargó el
+    # valor sin esquema (ej. "cauce.org"), el cliente de correo lo interpreta
+    # como ruta relativa y el enlace queda roto. Fallback: anteponer https://
+    # cuando falta un esquema explícito.
+    if value.lower().startswith(("http://", "https://", "mailto:", "tel:")):
+        return value
+    return f"https://{value}"
 
 
 # PNG estáticos (círculo de color + glifo horneado en el propio archivo),

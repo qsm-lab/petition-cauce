@@ -20,6 +20,9 @@ export interface SignaturePayload {
 export interface SignatureResult {
   id: string;
   status: string;
+  // Token efímero para setear el consentimiento de Anuncios desde StepThanks
+  // (embudo-post-firma). Puede faltar si el backend aún no lo emite.
+  newsletter_token?: string | null;
 }
 
 export interface ConfirmResult {
@@ -106,6 +109,33 @@ export async function resendConfirmation(
     return res.status === 204;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Setea el consentimiento de Anuncios de la firma recién creada, autorizado por
+ * el `newsletter_token` devuelto al firmar (embudo-post-firma).
+ * `expired: true` cuando el token venció (404) → la UI degrada al portal por
+ * correo; cualquier otro fallo es de red → la UI revierte el checkbox.
+ */
+export async function setNewsletterConsent(
+  token: string,
+  notifyUpdates: boolean
+): Promise<{ ok: boolean; expired: boolean }> {
+  try {
+    const res = await fetch(
+      `${PUBLIC_API}/v1/public-campaign/signatures/newsletter-consent`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, notify_updates: notifyUpdates }),
+      }
+    );
+    if (res.status === 204) return { ok: true, expired: false };
+    if (res.status === 404) return { ok: false, expired: true };
+    return { ok: false, expired: false };
+  } catch {
+    return { ok: false, expired: false };
   }
 }
 

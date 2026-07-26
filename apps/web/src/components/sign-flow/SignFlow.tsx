@@ -10,6 +10,7 @@ import {
   submitSignature,
   getCampaignCount,
   resendConfirmation,
+  setNewsletterConsent,
   type SignatureError,
 } from "@/lib/signatures-api";
 import type { FormConfig } from "@/lib/campaign-api";
@@ -81,6 +82,8 @@ export default function SignFlow({
   const [errorMsg, setErrorMsg]   = useState("");
   const [confirmData, setConfirmData] = useState<{ count: number; goal: number | null } | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  // Token del consentimiento de Anuncios post-firma (embudo-post-firma).
+  const [newsletterToken, setNewsletterToken] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Escape
@@ -130,7 +133,7 @@ export default function SignFlow({
       subscribe_newsletter: false,
       cf_turnstile_token: values.cf_turnstile_token,
     });
-    if (result.ok) { setStep(2); }
+    if (result.ok) { setNewsletterToken(result.data.newsletter_token ?? null); setStep(2); }
     else { setErrorMsg(errorMessage(result.error)); setStep(3); }
   }
 
@@ -233,7 +236,10 @@ export default function SignFlow({
             heroImageUrl={heroImageUrl}
             welcomeTitle={welcomeTitle}
             welcomeSlogan={welcomeSlogan}
-            onSubscribe={() => { /* TODO: newsletter consent */ }}
+            onSubscribe={async (val: boolean) => {
+              if (!newsletterToken) return { ok: false, expired: true };
+              return setNewsletterConsent(newsletterToken, val);
+            }}
           />
         )}
       </div>

@@ -38,6 +38,11 @@ class Signature(Base):
     # Remediación histórica: completar nombre null/incompleto (ver migración 032)
     completion_token: Mapped[str | None] = mapped_column(String(128))
     completion_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    # Token efímero para el consentimiento de Anuncios post-firma (StepThanks):
+    # devuelto al crear la firma, autoriza el PATCH público que setea
+    # Consent.notify_updates (embudo-post-firma, R5).
+    newsletter_token: Mapped[str | None] = mapped_column(String(128), unique=True)
+    newsletter_token_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     anulada_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     anonymized_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))

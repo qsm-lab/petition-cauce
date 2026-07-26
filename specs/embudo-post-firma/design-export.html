@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>embudo-post-firma — micro-feedback del checkbox de Anuncios (design reference)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bp:#D7F24C; --bop:#16261F; --bink:#16261F; --bmut:rgba(22,38,31,.55);
+    --bsurf:#fff; --bbg:#EDF4F1; --bbord:rgba(22,38,31,.15);
+    --ok:#3d6b35; --okbg:color-mix(in srgb,#3d6b35 10%,transparent);
+    --danger:#c2410c; --dangerbg:color-mix(in srgb,#c2410c 9%,transparent);
+    --amber:#b45309; --amberbg:color-mix(in srgb,#b45309 12%,transparent);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Work Sans',sans-serif;background:#dfe6e2;color:var(--bink);}
+  .frame{max-width:1160px;margin:0 auto 40px;background:var(--bbg);padding:36px 24px;}
+  .frame-label{max-width:1160px;margin:0 auto;padding:16px 24px 0;font-family:'Work Sans';font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#12222E;background:#fff;border:1px dashed #94a89e;border-bottom:none;}
+  .spec-note{max-width:1160px;margin:0 auto;padding:14px 24px;background:#FFF7E0;border:1px dashed #b45309;border-top:none;font-size:12.5px;line-height:1.6;color:#5c3a08;}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--bmut);}
+  /* Bloque del checkbox (calca StepThanks) */
+  .block{max-width:440px;background:#fff;border-radius:16px;padding:20px;border:1px solid var(--bbord);}
+  .sep{margin-top:4px;padding-top:16px;border-top:1px solid rgba(22,38,31,.12);}
+  .row{display:flex;gap:10px;align-items:flex-start;text-align:left;}
+  .row input{margin-top:3px;width:18px;height:18px;flex:0 0 auto;accent-color:var(--bp);}
+  .t1{font-size:14px;font-weight:700;color:#16261F;display:block;margin-bottom:3px;}
+  .t2{font-size:12px;color:rgba(22,38,31,.55);line-height:1.4;display:block;}
+  .fb{margin-top:12px;font-size:12.5px;font-weight:600;border-radius:9px;padding:8px 12px;display:flex;align-items:center;gap:7px;line-height:1.4;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:960px;margin:0 auto;}
+  @media(max-width:720px){.grid{grid-template-columns:1fr;}}
+  .cap{font-size:12px;font-weight:700;color:var(--bink);margin:0 0 8px;}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- Micro-feedback del checkbox de Anuncios (StepThanks, paso post-firma) -->
+<!-- ============================================================ -->
+<div class="frame-label">embudo-post-firma · StepThanks · Estados del checkbox de Anuncios (renombre "novedades" → "Anuncios")</div>
+<div class="frame">
+  <div class="grid">
+
+    <!-- 1. Default -->
+    <div>
+      <p class="cap">1 · Por defecto (no premarcado)</p>
+      <div class="block">
+        <div class="sep">
+          <label class="row">
+            <input type="checkbox">
+            <span>
+              <span class="t1">Quiero recibir los anuncios de esta campaña</span>
+              <span class="t2">Consentimiento independiente de tu firma · podés retirarte cuando quieras.</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Activado + confirmación -->
+    <div>
+      <p class="cap">2 · Activado (guardado)</p>
+      <div class="block">
+        <div class="sep">
+          <label class="row">
+            <input type="checkbox" checked>
+            <span>
+              <span class="t1">Quiero recibir los anuncios de esta campaña</span>
+              <span class="t2">Consentimiento independiente de tu firma · podés retirarte cuando quieras.</span>
+            </span>
+          </label>
+          <div class="fb" style="background:var(--okbg);color:var(--ok);">✓ Te avisaremos de los anuncios de esta campaña.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Desactivado -->
+    <div>
+      <p class="cap">3 · Desactivado (tras estar activo)</p>
+      <div class="block">
+        <div class="sep">
+          <label class="row">
+            <input type="checkbox">
+            <span>
+              <span class="t1">Quiero recibir los anuncios de esta campaña</span>
+              <span class="t2">Consentimiento independiente de tu firma · podés retirarte cuando quieras.</span>
+            </span>
+          </label>
+          <div class="fb" style="background:var(--bbg);color:var(--bmut);">Suscripción cancelada. No te enviaremos anuncios.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Error de red (revierte) -->
+    <div>
+      <p class="cap">4 · Error de red (revierte el check)</p>
+      <div class="block">
+        <div class="sep">
+          <label class="row">
+            <input type="checkbox">
+            <span>
+              <span class="t1">Quiero recibir los anuncios de esta campaña</span>
+              <span class="t2">Consentimiento independiente de tu firma · podés retirarte cuando quieras.</span>
+            </span>
+          </label>
+          <div class="fb" style="background:var(--dangerbg);color:var(--danger);">No se pudo guardar. Revisá tu conexión e intentá de nuevo.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Token expirado (degrada al portal) -->
+    <div>
+      <p class="cap">5 · Token expirado (degradación limpia)</p>
+      <div class="block">
+        <div class="sep">
+          <label class="row" style="opacity:.55;">
+            <input type="checkbox" disabled>
+            <span>
+              <span class="t1">Quiero recibir los anuncios de esta campaña</span>
+              <span class="t2">Consentimiento independiente de tu firma · podés retirarte cuando quieras.</span>
+            </span>
+          </label>
+          <div class="fb" style="background:var(--amberbg);color:var(--amber);">Activá los anuncios desde el enlace que te enviamos por correo.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Nota de implementación (no visual):</strong> no es pantalla nueva — es
+  el checkbox ya existente de <code>StepThanks</code> con feedback de estado
+  (R10) y el copy renombrado a <strong>Anuncios</strong>. El toggle persiste
+  <code>notify_updates</code> vía <code>PATCH /v1/signatures/newsletter-consent</code>
+  autorizado por el <code>newsletter_token</code> devuelto al crear la firma;
+  ante fallo de red el check se revierte visualmente (estado 4); si el token
+  expiró (~2 h), degrada al portal por correo (estado 5). Estilos: tokens del
+  sistema (Work Sans, lime en el check, verde/ámbar/rojo de feedback ya usados
+  en el resto de la plataforma).
+</div>
+
+</body>
+</html>
