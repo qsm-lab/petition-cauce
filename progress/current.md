@@ -1,143 +1,190 @@
-# Estado actual — tras sesión 36 (2026-07-23/24)
+# Estado actual — tras sesión 37 (2026-07-24/25)
 
-## Resumen de sesión 36
+## Resumen de sesión 37
 
-Continuación directa de los pendientes 🔴 dejados por sesión 35 (ya en
-producción): los 2 hallazgos LOPDP sin resolver (RLS faltante,
-`celular_encrypted` sin limpiar) y la implementación del portal
-`/mis-datos`. Los 3 quedaron resueltos en `dev`, commiteados y pusheados
-a `origin/dev` — **pendientes de PR a `main` y deploy** (no se hizo en
-esta sesión, sigue el flujo normal dev→PR→main).
+Sesión larga de **diseño SDD + implementación**. Se cerraron los pendientes
+🟠/🟡 de sesión 36, se crearon **4 specs nuevas** (con diseños Claude Design y
+decisiones tomadas con el usuario vía rondas de preguntas), y se **implementó
+por completo `embudo-post-firma`** + el **núcleo backend de `config-email-org`**.
+Todo quedó **en el working tree de `dev`, SIN commitear** (el usuario controla
+los commits).
+
+Al inicio se verificó que el deploy de sesión 36 (PR #17) **ya está en
+producción** — `origin/main` en `d872706`, migración `035` aplicada.
+
+---
+
+## ⚠️ ESTADO DE GIT — TODO SIN COMMITEAR
+
+`dev` local sigue en `99aea11` (== `origin/dev` al inicio). Hay un working tree
+grande sin commitear. Sugerencia de commits lógicos (el usuario decide):
+
+1. **fix `_social_href`** (pendiente 🟠 #3 de sesión 36): `email_service.py` +
+   `test_comunicaciones_cierre.py`.
+2. **`embudo-post-firma`** (migración `036`) + **fix RLS `037`**: modelos
+   (`signature`, `consent`), `signature_service`, `public_campaign`, schemas,
+   `SignFlow`/`StepThanks`/`signatures-api`, `test_embudo_post_firma.py`.
+   → **Desplegable** (verificado e2e). El `037` corrige un **bug latente de
+   producción** (ver abajo) — conviene que llegue pronto.
+3. **`config-email-org`** (migración `038`) backend: `config`, `crypto`,
+   `models/org_email_config` + `__init__`, `email_transport`,
+   `org_email_config_service`, `schemas/org_email_config`, `routers/organizaciones`,
+   `campaign` (properties sender_*), `email_service._send`,
+   `test_config_email_org.py`. → **Retrocompatible y desplegable** aunque la
+   feature esté incompleta (ninguna org tiene config → todo usa plataforma).
+4. **specs** (docs): `specs/{embudo-post-firma,config-email-org,
+   centro-comunicaciones,admin-sidebar-colapsable}/` + `feature_list.json`.
+
+## Migraciones (dev local en `038`; producción en `035`)
+
+Cadena nueva de la sesión, toda verificada `upgrade`/`downgrade`/`upgrade`:
+```
+035 (prod) → 036 embudo-post-firma → 037 fix-arco-requests-rls → 038 org_email_config
+```
+**Orden acordado para el resto:** `039+` sería `centro-comunicaciones` (Fase 3).
+Head lineal, sin merges (el `deploy.yml` nunca ve heads múltiples).
 
 ---
 
 ## Lo que se hizo
 
-### 1. RLS faltante en `retention_runs` y `arco_requests` (commit `a615ac3`)
+### 1. Pendientes de sesión 36 cerrados
+- 🟠 **fix `_social_href`**: antepone `https://` a social_links sin esquema
+  (evita `href` relativo roto en emails). Test agregado.
+- 🟠 **Trade-off portal ARCO**: reconfirmado — **aceptado tal cual** (sin cambios).
+- 🟡 **3 ramas locales borradas** (`fix/dashboard-firmas-entrega`,
+  `feat/comunicaciones-cierre-campana`, `fix/recordatorio-todas-visibilidades`).
+  Hallazgo: la 3ª tenía 1 commit no en `main`, pero su cambio funcional **ya
+  estaba re-implementado en `dev`** (verificado) — recién ahí se borró.
+- 🟡 **Hallazgo `notify_updates` roto** (checkbox de StepThanks no-op) → derivó
+  en la feature/spec `embudo-post-firma`.
 
-Migración `035_rls_retention_arco.py`:
-- `retention_runs`: policy única `platform_admin` (la tabla no tiene
-  `campaign_id`/`org_id` propio — es un log global del job, cruza todas
-  las campañas).
-- `arco_requests`: columna `org_id` denormalizada (mismo patrón que
-  `pii_export_audit`, migración `030`), backfill desde `campaigns.org_id`,
-  poblada en adelante por un trigger `BEFORE INSERT` — así los ~9 sitios
-  de `arco_service.py`/`admin_signature_service.py` que insertan filas no
-  se tocaron. Políticas `org_admin`/`platform_admin`.
-- Verificado en dev: `upgrade`/`downgrade`/`upgrade` limpio, backfill sin
-  nulos, y confirmado con una llamada HTTP real a `/v1/arco/request-access`
-  que la fila de auditoría queda invisible sin contexto de sesión y
-  visible con `app.is_platform_admin` — RLS funcionando de punta a punta.
-- El endpoint admin de listado de `arco_requests` por org (mencionado
-  como posible extensión) queda en backlog, no bloqueaba este fix.
+### 2. Cuatro specs nuevas (spec_ready salvo las implementadas)
+- **`embudo-post-firma`** — IMPLEMENTADA (ver abajo).
+- **`config-email-org`** — backend implementado (ver abajo).
+- **`centro-comunicaciones`** — `spec_ready`, **aprobada + diseño OK** (7 frames
+  en `design-export.html`). Frame dedicado de mailing: editor WYSIWYG (TipTap),
+  carga de imágenes (25 MB), segmentación por checkboxes, 2 clases LOPDP
+  (**Anuncios**/servicio), CTA editable, toggle redes, programación + cola
+  multi-día + historial, borrador, contador de cuota Resend. Absorbe
+  `comunicaciones-cierre-campana` y `programacion-historial-comunicaciones`
+  (marcadas `superseded_by`). Depende de `config-email-org`.
+- **`admin-sidebar-colapsable`** — `spec_ready`, **diseño listo**. Feature de
+  shell (frontend puro, sin migración): sidebar admin contraíble a iconos con
+  tooltip, icono estándar de panel, estado en localStorage.
 
-### 2. `anonymize_signature()` no limpiaba `celular_encrypted` (commit `711004f`)
+### 3. Decisiones del usuario (sesión)
+- Multi-proveedor de email **por organización** (no por campaña); campaña solo
+  cosmético. Adaptadores: Fase 1 **solo Resend**; SMTP/otros on-demand.
+- Clave de cifrado **dedicada** para credenciales de proveedor.
+- Config de email la administra **`platform_admin`**.
+- Renombre de cara al usuario **"novedades" → "Anuncios"** (campo interno
+  `notify_updates` sin cambios).
+- Token del consentimiento post-firma: **dedicado** (no solo `signature_id`).
+- Resend: cuota diaria/mensual legible por **headers** `x-resend-*-quota`.
 
-Fix de una línea en `retention_service.py` + regresión agregada en
-`test_retention.py` (la firma de prueba ahora incluye `celular_encrypted`
-y se afirma que quede `None` tras anonimizar — cubre el hueco que dejó
-pasar el bug original). Confirmado en producción antes del fix: el cron
-de retención (03:00 Guayaquil) **todavía no había corrido** desde el
-deploy de sesión 35 (`retention_runs` tenía 0 filas) — no hizo falta
-script de corrección de datos históricos.
+### 4. `embudo-post-firma` — IMPLEMENTADO Y VERIFICADO
+Cablea el consentimiento de Anuncios post-firma (antes el checkbox era un no-op).
+- Migración `036`: `signatures.newsletter_token`+`_expires_at`,
+  `consents.notify_updates_at`.
+- `create_signature` genera el token (~2 h); la respuesta lo devuelve.
+- `set_newsletter_consent` + `PATCH /v1/public-campaign/signatures/newsletter-consent`
+  (rate-limited, 204/404 sin PII, no toca `status`).
+- Frontend: `StepThanks` con checkbox controlado + **5 estados de micro-feedback**
+  + renombre a "Anuncios".
+- **Verificación:** suite API **167 passed** (4 tests nuevos), `tsc` limpio,
+  flujo **HTTP e2e real** en dev (activar/desactivar/token inválido, efecto en DB
+  con `status` intacto).
+- **Pendiente:** verificación visual en navegador (el usuario la hará en
+  producción tras commit/PR/deploy).
 
-### 3. Frontend `/mis-datos` + `/mis-datos/portal` (commit `4123212`)
+### 5. Migración `037` — fix bug latente de PRODUCCIÓN
+La policy RLS `arco_requests_org_admin` (migración `035`, ya en prod) usa
+`current_setting(...) != '' AND ...::uuid`, que PostgreSQL no cortocircuita de
+forma fiable → falla con `invalid input syntax for type uuid: ""` cuando una
+conexión del pool queda con `app.current_org_id=''` (lo deja cualquier flujo de
+firma/consentimiento). Es la **misma regresión** que `021`/`031` corrigieron en
+`consents`. `037` la reescribe con el guard `NULLIF`. **Afecta producción
+actual** — desplegar pronto.
 
-Descubrimiento clave antes de implementar: el diseño **ya estaba
-aprobado desde sesión 30** (`specs/derechos-arco/design-export.html`, 7
-frames) — `progress/current.md` de sesión 35 decía erróneamente que
-faltaba una ronda de Claude Design. Se verificó que la paleta/tipografías
-del diseño coinciden exactamente con los tokens vigentes en
-`globals.css` — no estaba desactualizado. Se implementó directo sobre
-ese diseño, sin pasar de nuevo por Claude Design (decisión del usuario).
-
-Archivos nuevos:
-- `apps/web/src/lib/arco-api.ts` — cliente con Bearer token (primer uso
-  de header `Authorization` en el frontend, sin precedente previo).
-- `apps/web/src/app/mis-datos/{page.tsx,RequestAccessForm.tsx}` —
-  formulario + confirmación genérica anti-enumeración (Frames 1-2).
-- `apps/web/src/app/mis-datos/portal/{page.tsx,PortalClient.tsx,CampaignCard.tsx}` —
-  verificación/enlace inválido (Frames 3-4), portal multi-campaña 3
-  niveles + modal de supresión (Frames 5-6).
-
-Verificado: `tsc --noEmit` y `next build` limpios; flujo completo
-probado con HTTP real contra el backend en dev (firma de prueba creada,
-token de verificación inyectado directo en DB para simular el email,
-ejercidos todos los endpoints que llama el frontend — verify/data/
-personal-data/campaign-profile/visibility/oppose/export JSON+CSV/
-delete); **revisado manualmente en navegador por el usuario — confirmado
-OK**.
-
-`specs/derechos-arco/tasks.md`: T13 y T14 marcados `[x]`.
+### 6. `config-email-org` — NÚCLEO BACKEND IMPLEMENTADO
+- Cifrado dedicado de credenciales (`provider_secret_key`, `encrypt/decrypt_secret`,
+  `sec:v1:`; fallback a `pii_encryption_key` porque no se pudo tocar `.env`).
+- Modelo `OrgEmailConfig` + migración `038` (RLS con guard `NULLIF` correcto).
+- Transporte multi-proveedor (`email_transport.py`): interfaz `EmailTransport`,
+  `ResendTransport` (captura headers de cuota), `resolve_transport_for_org`,
+  `resolve_sender` (herencia campaña→org + validación dominio), fallback plataforma.
+- **Refactor `_send` retrocompatible** — todos los emails pasan por la
+  abstracción sin cambio de comportamiento (suite verde).
+- Capa admin: service + endpoints `GET/PUT/DELETE /v1/admin/organizaciones/{id}/email-config`
+  + `/email-config/test` (`platform_admin`). **Smoke test HTTP OK**: crea, la
+  api_key NUNCA se expone, borra.
+- Properties `sender_*` en `Campaign.meta`.
+- Tests: `test_config_email_org.py` (14 passed).
+- **Pendiente (integración/UX, con el centro):** conectar `resolve_transport`/
+  `resolve_sender` a los ~15 flujos de email; contador de cuota en Redis; rate
+  limit del endpoint test; captura en el alta de org; **frontend** (formulario de
+  config — requiere diseño Claude Design).
 
 ---
 
-## Estado real de git al cierre
+## Estado de features (feature_list.json)
 
-- `dev` local y `origin/dev`: sincronizados en `4123212`.
-- `main` local y `origin/main`: sincronizados (el desfase que quedó
-  pendiente de sesión 35 ya se resolvió — `main` local estaba en el
-  merge ad-hoc `8fe69f9`, superado por el PR #16; se hizo `git checkout
-  main && git reset --hard origin/main`).
-- `dev` le lleva 4 commits a `main` (`965dc8a` cierre de sesión 35,
-  `a615ac3` RLS, `711004f` celular, `4123212` frontend mis-datos) — **sin
-  PR todavía**, es el próximo paso natural pero no se hizo esta sesión.
-- Working tree limpio.
-- Nota: el commit `965dc8a` tiene el mensaje mal formado (se pegó el
-  subject de un commit viejo con el texto nuevo, sin separación
-  título/cuerpo). El usuario decidió dejarlo así — ya está pusheado en
-  `origin/dev`. No amendar sin volver a confirmar con el usuario.
+- `embudo-post-firma` → **in_progress** (implementado; falta verificación visual
+  + `done` del usuario).
+- `config-email-org` → **in_progress** (núcleo backend hecho; falta integración/
+  frontend).
+- `centro-comunicaciones` → **spec_ready** (aprobada, diseño OK).
+- `admin-sidebar-colapsable` → **spec_ready** (diseño listo).
+- `validacion-cedula` → **spec_ready** (aprobada por el usuario).
+- `comunicaciones-cierre-campana` (in_progress) y
+  `programacion-historial-comunicaciones` (spec_ready) → `superseded_by:
+  centro-comunicaciones`.
 
 ## Datos dev
 
 | Campo | Valor |
 |-------|-------|
-| Email | `admin@cauce.ec` |
-| Password | `admin123dev` |
+| Email admin | `admin@cauce.ec` / `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
-| Docker | Levantado y sano (`petition-db-dev`, `petition-web-dev`, `petition-api-dev`, `petition-redis-dev`, todos `Up`/`healthy`). |
-| Datos de prueba | 2 firmas de prueba creadas en `campana-dev-001` durante la verificación del portal ARCO (`prueba.arco.portal@test.local`, ya suprimida vía el flujo; `manual.browser.test@test.local`, confirmada). Artefactos de prueba inofensivos, no requieren limpieza. |
+| API | `http://localhost:8011` |
+| Docker | ⚠️ el daemon se cayó al final de la sesión — `docker compose -f docker-compose.dev.yml up -d` para relevantar. |
+| Artefactos de prueba | Firmas de prueba de las verificaciones HTTP: **limpiadas** (cada script borró las suyas). La config de email de prueba en una org: **borrada** vía DELETE del smoke test. Dev debería estar limpio. |
 
 ## Datos producción
 
-Sin cambios esta sesión — sigue en `9580807` (deploy de sesión 35), head
-de Alembic `034`. Los fixes de esta sesión (`035` + celular + frontend)
-**todavía no están en producción**, esperan PR dev→main.
+Sin cambios esta sesión — sigue en `d872706` (PR #17, deploy sesión 36), head
+Alembic `035`. Nada de esta sesión (`036/037/038` + código) está en producción
+todavía.
 
 ---
 
 ## Pendientes para la próxima sesión
 
-### 🟢 Siguiente paso natural (no se hizo esta sesión, a propósito)
-1. PR `dev → main` de los 4 commits pendientes, y deploy — incluye
-   `alembic upgrade head` (034→035) en el VPS.
+### 🟢 Commitear el trabajo de la sesión
+1. Commitear en los grupos lógicos de arriba (§ESTADO DE GIT). Prioridad:
+   embudo (`036`) + fix RLS (`037`) — desplegables y el `037` arregla un bug de
+   producción. Luego PR `dev→main` + deploy cuando el usuario decida.
 
-### 🟠 Para confirmar, no bloqueante (sin cambios desde sesión 35)
-2. Alcance del acceso al portal ARCO vía email de confirmación (sin
-   Turnstile/2FA, agrupa todas las campañas de la persona) — reconfirmar
-   que se acepta el trade-off ahora que está en producción real.
-3. Fallback de URL faltante en `_social_icon_links()` de
-   `email_service.py` — bajo riesgo, fix simple.
+### 🟠 Verificación pendiente
+2. **Embudo en navegador** (el usuario lo probará en producción): los 5 estados
+   del checkbox de Anuncios en StepThanks. Ojo: al implementar embudo también hay
+   que alinear el copy ya en producción del portal ARCO ("Novedades de esta
+   campaña" → "Anuncios de esta campaña").
 
-### 🟡 Backlog, sin apuro (sin cambios desde sesión 35)
-4. 3 ramas locales ya integradas/redundantes candidatas a borrar:
-   `fix/dashboard-firmas-entrega`, `fix/recordatorio-todas-visibilidades`,
-   `feat/comunicaciones-cierre-campana`.
-5. `programacion-historial-comunicaciones` (spec aprobada, sin
-   implementar), `email-cumplimiento-masivo` (sin spec), hallazgo de
-   `notify_updates` roto en `StepThanks.tsx`/`SignFlow.tsx`.
-6. Spec `landing-respaldo-entrega` — pendiente de aprobación del usuario
-   + diseño en Claude Design antes de implementar.
-7. Endpoint admin de listado de `arco_requests` por organización
-   (mencionado en el punto 1 de esta sesión) — no especificado, backlog.
+### 🟡 Seguir implementando (en orden)
+3. **`admin-sidebar-colapsable`** — la más autónoma (frontend puro, diseño listo).
+4. **`centro-comunicaciones`** — grande, diseño aprobado; cierra la integración de
+   `config-email-org` (resolución conectada a emails, contador Redis, cola). Sería
+   la migración `039+`.
+5. Resto de `config-email-org`: frontend del formulario de config (requiere
+   diseño Claude Design), rate limit del test, captura en alta de org.
 
 ## Al inicio de la próxima sesión
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d   # si no está levantado
-git checkout dev && git status                    # debería estar limpio
-git fetch origin                                  # dev/main deberían estar sincronizados
+docker compose -f docker-compose.dev.yml up -d   # el daemon se cayó al cierre
+git checkout dev && git status                    # working tree grande sin commitear
+git fetch origin
+docker exec petition-api-dev alembic current      # debería estar en 038 (dev local)
 ```
-
-Evaluar con el usuario si se arma el PR `dev → main` (pendiente 🟢 #1)
-antes de seguir con nuevas features.
