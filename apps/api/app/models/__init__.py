@@ -18,6 +18,7 @@ from app.models.privacy_policy import PrivacyPolicy
 from app.models.pii_export_audit import PiiExportAudit
 from app.models.retention_run import RetentionRun
 from app.models.arco_request import ArcoRequest
+from app.models.org_email_config import OrgEmailConfig
 
 __all__ = [
     "Base",
@@ -45,4 +46,5 @@ __all__ = [
     "PiiExportAudit",
     "RetentionRun",
     "ArcoRequest",
+    "OrgEmailConfig",
 ]

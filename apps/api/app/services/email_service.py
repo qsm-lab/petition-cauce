@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import settings
+from app.services.email_transport import EmailMessage, EmailTransport, platform_transport
 
 logger = logging.getLogger(__name__)
 

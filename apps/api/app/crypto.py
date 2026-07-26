@@ -60,6 +60,38 @@ def decrypt_pii(token: str, *, ref: str = "") -> str:
         raise PIIDecryptError(f"No se pudo descifrar PII (ref={ref})") from exc
 
 
+# ── Secretos de proveedor de email (config-email-org, D6) ────────────────────
+# Cifrado en reposo de credenciales (API keys, contraseñas SMTP) con una clave
+# DEDICADA (provider_secret_key), separada de la de PII para acotar el blast
+# radius. Prefijo distinto (sec:v1:) para no confundir con PII.
+_SECRET_PREFIX = "sec:v1:"
+
+
+def _secret_aesgcm() -> AESGCM:
+    key = (settings.provider_secret_key or "").strip() or settings.pii_encryption_key
+    return AESGCM(bytes.fromhex(key))
+
+
+def encrypt_secret(value: str) -> str:
+    """Cifra un secreto de proveedor. Formato: sec:v1:<base64url(nonce||ct||tag)>."""
+    nonce = os.urandom(_NONCE_BYTES)
+    ct = _secret_aesgcm().encrypt(nonce, value.encode(), None)
+    return _SECRET_PREFIX + base64.urlsafe_b64encode(nonce + ct).decode()
+
+
+def decrypt_secret(token: str) -> str:
+    """Descifra un secreto sec:v1:. Lanza PIIDecryptError sin exponer el valor."""
+    if not token.startswith(_SECRET_PREFIX):
+        raise PIIDecryptError("Formato de secreto de proveedor desconocido")
+    try:
+        raw = base64.urlsafe_b64decode(token[len(_SECRET_PREFIX):])
+        nonce, ct = raw[:_NONCE_BYTES], raw[_NONCE_BYTES:]
+        return _secret_aesgcm().decrypt(nonce, ct, None).decode()
+    except (InvalidTag, ValueError) as exc:
+        logger.error("[secret] fallo al descifrar: %s", type(exc).__name__)
+        raise PIIDecryptError("No se pudo descifrar el secreto de proveedor") from exc
+
+
 def verify_cedula(cedula: str) -> bool:
     """Valida cédula ecuatoriana (personas naturales) con módulo-10."""
     cedula = cedula.strip()

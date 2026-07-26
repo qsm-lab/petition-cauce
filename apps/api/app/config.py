@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # ── Email (Resend) ─────────────────────────────────────────────────────
     resend_api_key: str = ""
     resend_from_email: str = "noreply@cauce.ec"
+    # Clave dedicada para cifrar credenciales de proveedores de email por
+    # organización (config-email-org, D6). 64 hex (32 bytes, AES-256-GCM).
+    # Si vacía, cae a PII_ENCRYPTION_KEY como fallback operativo — en producción
+    # configurar una dedicada. Generar con: openssl rand -hex 32.
+    provider_secret_key: str = ""
     api_public_url: str = "http://localhost:8011"
     # Emails de admins de plataforma separados por coma (ej: "a@cauce.ec,b@cauce.ec")
     platform_admin_emails: str = ""

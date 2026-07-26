@@ -61,6 +61,20 @@ class Campaign(Base):
     def description(self) -> str | None:
         return (self.meta or {}).get("description")
 
+    # Remitente cosmético por campaña (config-email-org, R9). El proveedor y las
+    # credenciales viven en org_email_config; estos solo ajustan la presentación.
+    @property
+    def sender_from(self) -> str | None:
+        return (self.meta or {}).get("sender_from")
+
+    @property
+    def sender_reply_to(self) -> str | None:
+        return (self.meta or {}).get("sender_reply_to")
+
+    @property
+    def sender_display_name(self) -> str | None:
+        return (self.meta or {}).get("sender_display_name")
+
     @property
     def data_protection_level(self) -> str | None:
         return (self.meta or {}).get("data_protection_level")
