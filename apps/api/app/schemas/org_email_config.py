@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -41,6 +42,12 @@ class OrgEmailConfigResponse(BaseModel):
     status: str
     has_credentials: bool
     verified_at: datetime | None
+    # Consumo de cuota por credencial (R7) — contador propio (provider-agnóstico)
+    # + último snapshot reportado por el proveedor si lo expone (Resend; None
+    # para adaptadores que no lo reportan, p. ej. SMTP).
+    daily_used: int = 0
+    monthly_used: int = 0
+    provider_snapshot: dict[str, Any] | None = None
 
 
 class OrgEmailTestRequest(BaseModel):

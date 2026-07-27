@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import settings
+from app.services.email_quota import PLATFORM_QUOTA_KEY, record_usage
 from app.services.email_transport import EmailMessage, EmailTransport, platform_transport
 
 logger = logging.getLogger(__name__)
@@ -110,10 +111,16 @@ async def _send(
     transport: "EmailTransport | None" = None,
     from_: str | None = None,
     reply_to: str | None = None,
+    quota_key: str | None = None,
 ) -> bool:
     """Envía un email a través del transporte resuelto (config-email-org). Sin
     `transport` usa el de plataforma (Resend global) — retrocompat con todos los
-    llamadores existentes. `from_`/`reply_to` permiten el remitente por campaña."""
+    llamadores existentes. `from_`/`reply_to` permiten el remitente por campaña.
+    `quota_key` identifica la credencial para el contador de cuota (R7) — el
+    `org_email_config.id` de la org dueña de `transport`, o el default de
+    plataforma si se omite (debe pasarse junto con `transport` cuando el
+    llamador resuelve una config de org, para no atribuir el consumo a la
+    credencial equivocada)."""
     recipients = [to] if isinstance(to, str) else list(to)
     if not recipients:
         return False
@@ -126,6 +133,16 @@ async def _send(
         reply_to=reply_to,
     )
     result = await tr.send(msg)
+    if result.ok:
+        try:
+            await record_usage(
+                quota_key or PLATFORM_QUOTA_KEY,
+                sent_count=len(recipients),
+                daily_quota_used=result.daily_quota_used,
+                monthly_quota_used=result.monthly_quota_used,
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("[email_quota] no se pudo registrar el consumo de cuota")
     return result.ok
 
 

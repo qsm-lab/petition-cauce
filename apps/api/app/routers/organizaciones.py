@@ -1,7 +1,8 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db_with_org, get_current_user
+from app.limiter import limiter
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate, OrganizationResponse
 from app.schemas.org_email_config import (
     OrgEmailConfigResponse,
@@ -124,7 +125,7 @@ async def get_org_email_config(
     cfg = await OrgEmailConfigService.get(db, org_id)
     if cfg is None:
         raise HTTPException(status_code=404, detail="Sin configuración de email (usa la de plataforma)")
-    return to_response(cfg)
+    return await to_response(cfg)
 
 
 @router.put("/organizaciones/{org_id}/email-config", response_model=OrgEmailConfigResponse)
@@ -136,7 +137,7 @@ async def upsert_org_email_config(
 ):
     _require_platform_admin(current_user)
     cfg = await OrgEmailConfigService.upsert(db, org_id, data, created_by=current_user.id)
-    return to_response(cfg)
+    return await to_response(cfg)
 
 
 @router.delete("/organizaciones/{org_id}/email-config", status_code=204)
@@ -150,12 +151,17 @@ async def delete_org_email_config(
 
 
 @router.post("/organizaciones/{org_id}/email-config/test")
+@limiter.limit("5/minute")
 async def test_org_email_config(
+    request: Request,
     org_id: uuid.UUID,
     data: OrgEmailTestRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
+    """R13: rate limit — el endpoint envía correo real con credenciales de
+    terceros; sin límite sería un relay de spam trivial para quien tenga
+    sesión de platform_admin (o la robe)."""
     _require_platform_admin(current_user)
     ok = await OrgEmailConfigService.send_test(db, org_id, data.to)
     if not ok:

@@ -5,6 +5,8 @@ from sqlalchemy import select, func
 from app.models.organization import Organization
 from app.models.campaign import Campaign
 from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.schemas.org_email_config import OrgEmailConfigUpdate
+from app.services.org_email_config_service import OrgEmailConfigService
 
 
 class OrganizationService:
@@ -48,6 +50,20 @@ class OrganizationService:
         db.add(org)
         await db.commit()
         await db.refresh(org)
+
+        # R2b/D4: materializa la org_email_config inicial (provider default
+        # Resend, sin credenciales todavía → cae al default de plataforma,
+        # R5). No fija default_from: hacerlo sin credenciales propias
+        # arriesgaría un remitente en un dominio no autenticado en la cuenta
+        # de plataforma; allowed_domains sí registra el dominio declarado.
+        await OrgEmailConfigService.upsert(
+            db, org.id,
+            OrgEmailConfigUpdate(
+                provider="resend",
+                allowed_domains=[data.domain] if data.domain else [],
+            ),
+            created_by=None,
+        )
         return org
 
     @staticmethod
