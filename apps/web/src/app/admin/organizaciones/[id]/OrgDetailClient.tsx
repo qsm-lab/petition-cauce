@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import type { AdminOrg, OrgUpdate } from "@/lib/admin-orgs-api";
+import type { AdminOrg, OrgEmailConfig, OrgUpdate } from "@/lib/admin-orgs-api";
+import OrgEmailConfigCard from "./OrgEmailConfigCard";
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   verificada: { bg: "#DCE9E6", color: "#16261F", label: "Verificada" },
@@ -53,6 +54,7 @@ interface CampaignSummary {
 interface Props {
   initialOrg: AdminOrg;
   initialCampaigns: CampaignSummary[];
+  initialEmailConfig: OrgEmailConfig | null;
 }
 
 function slugify(s: string) {
@@ -62,7 +64,7 @@ function slugify(s: string) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 }
 
-export default function OrgDetailClient({ initialOrg, initialCampaigns }: Props) {
+export default function OrgDetailClient({ initialOrg, initialCampaigns, initialEmailConfig }: Props) {
   const router = useRouter();
   const [org, setOrg] = useState<AdminOrg>(initialOrg);
   const [editing, setEditing] = useState(false);
@@ -294,6 +296,9 @@ export default function OrgDetailClient({ initialOrg, initialCampaigns }: Props)
           </button>
         </div>
       )}
+
+      {/* Configuración de email (config-email-org) */}
+      <OrgEmailConfigCard orgId={org.id} initialConfig={initialEmailConfig} />
 
       {/* Campañas vinculadas */}
       <div

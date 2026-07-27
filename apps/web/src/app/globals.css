@@ -105,6 +105,33 @@
   }
 }
 
+/* ── Admin sidebar colapsable (admin-sidebar-colapsable) ──
+   El atributo data-collapsed lo controla un script inline (layout.tsx, antes
+   del primer paint) y el toggle de AdminSidebarClient.tsx — nunca el render
+   de React directamente, para evitar parpadeo en la carga (R4). Solo aplica
+   en escritorio (R8); en móvil el sidebar mantiene su comportamiento actual. */
+.admin-sidebar { transition: width 0.18s ease; }
+@media (min-width: 768px) {
+  #admin-shell[data-collapsed="true"] .admin-sidebar { width: 64px; }
+  #admin-shell[data-collapsed="true"] .admin-sidebar-label,
+  #admin-shell[data-collapsed="true"] .admin-sidebar-brand-text,
+  #admin-shell[data-collapsed="true"] .admin-sidebar-user-info {
+    display: none;
+  }
+  #admin-shell[data-collapsed="true"] .admin-sidebar-brand {
+    justify-content: center;
+    margin-bottom: 0;
+  }
+  #admin-shell[data-collapsed="true"] .admin-sidebar-nav-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  #admin-shell[data-collapsed="true"] .admin-sidebar-user {
+    justify-content: center;
+  }
+}
+
 /* ── Rich text body (petition landing) ── */
 .petition-body-html h2 { font-size: 17px; font-weight: 700; margin: 14px 0 6px; }
 .petition-body-html h3 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }

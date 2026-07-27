@@ -453,6 +453,9 @@ export default function CampanaEditorClient({
               <Link href={`/admin/campanas/${campaign!.id}/firmas`} className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-[8px]" style={{ color: "#fff", background: "var(--bink)", border: "none" }}>
                 Ver firmas
               </Link>
+              <Link href={`/admin/campanas/${campaign!.id}/comunicaciones`} className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-[8px]" style={{ color: "var(--bop)", background: "var(--bp)", border: "none" }}>
+                Comunicaciones
+              </Link>
               <a href={`/c/${campaign!.slug}`} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-medium px-3 py-1.5 rounded-[8px]" style={{ color: "var(--bmut)", border: "1px solid var(--bbord)" }}>
                 Landing ↗
               </a>

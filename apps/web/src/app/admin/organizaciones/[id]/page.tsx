@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { apiServer } from "@/lib/api-server";
 import type { User } from "@/lib/types";
-import type { AdminOrg } from "@/lib/admin-orgs-api";
+import type { AdminOrg, OrgEmailConfig } from "@/lib/admin-orgs-api";
 import OrgDetailClient from "./OrgDetailClient";
 import Link from "next/link";
 
@@ -22,6 +22,11 @@ export default async function OrgDetailPage({ params }: { params: { id: string }
   const campaigns = await apiServer<CampaignSummary[]>(
     `/v1/admin/organizaciones/${params.id}/campaigns`
   ) ?? [];
+
+  // null = sin config propia (404 del backend) → la card la muestra como "usa la de plataforma"
+  const emailConfig = await apiServer<OrgEmailConfig>(
+    `/v1/admin/organizaciones/${params.id}/email-config`
+  );
 
   return (
     <div>
@@ -49,7 +54,7 @@ export default async function OrgDetailPage({ params }: { params: { id: string }
       </header>
 
       <div className="p-6 animate-pc-rise">
-        <OrgDetailClient initialOrg={org} initialCampaigns={campaigns} />
+        <OrgDetailClient initialOrg={org} initialCampaigns={campaigns} initialEmailConfig={emailConfig} />
       </div>
     </div>
   );

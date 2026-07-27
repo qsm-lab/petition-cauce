@@ -49,16 +49,39 @@
   platform_admin). `test_config_email_org.py` (14 passed).
 - [ ] Conectar la resolución a los flujos de email (pasar contexto campaign/org
   a los envíos) — gradual, con el centro-comunicaciones (Fase 3 del centro).
-- [ ] Alta de organización captura proveedor + dominio en el mismo paso (R2b,
-  D4) — backend ya lo soporta vía PUT; falta la integración en el alta (UX,
-  con el frontend).
-- [ ] Contador de cuota por credencial (Redis) (R7) — con el centro.
-- [ ] Rate limit del endpoint de test (R13).
+  Nota sesión 38: NO es un bloqueante real para arrancar el centro — su propio
+  código nuevo puede llamar a `resolve_transport_for_org`/`resolve_sender`
+  directo desde el día uno, sin depender de que los ~15 flujos legacy migren.
+- [x] Alta de organización captura proveedor + dominio en el mismo paso (R2b,
+  D4) — sesión 38: `OrganizationService.create_organization` materializa el
+  `org_email_config` inicial (provider=resend, `allowed_domains=[domain]`, sin
+  credenciales/`default_from` — evita spoofing de remitente en un dominio no
+  autenticado hasta que se configure de verdad). Test `test_config_email_org.py`
+  + verificado con HTTP real (crea org → GET email-config da 200).
+- [x] Contador de cuota por credencial (Redis) (R7) — sesión 38:
+  `services/email_quota.py` (`record_usage`/`get_usage`), provider-agnóstico
+  (`mail:quota:<config_id>:<día/mes>`) + snapshot de headers Resend
+  (`mail:resend-quota:<config_id>`). Conectado en `_send()` (nuevo parámetro
+  `quota_key`) y en `send_test()`. Expuesto en `OrgEmailConfigResponse`
+  (`daily_used`/`monthly_used`/`provider_snapshot`). `test_email_quota.py`
+  (5 tests, sin golpear la red real de Resend — transporte falso).
+- [x] Rate limit del endpoint de test (R13) — sesión 38: `@limiter.limit("5/minute")`
+  en `POST .../email-config/test` (mismo patrón slowapi que el resto de la API).
+  Verificado con HTTP real: 6 intentos seguidos → el 6º da 429.
 
-### Frontend — PENDIENTE
-- [ ] Formulario de config de email en perfil de org (proveedor, credenciales,
-  remitente por defecto, test) — evaluar Claude Design si aplica.
-- [ ] Campos cosméticos de remitente en el editor de campaña (R9).
+### Frontend — HECHO (sesión 38)
+- [x] Formulario de config de email en perfil de org (proveedor, credenciales,
+  remitente por defecto, test, eliminar) — nueva card en
+  `OrgDetailClient.tsx`/`OrgEmailConfigCard.tsx` (`/admin/organizaciones/[id]`),
+  reutiliza el patrón visual de las cards existentes en esa página. Diseño
+  aprobado en `design-export.html` (2 frames: vista sin/con config + edición)
+  antes de implementar, por regla del proyecto. La pill "Resend · configurada"
+  usa `has_credentials` (no solo "existe una fila de config") para no ser
+  engañosa con el shell que R2b crea sin credenciales. Verificado end-to-end
+  con Playwright: sin config → configurar → guardar → ver datos → recargar
+  (persiste) → eliminar → vuelve a plataforma (persiste tras reload también).
+- [ ] Campos cosméticos de remitente en el editor de campaña (R9) — pendiente,
+  no se abordó esta sesión (fuera del alcance elegido por el usuario).
 
 ## Fase 2 — SMTP + adaptadores API nativos (on-demand, cuando una org lo pida)
 

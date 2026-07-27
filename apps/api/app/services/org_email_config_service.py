@@ -5,6 +5,7 @@ Solo `platform_admin` la gestiona (D5). Las credenciales se cifran en reposo
 la config antes de confiar en ella.
 """
 import json
+import logging
 import uuid
 
 from sqlalchemy import select
@@ -14,7 +15,10 @@ from app.config import settings
 from app.crypto import encrypt_secret
 from app.models.org_email_config import OrgEmailConfig
 from app.schemas.org_email_config import OrgEmailConfigResponse, OrgEmailConfigUpdate
+from app.services.email_quota import get_usage, record_usage
 from app.services.email_transport import EmailMessage, transport_from_config
+
+logger = logging.getLogger(__name__)
 
 
 def _build_credentials(provider: str, data: OrgEmailConfigUpdate) -> dict | None:
@@ -34,7 +38,12 @@ def _build_credentials(provider: str, data: OrgEmailConfigUpdate) -> dict | None
     return None
 
 
-def to_response(cfg: OrgEmailConfig) -> OrgEmailConfigResponse:
+async def to_response(cfg: OrgEmailConfig) -> OrgEmailConfigResponse:
+    try:
+        usage = await get_usage(str(cfg.id))
+    except Exception:  # noqa: BLE001
+        logger.warning("[email_quota] no se pudo leer el consumo de %s", cfg.id)
+        usage = {"daily_used": 0, "monthly_used": 0, "provider_snapshot": None}
     return OrgEmailConfigResponse(
         org_id=cfg.org_id,
         provider=cfg.provider,
@@ -48,6 +57,9 @@ def to_response(cfg: OrgEmailConfig) -> OrgEmailConfigResponse:
         status=cfg.status,
         has_credentials=bool(cfg.credentials_encrypted),
         verified_at=cfg.verified_at,
+        daily_used=usage["daily_used"],
+        monthly_used=usage["monthly_used"],
+        provider_snapshot=usage["provider_snapshot"],
     )
 
 
@@ -113,4 +125,13 @@ class OrgEmailConfigService:
             reply_to=cfg.default_reply_to,
         )
         result = await transport.send(msg)
+        if result.ok:
+            try:
+                await record_usage(
+                    str(cfg.id),
+                    daily_quota_used=result.daily_quota_used,
+                    monthly_quota_used=result.monthly_quota_used,
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning("[email_quota] no se pudo registrar el consumo de %s", cfg.id)
         return result.ok

@@ -82,5 +82,10 @@ class Settings(BaseSettings):
     # Emails de admins de plataforma separados por coma (ej: "a@cauce.ec,b@cauce.ec")
     platform_admin_emails: str = ""
 
+    # ── Uploads del centro de comunicaciones (centro-comunicaciones, Fase 2) ──
+    # Volumen del VPS: /data/uploads/<org_id>/<campaign_id>/<uuid>.<ext> (D2).
+    uploads_dir: str = "/data/uploads"
+    comms_upload_max_bytes: int = 25 * 1024 * 1024
+
 
 settings = Settings()

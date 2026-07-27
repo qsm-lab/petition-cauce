@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>config-email-org — card de configuración de email en perfil de org (design reference)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bp:#D7F24C; --bop:#16261F; --bsec:#DCE9E6; --bink:#16261F;
+    --bmut:rgba(22,38,31,.55); --bsurf:#fff; --bbg:#EDF4F1; --bbord:rgba(22,38,31,.15);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Work Sans',sans-serif;background:#dfe6e2;color:var(--bink);}
+  .frame{max-width:900px;margin:0 auto 56px;background:var(--bbg);padding:40px 24px;}
+  .frame-label{max-width:900px;margin:0 auto;padding:16px 24px 0;font-family:'Work Sans';font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#12222E;background:#fff;border:1px dashed #94a89e;border-bottom:none;}
+  .spec-note{max-width:900px;margin:0 auto;padding:14px 24px;background:#FFF7E0;border:1px dashed #b45309;border-top:none;font-size:12.5px;line-height:1.6;color:#5c3a08;}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bmut);margin-bottom:8px;}
+
+  /* card — mismo patrón que OrgDetailClient.tsx */
+  .card{border-radius:14px;overflow:hidden;background:var(--bsurf);border:1px solid var(--bbord);}
+  .card-head{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bbord);background:var(--bbg);}
+  .card-title{font-size:13px;font-weight:800;color:var(--bink);display:flex;align-items:center;gap:10px;}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;}
+  .pill-on{background:var(--bsec);color:var(--bink);}
+  .pill-off{background:#f3f4f6;color:#6b7280;}
+  .btn{font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;}
+  .btn-ghost{background:var(--bbord);color:var(--bink);}
+  .btn-primary{background:var(--bp);color:var(--bop);}
+  .btn-danger{background:#fef2f2;color:#991b1b;}
+  .card-body{padding:18px 20px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;column-gap:32px;row-gap:14px;}
+  .field-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--bmut);margin-bottom:3px;}
+  .field-value{font-size:13px;color:var(--bink);word-break:break-word;}
+  .field-value.muted{color:var(--bmut);}
+  input,select{width:100%;padding:9px 12px;border-radius:8px;font-size:13px;border:1px solid var(--bbord);background:var(--bbg);color:var(--bink);font-family:inherit;}
+  label.form-label{display:block;font-size:11.5px;font-weight:600;color:var(--bmut);margin-bottom:4px;}
+  .hint{font-size:11px;color:var(--bmut);margin-top:4px;line-height:1.5;}
+  .divider{height:1px;background:var(--bbord);margin:18px 0;}
+  .usage-bar-track{height:6px;border-radius:99px;background:var(--bbord);overflow:hidden;}
+  .usage-bar-fill{height:100%;background:var(--bp);}
+  .test-row{display:flex;gap:8px;align-items:center;}
+  .test-row input{flex:1;}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- FRAME 1 — Vista (sin config propia + con config propia) -->
+<!-- ============================================================ -->
+<div class="frame-label">Card "Configuración de email" · Vista — org SIN config propia vs. CON config propia</div>
+<div class="frame">
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+
+    <!-- Sin config: cae a plataforma -->
+    <div style="flex:1;min-width:380px;">
+      <div class="eyebrow">Sin configuración propia (retrocompat, R5)</div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">
+            Configuración de email
+            <span class="pill pill-off">Usa la de plataforma</span>
+          </div>
+          <button class="btn btn-primary">Configurar</button>
+        </div>
+        <div class="card-body">
+          <p class="field-value muted">
+            Esta organización no tiene proveedor de email propio configurado — sus
+            correos se envían con la cuenta de plataforma (Resend). Configurala si
+            necesita su propio remitente, dominio o cuota.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Con config propia -->
+    <div style="flex:1;min-width:380px;">
+      <div class="eyebrow">Con configuración propia</div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">
+            Configuración de email
+            <span class="pill pill-on">Resend · configurada</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost">Editar</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="grid2">
+            <div>
+              <div class="field-label">Proveedor</div>
+              <div class="field-value">Resend</div>
+            </div>
+            <div>
+              <div class="field-label">Plan</div>
+              <div class="field-value">Pro</div>
+            </div>
+            <div>
+              <div class="field-label">Remitente por defecto</div>
+              <div class="field-value">Acción Ecológica &lt;hola@accionecologica.org&gt;</div>
+            </div>
+            <div>
+              <div class="field-label">Reply-to</div>
+              <div class="field-value">contacto@accionecologica.org</div>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <div class="field-label">Dominios permitidos</div>
+              <div class="field-value">accionecologica.org</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="field-label" style="margin-bottom:8px;">Consumo de hoy</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <div class="usage-bar-track" style="flex:1;">
+              <div class="usage-bar-fill" style="width:34%;"></div>
+            </div>
+            <span style="font-size:11.5px;font-weight:700;color:var(--bink);white-space:nowrap;">17 / 50 diarias</span>
+          </div>
+          <p class="hint">Cuota mensual: 640 / 50.000 · actualizado con el último envío (Resend)</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FRAME 2 — Editar -->
+<!-- ============================================================ -->
+<div class="frame-label">Card "Configuración de email" · Modo edición</div>
+<div class="frame">
+  <div class="card" style="max-width:640px;">
+    <div class="card-head">
+      <div class="card-title">Configuración de email</div>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+
+      <div>
+        <label class="form-label">Proveedor</label>
+        <select disabled>
+          <option>Resend</option>
+        </select>
+        <p class="hint">Por ahora solo Resend (Fase 1). SMTP y otros proveedores se agregan cuando una organización lo necesite.</p>
+      </div>
+
+      <div>
+        <label class="form-label">API key de Resend</label>
+        <input type="password" placeholder="•••••••••• (configurada — dejar en blanco para conservarla)">
+        <p class="hint">Nunca se muestra en claro. Se cifra en reposo con clave dedicada.</p>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <label class="form-label">Plan</label>
+          <select>
+            <option>Free (100/día · 3.000/mes)</option>
+            <option selected>Pro (sin límite diario · 50.000/mes)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Dominios permitidos</label>
+          <input value="accionecologica.org">
+          <p class="hint">Separados por coma.</p>
+        </div>
+        <div>
+          <label class="form-label">Remitente por defecto (from)</label>
+          <input value="hola@accionecologica.org">
+        </div>
+        <div>
+          <label class="form-label">Nombre a mostrar</label>
+          <input value="Acción Ecológica">
+        </div>
+        <div>
+          <label class="form-label">Reply-to</label>
+          <input value="contacto@accionecologica.org">
+        </div>
+        <div>
+          <label class="form-label">Estado</label>
+          <select>
+            <option selected>Activa</option>
+            <option>Deshabilitada</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="field-label" style="margin-bottom:6px;">Probar configuración</div>
+        <div class="test-row">
+          <input placeholder="direccion-de-prueba@correo.com">
+          <button class="btn btn-ghost">Enviar prueba</button>
+        </div>
+        <p class="hint">Máximo 5 pruebas por minuto. Valida credenciales y remitente antes de activar.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <button class="btn btn-danger">Eliminar configuración (usar plataforma)</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost">Cancelar</button>
+          <button class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="spec-note">
+  <strong>Nota de implementación (no visual):</strong> nueva card en
+  <code>OrgDetailClient.tsx</code> (perfil de organización, <code>/admin/organizaciones/[id]</code>),
+  reutiliza 100% el patrón visual de las cards existentes en esa misma página
+  (header con <code>var(--bbg)</code>/<code>var(--bbord)</code>, inputs
+  <code>var(--bbg)</code> + borde <code>var(--bbord)</code>, botón primario
+  <code>var(--bp)</code>/<code>var(--bop)</code>). Consume
+  <code>GET/PUT/DELETE /v1/admin/organizaciones/{id}/email-config</code> +
+  <code>POST .../email-config/test</code> (ya implementados). El campo de API
+  key nunca precarga el secreto (placeholder "configurada"); dejarlo en blanco
+  en un PUT conserva la credencial existente (comportamiento ya implementado en
+  el backend). Barra de consumo y snapshot del proveedor vienen de
+  <code>daily_used</code>/<code>monthly_used</code>/<code>provider_snapshot</code>
+  (R7, ya implementado esta sesión). Selector de proveedor deshabilitado en
+  Fase 1 (solo Resend, D3) — se habilita cuando se agregue SMTP/otros
+  adaptadores (Fase 2, on-demand).
+</div>
+
+</body>
+</html>

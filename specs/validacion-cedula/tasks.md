@@ -10,5 +10,5 @@
 
 ## Pendiente
 
-- [ ] **T4** `tests/test_cedula.py`: suite completa R7 — válidas por provincia, verificador incorrecto, longitud, no numérica, provincias inválidas, provincia 30, tercer dígito ≥ 6
-- [ ] **T5** Test de integración: firma nacional con cédula inválida → error; internacional con id libre → acepta
+- [x] **T4** `tests/test_cedula.py`: suite completa R7 — válidas por provincia, verificador incorrecto, longitud, no numérica, provincias inválidas, provincia 30, tercer dígito ≥ 6. Ya estaba commiteado (`c99c445`) — esta spec no lo reflejaba.
+- [x] **T5** `tests/test_validacion_cedula_integracion.py` (sesión 38): `create_signature` real contra DB — nacional sin cédula → `cedula_requerida`; nacional con verificador incorrecto → `cedula_invalida`; nacional válida → firma creada; internacional con identificación libre no numérica → acepta sin validar. Suite completa: 171 passed (167 previos + 4 nuevos).

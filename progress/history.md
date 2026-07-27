@@ -3,6 +3,125 @@
 
 ---
 
+## 2026-07-27 — Sesión 40: centro-comunicaciones Fase 1 frontend + Fase 2 completas
+
+Sesión larga de implementación pura. Se cerró todo lo que sesión 39 había
+dejado pendiente de `centro-comunicaciones`: el frontend de la Fase 1 (la
+pieza más grande) y toda la Fase 2 (subida de imágenes), backend + frontend.
+Todo verificado con pytest y con navegador real (Playwright) — varios bugs
+reales encontrados y corregidos en la verificación.
+
+**Fase 1 frontend**: página nueva `/admin/campanas/[id]/comunicaciones` —
+tipo de envío con badge de clase LOPDP, editor visual/código (soporte de
+enlaces agregado a `RichTextEditor.tsx` compartido), CTA(s)+redes, audiencia
+con checkboxes (guard anti-grupo-vacío) + conteo en vivo + cuota,
+preview/prueba/confirmación de envío real, autosave local. Endpoint nuevo no
+previsto en el diseño original: `GET .../comms/quota` con scope de campaña
+(el existente es `platform_admin`-only, pero un `gestor` también necesita
+verla). El popup `AdherentCommsModal` se mantiene — tiene campos
+estructurados que el frame nuevo no reconstruye, decisión de retirarlo
+pendiente del usuario. Bug real corregido: hydration mismatch de React
+(`useDraft` leía `localStorage` en el inicializador de `useState`). A pedido
+del usuario, se sumaron botones de acceso directo desde el editor de campaña
+y desde firmas.
+
+**Fase 2 (subida de imágenes)**: migración 039 (`comms_upload`, RLS),
+sniffing de imagen por firma de bytes (sin `python-magic`/libmagic — evita
+instalar paquetes de sistema con el contenedor sin red), endpoint de subida +
+`GET /media/` público con cache inmutable, volumen persistente en
+docker-compose (dev y prod), botón "Añadir medios" en el editor vía ref
+imperativo de TipTap. Se corrigió `_uploads_origin()` (apuntaba al frontend
+en vez de a la API, que es quien sirve las imágenes). 11 tests nuevos
+(sniff, tamaño, aislamiento RLS entre orgs). Dos bugs más corregidos en la
+verificación: CORS sin `Authorization` en `allow_headers` (ensanche
+inofensivo, resultó ser falso positivo del propio script de prueba) y CSP
+`img-src` sin la excepción dev para `localhost:8011` que `connect-src` ya
+tenía (las imágenes no se veían en dev aunque el backend estaba bien).
+
+**Infraestructura**: el contenedor `petition-api-dev` volvió a quedarse sin
+red — `nh3` se perdió otra vez al recrear el contenedor para el volumen
+nuevo (el fix de sesión 39 vivía en la capa efímera, no en la imagen);
+mismo patrón de wheel-en-host-copiado-al-contenedor. El build del contenedor
+web también falló (`corepack prepare pnpm` sin red) al agregar
+`@tiptap/extension-link`/`@tiptap/extension-image`; se resolvió con `pnpm
+install` en el host + copiar el paquete resuelto al store del contenedor +
+symlink manual. `git fetch` siguió fallando toda la sesión (mismo timeout
+SSH que en sesión 39). Pendiente de coordinar con el usuario: subir
+`client_max_body_size` de nginx a 25M para que los uploads grandes funcionen
+en producción (no tocado, regla del proyecto).
+
+Suite completa: **201 passed** (190 al cierre de sesión 39).
+
+---
+
+## 2026-07-26 — Sesión 39: sidebar + validación-cédula cerrados, config-email-org Fase 1 completa, centro-comunicaciones Fase 1 backend
+
+Sesión larga de implementación pura (sin cambios de spec), todo verificado
+con tests y con HTTP/navegador real (Playwright).
+
+**`admin-sidebar-colapsable`**: implementada y verificada. Bug real
+encontrado en la verificación (no al escribir el código): el ancho inline de
+React le ganaba en especificidad a la regla CSS de colapso — el toggle no
+hacía nada visualmente hasta corregirlo (clase Tailwind en vez de `style`).
+
+**`validacion-cedula`**: spec retroactiva (sesión 24) — la lógica ya vivía en
+producción; `test_cedula.py` ya estaba commiteado sin que `tasks.md` lo
+reflejara. Solo faltaba el test de integración contra `create_signature` real.
+
+**`config-email-org` Fase 1 completa**: contador de cuota Redis por
+credencial (provider-agnóstico + snapshot de headers Resend), rate limit del
+endpoint de test, alta de organización materializa su `org_email_config`
+inicial (sin credenciales por seguridad), y el frontend (card en perfil de
+org, con mockup aprobado primero). Bug de UX corregido: la pill no debe decir
+"configurada" solo porque existe una fila de config sin credenciales reales.
+Bug de infraestructura descartado con evidencia: los 500 intermitentes al
+crear organizaciones eran una carrera con el `--reload` del dev server, no un
+bug real (7/7 éxitos seguidos sin ediciones de por medio).
+
+**`centro-comunicaciones` Fase 1 backend**: `comms_service.py` (sanitización
+`nh3`, segmentación por clase LOPDP R8-R11, armado de HTML con CTA+redes) + 3
+endpoints en `campaigns.py` (recipients/count, preview, send) + 13 tests.
+Remitente y cuota resueltos por `config-email-org`, nunca definidos en el
+centro. Falta el frontend (TipTap + audiencia + preview), la parte más
+grande de la Fase 1.
+
+**Infraestructura**: el contenedor `petition-api-dev` se quedó sin salida a
+internet a mitad de sesión (bloqueó `pip install nh3` y, brevemente,
+`git fetch` en el host) — se resolvió instalando `nh3` desde un wheel
+descargado en el host (que sí tenía red) y copiado al contenedor; luego el
+usuario reconectó la red general y todo volvió a la normalidad.
+
+Suite completa: **190 passed** (era 171 al cierre de sesión 38).
+
+`progress/current.md`/`history.md` de sesión 38 habían quedado redactados sin
+commitear — se reescribieron con el estado real de ambas sesiones juntas.
+
+---
+
+## 2026-07-26 — Sesión 38: cierre de sesión 37 — 5 commits + PR #18 mergeado a main
+
+Sesión corta de cierre. Todo el trabajo que sesión 37 había dejado sin
+commitear en el working tree de `dev` (specs + embudo-post-firma + fundación
+de config-email-org) se dividió en **5 commits lógicos**: fix `_social_href`,
+`embudo-post-firma` (migración 036, con `git add -p` para separar el hunk de
+`_social_href` del refactor de `_send` que compartían el mismo archivo),
+núcleo backend de `config-email-org` (migración 038), specs nuevas, y cierre
+de sesión 37. El commit de embudo se hizo primero sin título por error
+(`82d9607`) — corregido con `git commit --amend` antes de push.
+
+Hallazgo al armar el PR: `origin/main` ya tenía mergeado el PR #17 con todo lo
+de sesión 36 (`99aea11`), contradiciendo la nota de `current.md` de sesión 37
+que decía "pendientes de PR a main" — el PR de esta sesión solo necesitó
+cubrir los 5 commits nuevos.
+
+El usuario abrió y mergeó **PR #18** (`dev`→`main`, `753641d`), que dispara
+`deploy.yml` a producción. **No verificado en esta sesión** si el deploy
+corrió bien en el VPS ni si Alembic llegó a `038` en producción — primer
+pendiente de la próxima sesión, con prioridad por el fix de RLS (`037`) que
+corrige un bug activo.
+
+---
+
 ## 2026-07-24/25 — Sesión 37: diseño SDD de 4 features + implementación de embudo-post-firma y del backend de config-email-org
 
 Sesión larga de diseño e implementación. Al inicio se confirmó que el deploy de

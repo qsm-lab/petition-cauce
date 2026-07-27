@@ -17,6 +17,7 @@ from app.routers import admin_signatures
 from app.routers import categories, privacy_policies, organizaciones
 from app.routers import admin_retention
 from app.routers import arco
+from app.routers import media
 from app.scheduler import start_scheduler, shutdown_scheduler
 
 
@@ -45,7 +46,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Cookie"],
+    allow_headers=["Content-Type", "Cookie", "Authorization"],
 )
 
 app.include_router(auth.router, prefix="/v1/auth", tags=["auth"])
@@ -62,6 +63,7 @@ app.include_router(privacy_policies.router, prefix="/v1/admin", tags=["privacy-p
 app.include_router(organizaciones.router, prefix="/v1/admin", tags=["organizaciones"])
 app.include_router(admin_retention.router, prefix="/v1/admin", tags=["admin-retention"])
 app.include_router(arco.router, prefix="/v1/arco", tags=["arco"])
+app.include_router(media.router, prefix="/media", tags=["media"])
 
 
 @app.get("/health", tags=["health"])

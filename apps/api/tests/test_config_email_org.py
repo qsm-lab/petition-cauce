@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.crypto import PIIDecryptError, decrypt_secret, encrypt_secret
+from app.redis_client import close_redis, init_redis
 from app.services.email_transport import (
     EmailMessage,
     ResendTransport,
@@ -129,7 +130,9 @@ from app.database import AsyncSessionLocal  # noqa: E402
 from app.models.org_email_config import OrgEmailConfig  # noqa: E402
 from app.models.organization import Organization  # noqa: E402
 from app.schemas.org_email_config import OrgEmailConfigUpdate  # noqa: E402
+from app.schemas.organization import OrganizationCreate  # noqa: E402
 from app.services.org_email_config_service import OrgEmailConfigService, to_response  # noqa: E402
+from app.services.organization_service import OrganizationService  # noqa: E402
 
 
 @pytest.fixture
@@ -152,14 +155,16 @@ async def _make_org(db) -> Organization:
 async def test_upsert_cifra_credenciales_y_no_las_expone(db):
     """R3: la credencial se guarda cifrada (sec:v1:) y la respuesta no la expone."""
     org = await _make_org(db)
+    await init_redis()  # to_response lee el contador de cuota (R7)
     try:
         data = OrgEmailConfigUpdate(provider="resend", api_key="re_secreta_123", plan="pro",
                                     default_from="hola@acme.org", allowed_domains=["acme.org"])
         cfg = await OrgEmailConfigService.upsert(db, org.id, data, created_by=None)
         assert cfg.credentials_encrypted.startswith("sec:v1:")
         assert "re_secreta_123" not in cfg.credentials_encrypted
-        resp = to_response(cfg)
+        resp = await to_response(cfg)
         assert resp.has_credentials is True
+        assert resp.daily_used == 0
         # el schema de respuesta no tiene ningún campo de credencial
         assert "re_secreta_123" not in resp.model_dump_json()
         # update sin api_key conserva la credencial existente
@@ -167,6 +172,30 @@ async def test_upsert_cifra_credenciales_y_no_las_expone(db):
             db, org.id, OrgEmailConfigUpdate(provider="resend", plan="free"), created_by=None)
         assert cfg2.credentials_encrypted == cfg.credentials_encrypted
         assert cfg2.plan == "free"
+    finally:
+        await close_redis()
+        await db.execute(sa_delete(OrgEmailConfig).where(OrgEmailConfig.org_id == org.id))
+        await db.execute(sa_delete(Organization).where(Organization.id == org.id))
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_alta_de_organizacion_materializa_email_config(db):
+    """R2b/D4: crear una org materializa su org_email_config (provider default
+    Resend, dominio declarado en allowed_domains), sin credenciales ni
+    default_from (cae al default de plataforma hasta que se configure)."""
+    suffix = uuid.uuid4().hex[:8]
+    data = OrganizationCreate(
+        name=f"Org Alta {suffix}", slug=f"org-alta-{suffix}", domain="acme.org",
+    )
+    org = await OrganizationService.create_organization(db, data)
+    try:
+        cfg = await OrgEmailConfigService.get(db, org.id)
+        assert cfg is not None
+        assert cfg.provider == "resend"
+        assert cfg.allowed_domains == ["acme.org"]
+        assert cfg.credentials_encrypted is None
+        assert cfg.default_from is None
     finally:
         await db.execute(sa_delete(OrgEmailConfig).where(OrgEmailConfig.org_id == org.id))
         await db.execute(sa_delete(Organization).where(Organization.id == org.id))

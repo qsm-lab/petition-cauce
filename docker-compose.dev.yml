@@ -54,6 +54,7 @@ services:
       - .env.dev
     volumes:
       - ./apps/api:/app
+      - ./apps/api/data/uploads:/data/uploads
     depends_on:
       petition-db-dev:
         condition: service_healthy
