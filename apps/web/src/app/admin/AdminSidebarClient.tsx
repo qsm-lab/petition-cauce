@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -17,9 +18,36 @@ type Props = {
   userInitials: string;
 };
 
+const SIDEBAR_STORAGE_KEY = "admin.sidebar.collapsed";
+const SHELL_ID = "admin-shell";
+
 export function AdminSidebarClient({ navItems, userName, userEmail, userInitials }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
+
+  // El script inline en layout.tsx ya aplicó el estado visualmente (vía atributo
+  // data-collapsed) antes del primer paint; esto solo sincroniza el estado de
+  // React para aria-expanded/aria-label — no produce parpadeo porque la parte
+  // visual ya estaba correcta.
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true");
+    } catch {
+      // localStorage no disponible (modo privado, etc.) — se mantiene expandido
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+    } catch {
+      // no persiste, pero el toggle sigue funcionando en la sesión actual
+    }
+    document.getElementById(SHELL_ID)?.setAttribute("data-collapsed", String(next));
+  }
 
   async function handleLogout() {
     await logout();
@@ -28,27 +56,51 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
 
   return (
     <aside
-      className="flex flex-col h-screen overflow-y-auto flex-shrink-0"
-      style={{ width: "220px", backgroundColor: "var(--bink)" }}
+      className="admin-sidebar w-[220px] flex flex-col h-screen overflow-y-auto flex-shrink-0"
+      style={{ backgroundColor: "var(--bink)" }}
     >
-      {/* Logo */}
+      {/* Logo + toggle */}
       <div
-        className="px-[18px] pt-5 pb-4"
+        className="px-[18px] pt-5 pb-3"
         style={{ borderBottom: "1px solid rgba(255,255,255,.07)" }}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="admin-sidebar-brand flex items-center gap-2.5 mb-3">
           <span
             className="w-[30px] h-[30px] flex items-center justify-center rounded-[9px] flex-shrink-0"
             style={{ backgroundColor: "#D7F24C" }}
           >
             <span className="font-display text-[16px] leading-none" style={{ color: "#16261F" }}>C</span>
           </span>
-          <span className="text-[14px] text-white leading-tight">
+          <span className="admin-sidebar-brand-text text-[14px] text-white leading-tight">
             {/* "+" en Poppins semibold un 20% más grande; el resto en Anton */}
             <span style={{ fontFamily: "var(--font-poppins, 'Poppins', sans-serif)", fontWeight: 600, fontSize: "1.2em" }}>+</span>
             <span style={{ fontFamily: "var(--font-anton, 'Anton', sans-serif)", fontWeight: 400 }}>Cauces.org</span>
           </span>
         </div>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
+          title={collapsed ? "Expandir menú" : "Contraer menú"}
+          className="flex items-center justify-center w-[34px] h-[30px] rounded-[9px] text-white/70 hover:text-white transition-colors flex-shrink-0"
+          style={{ border: "1px solid rgba(255,255,255,.2)" }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="9" y1="4" x2="9" y2="20" />
+          </svg>
+        </button>
       </div>
 
       {/* Nav */}
@@ -62,7 +114,9 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
                 <Link
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-[10px] text-[13px] w-full transition-colors duration-100 ${
+                  aria-label={item.label}
+                  title={item.label}
+                  className={`admin-sidebar-nav-item flex items-center gap-3 rounded-[10px] text-[13px] w-full transition-colors duration-100 ${
                     isActive ? "font-bold" : "font-medium text-white/55 hover:text-white/85"
                   }`}
                   style={{
@@ -74,7 +128,7 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
                   <span className="flex-shrink-0 w-[15px] h-[15px] flex items-center justify-center" aria-hidden="true">
                     {item.icon}
                   </span>
-                  {item.label}
+                  <span className="admin-sidebar-label">{item.label}</span>
                 </Link>
               </li>
             );
@@ -84,7 +138,7 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
 
       {/* User footer */}
       <div
-        className="px-4 py-3.5 flex items-center gap-2.5"
+        className="admin-sidebar-user px-4 py-3.5 flex items-center gap-2.5"
         style={{ borderTop: "1px solid rgba(255,255,255,.07)" }}
       >
         <div
@@ -95,7 +149,7 @@ export function AdminSidebarClient({ navItems, userName, userEmail, userInitials
             {userInitials}
           </span>
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="admin-sidebar-user-info flex-1 min-w-0">
           <p className="text-[12.5px] font-semibold text-white truncate">{userName}</p>
           <p className="truncate text-[10.5px] text-white/40">{userEmail}</p>
         </div>

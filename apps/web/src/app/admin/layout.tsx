@@ -100,7 +100,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials = getInitials(user?.full_name, user?.email);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--bbg)" }}>
+    <div
+      id="admin-shell"
+      className="flex h-screen overflow-hidden"
+      style={{ backgroundColor: "var(--bbg)" }}
+      suppressHydrationWarning
+    >
+      {/* Aplica el estado de colapso guardado ANTES del primer paint, para evitar
+          parpadeo (R4): se ejecuta de forma síncrona mientras el parser procesa
+          el HTML, antes de que React hidrate. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "(function(){try{if(localStorage.getItem('admin.sidebar.collapsed')==='true'){document.getElementById('admin-shell').setAttribute('data-collapsed','true');}}catch(e){}})();",
+        }}
+      />
       <AdminSidebarClient
         navItems={navItems}
         userName={userName}
