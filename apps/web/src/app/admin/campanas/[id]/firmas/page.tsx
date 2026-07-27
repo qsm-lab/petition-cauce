@@ -150,6 +150,13 @@ export default async function FirmasCampanaPage({ params, searchParams }: PagePr
 
           {data && (
             <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/campanas/${campaignId}/comunicaciones`}
+                className="text-[12.5px] font-semibold px-3.5 py-1.5 rounded-[8px]"
+                style={{ color: "var(--bop)", background: "var(--bp)" }}
+              >
+                Comunicaciones
+              </Link>
               <ExportCsvButton
                 campaignId={campaignId}
                 total={data.total}
