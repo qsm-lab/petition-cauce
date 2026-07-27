@@ -17,6 +17,8 @@ services:
       - petition_cause_network
     env_file:
       - .env
+    volumes:
+      - petition_uploads_data:/data/uploads
     depends_on:
       petition-db:
         condition: service_healthy
@@ -82,3 +84,4 @@ services:
 volumes:
   petition_db_data:
   petition_redis_data:
+  petition_uploads_data:

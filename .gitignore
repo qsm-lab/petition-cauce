@@ -31,6 +31,9 @@ node_modules/
 # Docker
 *.log
 
+# Uploads locales del centro de comunicaciones (bind mount dev, no versionar)
+apps/api/data/uploads/
+
 # macOS
 .DS_Store
 .AppleDouble
