@@ -52,6 +52,12 @@ en producción (no tocado, regla del proyecto).
 
 Suite completa: **201 passed** (190 al cierre de sesión 39).
 
+**Cierre**: 6 commits (`3fc4908`…`eb35b94`), PR #19 (`dev` → `main`)
+mergeado (`67b9641`), deploy corrido. Verificado desde este entorno tras el
+deploy: web 200, `/api/health` OK, ruta `/media` responde. `git fetch` volvió
+a funcionar al final (la falla de red de toda la sesión era del contenedor,
+no del host) y confirmó `dev` == `origin/main` sin divergencia.
+
 ---
 
 ## 2026-07-26 — Sesión 39: sidebar + validación-cédula cerrados, config-email-org Fase 1 completa, centro-comunicaciones Fase 1 backend

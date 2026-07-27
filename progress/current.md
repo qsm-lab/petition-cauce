@@ -9,19 +9,21 @@ backend + frontend. Todo verificado con tests (pytest) y con HTTP/navegador
 real (Playwright) — varios bugs reales encontrados y corregidos en la
 verificación, no solo revisados en la cabeza (ver abajo).
 
-## Estado de git
+## Estado de git — CERRADO
 
-`dev` local sigue en `fd9e55c` (cierre de sesión 39) al **inicio** de esta
-sesión — no se commiteó nada. Todo el trabajo de esta sesión está en el
-working tree, pendiente de los commits que el usuario hace manualmente al
-cierre (ver `progress/commits-sesion-40.md` si se generó, o el mensaje de
-cierre de la conversación con los drafts).
+`dev` local partió de `fd9e55c` (cierre de sesión 39). El trabajo de esta
+sesión se dividió en **6 commits** (`3fc4908`…`eb35b94`), el usuario los
+commiteó manualmente, abrió **PR #19** (`dev` → `main`) y lo mergeó
+(`67b9641`). `git fetch` volvió a funcionar al cierre (la falla de red de
+toda la sesión — ver abajo — era del contenedor, no del host) y confirmó
+`origin/main` == `dev` local (sin divergencia).
 
-**`git fetch` no funcionó en ningún momento de esta sesión** (timeout SSH a
-github.com, igual que al cierre de sesión 39 y a mitad de esa sesión) — no se
-pudo confirmar si `origin/dev`/`origin/main` cambiaron desde otra máquina.
-Revisar con `git fetch origin` al empezar la próxima sesión antes de asumir
-que `dev` local sigue sincronizado.
+**Producción verificada arriba y sana** tras el deploy: `GET
+https://cauce.ecuadornotlc.org/` → 200, `GET .../api/health` → `{"status":
+"ok","db":"ok","redis":"ok"}`, `GET .../api/media/<uuid>/<uuid>/<uuid>.png`
+(inexistente) → 404 esperado (confirma que el router `media` está vivo). No
+se verificó `alembic current` en prod directamente (sin acceso SSH desde este
+entorno) — pendiente para el próximo `git fetch`/sesión con acceso al VPS.
 
 Alembic dev pasó de **038** a **039** (head) — migración nueva de
 `centro-comunicaciones` Fase 2 (`comms_upload`, con RLS).
@@ -170,10 +172,16 @@ mientras se depuraba el test de RLS) se borró antes de cerrar la sesión.
 
 ## Datos producción
 
-Sin cambios esta sesión — nada de lo implementado está desplegado todavía
-(ni commiteado a `dev`). Antes del próximo deploy: **rebuild real** de ambas
-imágenes (para bakear `nh3`, `@tiptap/extension-link`,
-`@tiptap/extension-image` correctamente) y aplicar la migración `039`.
+**Desplegado.** PR #19 mergeado a `main` (`67b9641`), deploy corrido (GitHub
+Actions, `main` → VPS). Verificado desde este entorno: web 200, `/api/health`
+OK, ruta `/media` responde (404 esperado para archivo inexistente). El deploy
+de producción usa `docker compose up -d --build` con red real (no los
+parches manuales de esta sesión), así que `nh3` y los paquetes de tiptap
+deberían haber quedado bakeados correctamente en la imagen — no verificado
+directamente (sin acceso SSH desde este entorno), pero consistente con que
+`requirements.txt`/`package.json` ya estaban corregidos antes del PR.
+Falta confirmar `alembic current` en prod (`039` esperado) en la próxima
+sesión con acceso al VPS.
 
 ## Pendientes para la próxima sesión
 
@@ -191,22 +199,22 @@ imágenes (para bakear `nh3`, `@tiptap/extension-link`,
 4. **nginx**: subir `client_max_body_size` a 25M en `location /api/` de
    `cauce.ecuadornotlc.org.conf` antes de que uploads grandes funcionen en
    producción — requiere OK explícito del usuario (regla del proyecto).
-5. Confirmar en el VPS que el deploy de PR #18 (sesión 38) corrió bien y que
-   `alembic current` en producción está en `038` (antes de esta sesión) —
-   sigue sin verificarse desde sesión 38.
-6. Al hacer el próximo deploy: rebuild real (no incremental) para que los
-   parches manuales de esta sesión (`nh3`, paquetes de tiptap) queden
-   bakeados en la imagen — un `docker compose up -d --build` normal con red
-   ya alcanza, no hace falta nada especial más allá de tener red.
+5. Confirmar `alembic current` en producción (`039` esperado tras el deploy
+   de PR #19) — no verificable desde este entorno, sin acceso SSH. De paso
+   confirmar también el `alembic current` de PR #18 (sesión 38, `038`), que
+   quedó sin verificar en su momento y nunca se retomó.
+6. ~~Rebuild real para bakear los parches manuales de esta sesión~~ — hecho:
+   el deploy de PR #19 usó `docker compose up -d --build` con red real en el
+   VPS (GitHub Actions), no los parches manuales de esta sesión.
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # por si el daemon se cayó
-git checkout dev && git status                    # debería estar limpio tras los commits de cierre
-git fetch origin                                   # venía fallando toda esta sesión — reintentar
-git log --oneline origin/main..dev                 # vacío si ya se hizo PR + merge
-docker exec petition-api-dev alembic current       # 039 en dev; verificar prod aparte (sigue en 038)
-docker exec petition-api-dev python -c "import nh3; print('ok')"   # confirmar que sigue instalado
+git checkout dev && git status                    # debería estar limpio, dev == origin/main
+git fetch origin                                   # confirmar que sigue funcionando
+git log --oneline origin/main..dev                 # vacío si no hay trabajo nuevo sin PR
+docker exec petition-api-dev alembic current       # 039 en dev
+docker exec petition-api-dev python -c "import nh3; print('ok')"   # confirmar que sigue instalado (dev)
 docker exec petition-web-dev node -e "console.log(require.resolve('@tiptap/extension-image'))"  # ídem
 ```
