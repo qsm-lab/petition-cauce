@@ -11,8 +11,14 @@ from app.schemas.campaign import (
     LifecycleStageUpdate, NotifySignersRequest, AdminCampaignDetailResponse,
     LifecycleEventOut, EventInvitationRequest, ClosingNotificationRequest,
 )
+from app.schemas.comms import CommsPreviewRequest, CommsSendRequest, RecipientsCountRequest
 from app.services.campaign_service import CampaignService
+from app.services.comms_service import (
+    AudienceFilter, CtaButton, InvalidCommsType, build_comms_email_html,
+    count_recipients, get_recipients, sanitize_comms_html,
+)
 from app.services.email_service import (
+    _send,
     send_lifecycle_admin_notification,
     send_lifecycle_org_notification,
     send_lifecycle_signer_notification,
@@ -21,10 +27,40 @@ from app.services.email_service import (
     _build_delivery_event_invitation_html,
     _build_campaign_closing_html,
 )
+from app.services.email_quota import PLATFORM_QUOTA_KEY
+from app.services.email_transport import platform_transport, resolve_sender, transport_from_config
+from app.services.org_email_config_service import OrgEmailConfigService
 from app.services.signature_service import get_signature_count
 from app.models.user import User
 from app.models.campaign import Campaign as CampaignModel
 from app.models.form import Form as FormModel
+
+_COMMS_HEADING = {
+    "general": "Novedades de la campaña",
+    "invitation": "Invitación",
+    "closing": "Aviso de cierre",
+}
+
+
+def _audience_filter(a) -> AudienceFilter:
+    return AudienceFilter(
+        include_confirmed=a.include_confirmed,
+        include_pending=a.include_pending,
+        signer_types=a.signer_types,
+        locations=a.locations,
+        visibilities=a.visibilities,
+    )
+
+
+async def _resolve_campaign_email_context(db: AsyncSession, campaign: CampaignModel, org):
+    """Transporte + remitente + clave de cuota resueltos por config-email-org
+    (R16, R17) — el centro nunca define proveedor/credenciales propias."""
+    cfg = await OrgEmailConfigService.get(db, campaign.org_id)
+    active_cfg = cfg if (cfg and cfg.status == "active") else None
+    transport = transport_from_config(active_cfg) if active_cfg else platform_transport()
+    sender = resolve_sender(campaign.meta, active_cfg, org)
+    quota_key = str(active_cfg.id) if active_cfg else PLATFORM_QUOTA_KEY
+    return transport, sender, quota_key
 
 router = APIRouter()
 
@@ -360,6 +396,109 @@ async def send_closing_notification(
         org_logo_url=(org.logo_url or "") if org else "",
     )
     return {"sent_count": sent_count, "final_count": final_count, "mode": "test" if data.test_emails else "real"}
+
+
+# ── Centro de comunicaciones (centro-comunicaciones, Fase 1) ─────────────────
+
+@router.post("/{campaign_id}/comms/recipients/count")
+async def comms_recipients_count(
+    campaign_id: str,
+    data: RecipientsCountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R10: conteo en vivo del segmento seleccionado."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    try:
+        count = await count_recipients(db, campaign.id, data.type, _audience_filter(data.audience))
+    except InvalidCommsType:
+        raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+    return {"count": count}
+
+
+@router.post("/{campaign_id}/comms/preview")
+async def comms_preview(
+    campaign_id: str,
+    data: CommsPreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R7: vista previa real — mismo armado de HTML que el envío."""
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if data.type not in _COMMS_HEADING:
+        raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+
+    sanitized = sanitize_comms_html(data.body_html)
+    html = build_comms_email_html(
+        org_name=org.name if org else "",
+        org_logo_url=(org.logo_url or "") if org else "",
+        heading=_COMMS_HEADING[data.type],
+        body_html=sanitized,
+        ctas=[CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas],
+        include_social=data.include_social,
+        social_links=campaign.social_links,
+        signer_name="Nombre Apellido",
+    )
+    return {"html": html}
+
+
+@router.post("/{campaign_id}/comms/send")
+@limiter.limit("5/minute")
+async def comms_send(
+    request: Request,
+    campaign_id: str,
+    data: CommsSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """Envío inmediato (real o de prueba) del centro de comunicaciones (Fase 1,
+    sin cola/programación todavía). R16/R17: remitente y cuota resueltos por
+    config-email-org, nunca definidos acá."""
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+    if campaign.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Campaña archivada")
+    if data.type not in _COMMS_HEADING:
+        raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+
+    sanitized = sanitize_comms_html(data.body_html)
+    ctas = [CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas]
+
+    if data.test_emails:
+        recipients = [(email, "Nombre Apellido") for email in data.test_emails]
+    else:
+        recipients = await get_recipients(db, campaign.id, data.type, _audience_filter(data.audience))
+
+    transport, sender, quota_key = await _resolve_campaign_email_context(db, campaign, org)
+
+    sent_count = 0
+    for email, name in recipients:
+        html = build_comms_email_html(
+            org_name=org.name if org else "",
+            org_logo_url=(org.logo_url or "") if org else "",
+            heading=_COMMS_HEADING[data.type],
+            body_html=sanitized,
+            ctas=ctas,
+            include_social=data.include_social,
+            social_links=campaign.social_links,
+            signer_name=name,
+        )
+        ok = await _send(
+            email, data.subject, html,
+            transport=transport, from_=sender["from_"], reply_to=sender["reply_to"],
+            quota_key=quota_key,
+        )
+        if ok:
+            sent_count += 1
+
+    return {
+        "sent_count": sent_count,
+        "recipient_count": len(recipients),
+        "mode": "test" if data.test_emails else "real",
+    }
 
 
 @router.get("/{campaign_id}/qr")

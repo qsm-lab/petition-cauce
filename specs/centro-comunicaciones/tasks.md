@@ -21,21 +21,38 @@
 
 ## Fase 1 — Frame + editor + segmentación + envío inmediato
 
-### Backend
-- [ ] Campos **cosméticos** de remitente en `campaigns`: `sender_from`,
-  `sender_reply_to`, `sender_display_name` (proveedor/plan/credenciales van en
-  `config-email-org`) (R16).
-- [ ] Envío vía `resolve_transport(campaign)` de `config-email-org`; el centro
-  no maneja credenciales (R16, R17). Si `config-email-org` no está lista aún,
-  usar el default de plataforma temporalmente.
-- [ ] `comms_service`: sanitizar HTML del editor (`nh3`, allowlist) + envolver en
-  plantilla email-safe (R6); constructor de segmento → emails (R8–R11) con las
-  reglas por clase (D1); reusar builders de invitación/cierre.
-- [ ] Endpoints: `preview`, `send` (test/real), `recipients/count` (R7,R10);
-  JWT+rol+scope (R2).
-- [ ] Tests: segmentación por clase/estado/visibilidad (incl. exclusión de
-  secretas y bloqueo de anuncios a no-consentidos, R11); sanitización (R6);
-  remitente por campaña (R16).
+### Backend — HECHO (sesión 38)
+- [x] Campos **cosméticos** de remitente en `campaigns`: `sender_from`,
+  `sender_reply_to`, `sender_display_name` — ya existían desde `config-email-org`
+  sesión 37 (proveedor/plan/credenciales van ahí) (R16).
+- [x] Envío vía `resolve_sender`/`transport_from_config`/`platform_transport` de
+  `config-email-org` (`_resolve_campaign_email_context` en `campaigns.py`); el
+  centro no maneja credenciales propias (R16, R17). Cuota contada por
+  credencial vía `email_quota` (mismo mecanismo de `config-email-org`).
+- [x] `comms_service.py`: `sanitize_comms_html` (`nh3`, allowlist +
+  `img@src` restringido al dominio de uploads — aunque el upload en sí es
+  Fase 2); `build_segment_filters`/`count_recipients`/`get_recipients`
+  (R8–R11, clase fuerza el universo antes de la segmentación, impuesto en
+  backend independientemente de lo que mande el cliente); `build_comms_email_html`
+  (plantilla + CTA(s) editables con normalización de URL + toggle de redes,
+  reusando `_social_icon_links`/`_powered_by_block`/`_PLATFORM_FOOTER_HTML` de
+  `email_service.py`).
+- [x] Endpoints en `campaigns.py`: `POST .../comms/recipients/count`,
+  `.../comms/preview`, `.../comms/send` (test/real, `@limiter.limit("5/minute")`
+  en el envío real) — JWT+rol+scope (mismo patrón que `lifecycle/*`) (R2, R7, R10).
+- [x] Tests (`test_comms_segmentation.py`, 13 passed): sanitización (script/
+  atributos peligrosos/img externa eliminados, tags permitidos preservados);
+  segmentación por clase (anuncios exige notify_updates+confirmed+no-archivada;
+  servicio exige confirmed sin exigir consentimiento, Fase 1 sin tipo
+  "recordatorio" así que pending_confirmation queda fuera para los 3 tipos);
+  secretas nunca cuentan (ni aunque se pidan explícitamente); filtros de
+  tipo/ubicación/visibilidad; CTA(s) + toggle de redes en el HTML armado.
+  Verificado también con HTTP real (conteo, preview, tipo inválido → 400).
+  Suite completa: 190 passed.
+- [ ] Nota pendiente para Fase 3: el "recordatorio de confirmación" (única vía
+  para que `pending_confirmation` reciba algo, R11) no es uno de los 3 tipos
+  de Fase 1 — evaluar si se agrega como 4º tipo o se deja como la feature
+  separada "Recordar a pendientes" que ya existe en dashboard-firmas.
 
 ### Frontend
 - [ ] Página `/admin/campanas/[id]/comunicaciones` + cliente (R1).
