@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from app.config import settings
 from app.dependencies import get_db_with_org, get_current_user
 from app.limiter import limiter
 from app.schemas.campaign import (
@@ -11,11 +12,11 @@ from app.schemas.campaign import (
     LifecycleStageUpdate, NotifySignersRequest, AdminCampaignDetailResponse,
     LifecycleEventOut, EventInvitationRequest, ClosingNotificationRequest,
 )
-from app.schemas.comms import CommsPreviewRequest, CommsSendRequest, RecipientsCountRequest
+from app.schemas.comms import CommsPreviewRequest, CommsQuotaResponse, CommsSendRequest, RecipientsCountRequest
 from app.services.campaign_service import CampaignService
 from app.services.comms_service import (
-    AudienceFilter, CtaButton, InvalidCommsType, build_comms_email_html,
-    count_recipients, get_recipients, sanitize_comms_html,
+    AudienceFilter, CtaButton, InvalidCommsType, UploadRejected, build_comms_email_html,
+    comms_upload_url, count_recipients, get_recipients, sanitize_comms_html, save_comms_upload,
 )
 from app.services.email_service import (
     _send,
@@ -27,7 +28,7 @@ from app.services.email_service import (
     _build_delivery_event_invitation_html,
     _build_campaign_closing_html,
 )
-from app.services.email_quota import PLATFORM_QUOTA_KEY
+from app.services.email_quota import PLATFORM_QUOTA_KEY, get_usage
 from app.services.email_transport import platform_transport, resolve_sender, transport_from_config
 from app.services.org_email_config_service import OrgEmailConfigService
 from app.services.signature_service import get_signature_count
@@ -399,6 +400,65 @@ async def send_closing_notification(
 
 
 # ── Centro de comunicaciones (centro-comunicaciones, Fase 1) ─────────────────
+
+@router.get("/{campaign_id}/comms/quota", response_model=CommsQuotaResponse)
+async def comms_quota(
+    campaign_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R21: cuota del proveedor resuelto por config-email-org, con scope de
+    campaña (a diferencia de GET /organizaciones/{id}/email-config, que es
+    platform_admin-only — un gestor sin ese rol también necesita ver esto)."""
+    campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+
+    cfg = await OrgEmailConfigService.get(db, campaign.org_id)
+    active_cfg = cfg if (cfg and cfg.status == "active") else None
+    transport = transport_from_config(active_cfg) if active_cfg else platform_transport()
+    caps = transport.capabilities()
+    quota_key = str(active_cfg.id) if active_cfg else PLATFORM_QUOTA_KEY
+    usage = await get_usage(quota_key)
+    sender = resolve_sender(campaign.meta, active_cfg, org)
+
+    return CommsQuotaResponse(
+        provider=active_cfg.provider if active_cfg else "resend",
+        plan=(active_cfg.plan if active_cfg and active_cfg.plan else "free"),
+        daily_used=usage["daily_used"],
+        daily_quota=(active_cfg.daily_quota if active_cfg and active_cfg.daily_quota is not None else caps.daily_quota),
+        monthly_used=usage["monthly_used"],
+        monthly_quota=(active_cfg.monthly_quota if active_cfg and active_cfg.monthly_quota is not None else caps.monthly_quota),
+        updated_at=(usage["provider_snapshot"]["updated_at"] if usage["provider_snapshot"] else None),
+        sender=sender["from_"],
+        org_name=org.name if org else "",
+    )
+
+
+@router.post("/{campaign_id}/comms/uploads")
+@limiter.limit("20/minute")
+async def comms_upload(
+    request: Request,
+    campaign_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R4/R19/D2: sube una imagen para insertar en el editor del centro de
+    comunicaciones. Se guarda en el volumen (settings.uploads_dir) y se
+    referencia por URL pública — nunca como adjunto pesado del email."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    data = await file.read(settings.comms_upload_max_bytes + 1)
+    try:
+        upload = await save_comms_upload(
+            db, org_id=campaign.org_id, campaign_id=campaign.id, data=data, created_by=current_user.id,
+        )
+    except UploadRejected as e:
+        if e.reason == "too_large":
+            raise HTTPException(status_code=413, detail="Archivo demasiado grande (máx. 25 MB)")
+        raise HTTPException(status_code=400, detail="Formato no permitido — solo JPG, PNG, WEBP o GIF")
+    return {"id": str(upload.id), "url": comms_upload_url(upload)}
+
 
 @router.post("/{campaign_id}/comms/recipients/count")
 async def comms_recipients_count(

@@ -8,8 +8,10 @@ email-safe de la plataforma.
 """
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass, field
+from typing import Callable
 
 import nh3
 from sqlalchemy import func, or_, select
@@ -17,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.crypto import PIIDecryptError, decrypt_pii
+from app.models.comms_upload import CommsUpload
 from app.models.consent import Consent
 from app.models.signature import Signature
 from app.services.email_service import (
@@ -45,7 +48,11 @@ _ALLOWED_ATTRIBUTES = {
 
 
 def _uploads_origin() -> str:
-    return (settings.next_public_app_url or "").rstrip("/")
+    # settings.api_public_url ya incluye el prefijo /api que nginx proxea
+    # hacia la API en el mismo dominio público (infra/nginx/*.conf) — las
+    # imágenes deben resolver contra ESE origen (el que las sirve), no el del
+    # frontend Next.js.
+    return (settings.api_public_url or "").rstrip("/")
 
 
 def _restrict_img_src(tag: str, attr: str, value: str) -> str | None:
@@ -71,6 +78,73 @@ def sanitize_comms_html(html: str) -> str:
         url_schemes={"http", "https", "mailto"},
         link_rel="noopener noreferrer",
     )
+
+
+# ── Uploads de imágenes del editor (Fase 2, R4/R19) ──────────────────────────
+# Sniffing por firma de bytes (magic numbers) en vez de una librería de MIME
+# genérica (python-magic requiere libmagic del sistema; el contenedor no tenía
+# salida a internet para instalar dependencias nuevas durante esta sesión) —
+# alcanza porque solo se aceptan estos 4 formatos exactos; cualquier otro tipo
+# (incluido SVG, que es texto/XML) simplemente no matchea ninguna firma.
+_IMAGE_SIGNATURES: list[tuple[str, str, Callable[[bytes], bool]]] = [
+    ("jpg", "image/jpeg", lambda d: d[:3] == b"\xff\xd8\xff"),
+    ("png", "image/png", lambda d: d[:8] == b"\x89PNG\r\n\x1a\n"),
+    ("gif", "image/gif", lambda d: d[:6] in (b"GIF87a", b"GIF89a")),
+    ("webp", "image/webp", lambda d: d[:4] == b"RIFF" and d[8:12] == b"WEBP"),
+]
+
+
+def sniff_image(data: bytes) -> tuple[str, str] | None:
+    """Detecta el formato real por firma de bytes. Devuelve (extensión, mime)
+    o None si no matchea ninguno de los 4 formatos permitidos (R19: SVG y
+    cualquier otro tipo quedan rechazados por no tener firma reconocida)."""
+    for ext, mime, matches in _IMAGE_SIGNATURES:
+        if matches(data):
+            return ext, mime
+    return None
+
+
+class UploadRejected(ValueError):
+    def __init__(self, reason: str):
+        self.reason = reason
+        super().__init__(reason)
+
+
+async def save_comms_upload(
+    db: AsyncSession, *, org_id: uuid.UUID, campaign_id: uuid.UUID, data: bytes, created_by: uuid.UUID | None,
+) -> CommsUpload:
+    """Valida tamaño/tipo (R19) y guarda el binario en el volumen del VPS bajo
+    `<org_id>/<campaign_id>/<uuid>.<ext>` (D2) — nombre no adivinable. El
+    binario se escribe sincrónicamente: son archivos chicos (≤25MB) y no hay
+    volumen de tráfico concurrente que justifique aiofiles (dependencia nueva
+    evitable)."""
+    if len(data) > settings.comms_upload_max_bytes:
+        raise UploadRejected("too_large")
+    sniffed = sniff_image(data)
+    if sniffed is None:
+        raise UploadRejected("invalid_type")
+    ext, mime = sniffed
+
+    rel_dir = os.path.join(str(org_id), str(campaign_id))
+    filename = f"{uuid.uuid4()}.{ext}"
+    rel_path = os.path.join(rel_dir, filename)
+    abs_dir = os.path.join(settings.uploads_dir, rel_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+    with open(os.path.join(abs_dir, filename), "wb") as f:
+        f.write(data)
+
+    upload = CommsUpload(
+        org_id=org_id, campaign_id=campaign_id, path=rel_path.replace(os.sep, "/"),
+        mime=mime, bytes=len(data), created_by=created_by,
+    )
+    db.add(upload)
+    await db.commit()
+    await db.refresh(upload)
+    return upload
+
+
+def comms_upload_url(upload: CommsUpload) -> str:
+    return f"{_uploads_origin()}/media/{upload.path}"
 
 
 @dataclass

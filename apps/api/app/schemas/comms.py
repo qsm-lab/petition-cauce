@@ -32,3 +32,18 @@ class CommsPreviewRequest(BaseModel):
 class CommsSendRequest(CommsPreviewRequest):
     audience: AudienceIn = Field(default_factory=AudienceIn)
     test_emails: list[str] = Field(default_factory=list)
+
+
+class CommsQuotaResponse(BaseModel):
+    """R21: consumo de cuota del proveedor resuelto por config-email-org, sin
+    exponer credenciales — accesible a cualquier usuario con scope de la
+    campaña (no solo platform_admin, a diferencia de GET /email-config)."""
+    provider: str
+    plan: str
+    daily_used: int
+    daily_quota: int | None
+    monthly_used: int
+    monthly_quota: int | None
+    updated_at: str | None
+    sender: str
+    org_name: str
