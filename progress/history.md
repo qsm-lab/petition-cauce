@@ -3,6 +3,57 @@
 
 ---
 
+## 2026-07-27 — Sesión 40: centro-comunicaciones Fase 1 frontend + Fase 2 completas
+
+Sesión larga de implementación pura. Se cerró todo lo que sesión 39 había
+dejado pendiente de `centro-comunicaciones`: el frontend de la Fase 1 (la
+pieza más grande) y toda la Fase 2 (subida de imágenes), backend + frontend.
+Todo verificado con pytest y con navegador real (Playwright) — varios bugs
+reales encontrados y corregidos en la verificación.
+
+**Fase 1 frontend**: página nueva `/admin/campanas/[id]/comunicaciones` —
+tipo de envío con badge de clase LOPDP, editor visual/código (soporte de
+enlaces agregado a `RichTextEditor.tsx` compartido), CTA(s)+redes, audiencia
+con checkboxes (guard anti-grupo-vacío) + conteo en vivo + cuota,
+preview/prueba/confirmación de envío real, autosave local. Endpoint nuevo no
+previsto en el diseño original: `GET .../comms/quota` con scope de campaña
+(el existente es `platform_admin`-only, pero un `gestor` también necesita
+verla). El popup `AdherentCommsModal` se mantiene — tiene campos
+estructurados que el frame nuevo no reconstruye, decisión de retirarlo
+pendiente del usuario. Bug real corregido: hydration mismatch de React
+(`useDraft` leía `localStorage` en el inicializador de `useState`). A pedido
+del usuario, se sumaron botones de acceso directo desde el editor de campaña
+y desde firmas.
+
+**Fase 2 (subida de imágenes)**: migración 039 (`comms_upload`, RLS),
+sniffing de imagen por firma de bytes (sin `python-magic`/libmagic — evita
+instalar paquetes de sistema con el contenedor sin red), endpoint de subida +
+`GET /media/` público con cache inmutable, volumen persistente en
+docker-compose (dev y prod), botón "Añadir medios" en el editor vía ref
+imperativo de TipTap. Se corrigió `_uploads_origin()` (apuntaba al frontend
+en vez de a la API, que es quien sirve las imágenes). 11 tests nuevos
+(sniff, tamaño, aislamiento RLS entre orgs). Dos bugs más corregidos en la
+verificación: CORS sin `Authorization` en `allow_headers` (ensanche
+inofensivo, resultó ser falso positivo del propio script de prueba) y CSP
+`img-src` sin la excepción dev para `localhost:8011` que `connect-src` ya
+tenía (las imágenes no se veían en dev aunque el backend estaba bien).
+
+**Infraestructura**: el contenedor `petition-api-dev` volvió a quedarse sin
+red — `nh3` se perdió otra vez al recrear el contenedor para el volumen
+nuevo (el fix de sesión 39 vivía en la capa efímera, no en la imagen);
+mismo patrón de wheel-en-host-copiado-al-contenedor. El build del contenedor
+web también falló (`corepack prepare pnpm` sin red) al agregar
+`@tiptap/extension-link`/`@tiptap/extension-image`; se resolvió con `pnpm
+install` en el host + copiar el paquete resuelto al store del contenedor +
+symlink manual. `git fetch` siguió fallando toda la sesión (mismo timeout
+SSH que en sesión 39). Pendiente de coordinar con el usuario: subir
+`client_max_body_size` de nginx a 25M para que los uploads grandes funcionen
+en producción (no tocado, regla del proyecto).
+
+Suite completa: **201 passed** (190 al cierre de sesión 39).
+
+---
+
 ## 2026-07-26 — Sesión 39: sidebar + validación-cédula cerrados, config-email-org Fase 1 completa, centro-comunicaciones Fase 1 backend
 
 Sesión larga de implementación pura (sin cambios de spec), todo verificado

@@ -1,151 +1,161 @@
-# Estado actual — tras sesión 39 (2026-07-26)
+# Estado actual — tras sesión 40 (2026-07-27)
 
-## Resumen de sesión 39
+## Resumen de sesión 40
 
-Sesión larga de **implementación pura** (sin cambios de spec): se cerraron
-`admin-sidebar-colapsable` y `validacion-cedula`, se completó **toda la Fase 1**
-de `config-email-org` (backend + frontend), y se implementó el **backend
-completo de la Fase 1** de `centro-comunicaciones` (falta el frontend con
-TipTap). Todo verificado con tests (pytest) y con HTTP/navegador real
-(Playwright) — nada quedó "verificado solo en la cabeza".
-
-Al cierre de la sesión anterior (38), `progress/current.md`/`history.md`
-habían quedado redactados pero **sin commitear** — se reescriben acá con el
-estado real (session 38 nunca llegó a tener su propio commit de cierre; este
-commit de docs cubre ambas sesiones).
+Sesión larga de implementación pura (sin cambios de spec): se completó el
+**frontend de la Fase 1** de `centro-comunicaciones` (lo más grande que
+quedaba pendiente de sesión 39) y **toda la Fase 2** (subida de imágenes),
+backend + frontend. Todo verificado con tests (pytest) y con HTTP/navegador
+real (Playwright) — varios bugs reales encontrados y corregidos en la
+verificación, no solo revisados en la cabeza (ver abajo).
 
 ## Estado de git
 
-`dev` local == `origin/dev` == `origin/main` al **inicio** de esta sesión
-(`753641d`, PR #18 ya mergeado). Todo el trabajo de esta sesión está en el
-working tree, pendiente de los commits que se hacen al cierre (ver abajo).
-Alembic dev sigue en **038 (head)** — ninguna feature de esta sesión requirió
-migración nueva (el contador de cuota usa Redis, no Postgres; centro-comunicaciones
-Fase 1 reutiliza `signatures`/`consents` existentes, sin tablas nuevas).
+`dev` local sigue en `fd9e55c` (cierre de sesión 39) al **inicio** de esta
+sesión — no se commiteó nada. Todo el trabajo de esta sesión está en el
+working tree, pendiente de los commits que el usuario hace manualmente al
+cierre (ver `progress/commits-sesion-40.md` si se generó, o el mensaje de
+cierre de la conversación con los drafts).
 
-## Hallazgo de infraestructura: red del contenedor API
+**`git fetch` no funcionó en ningún momento de esta sesión** (timeout SSH a
+github.com, igual que al cierre de sesión 39 y a mitad de esa sesión) — no se
+pudo confirmar si `origin/dev`/`origin/main` cambiaron desde otra máquina.
+Revisar con `git fetch origin` al empezar la próxima sesión antes de asumir
+que `dev` local sigue sincronizado.
 
-Durante la sesión el contenedor `petition-api-dev` **no tenía salida a
-internet** (necesario para `pip install nh3`, la librería de sanitización
-HTML de `centro-comunicaciones`) — se resolvió instalando el wheel manualmente
-(descargado en el host, que sí tenía red, y copiado al contenedor). A mitad de
-sesión el usuario reconectó la red y tanto el host como el contenedor
-recuperaron acceso normal; `nh3==0.2.18` ya está en `requirements.txt`, así
-que el próximo build normal (`docker compose up -d --build` o el deploy) lo
-instala solo, sin curro adicional. Este mismo problema de red bloqueó
-brevemente `git fetch` al inicio de la sesión — se resolvió reconectando.
+Alembic dev pasó de **038** a **039** (head) — migración nueva de
+`centro-comunicaciones` Fase 2 (`comms_upload`, con RLS).
 
----
+## Hallazgo de infraestructura: red del contenedor, otra vez
 
-## 1. `admin-sidebar-colapsable` — implementada y verificada (usuario decide `done`)
+El contenedor `petition-api-dev` volvió a quedarse sin salida a internet en
+algún momento entre el cierre de sesión 39 y el arranque de esta sesión (o
+durante ella — no se pudo precisar el instante exacto). Esto causó dos
+problemas concretos:
 
-Sidebar admin contraíble a solo-iconos con tooltip, toggle con el icono
-estándar de panel lateral, estado en `localStorage` sin parpadeo (script
-inline pre-hydration en `layout.tsx` + `suppressHydrationWarning`),
-transición respetando `prefers-reduced-motion`, responsive (colapso ceñido a
-`@media (min-width:768px)`).
+1. **`nh3` desapareció** al recrear el contenedor `petition-api-dev` para
+   aplicar el volumen de uploads nuevo (`docker compose up -d
+   petition-api-dev`, sin `--build`): el fix manual de sesión 39 vivía en la
+   capa efímera del contenedor viejo, **no en la imagen** (nunca se pudo hacer
+   un build real con `requirements.txt` actualizado). Se resolvió igual que
+   sesión 39: wheel de `nh3` descargado en el host (que sí tiene red) y
+   copiado al contenedor con `docker cp` + `pip install --no-index`.
+2. **`docker compose up -d --build`** para el contenedor web (necesario para
+   instalar `@tiptap/extension-link` y `@tiptap/extension-image` como
+   dependencias reales) **falló** en el paso `corepack prepare pnpm@9.15.9`
+   (sin red). Se resolvió con el mismo patrón: `pnpm install` en el host
+   (que sí tiene red, actualiza `package.json`/`pnpm-lock.yaml` correctamente)
+   y luego copiar el paquete ya resuelto desde el store de pnpm del host al
+   store del contenedor (`docker cp` al directorio `.pnpm/`) + symlink manual
+   en `node_modules/@tiptap/`.
 
-**Bug real encontrado y corregido durante la verificación** (no al escribir
-el código): el ancho `220px` estaba como `style` inline de React, que le
-ganaba en especificidad a la regla CSS de colapso — el toggle visualmente no
-hacía nada. Se pasó a clase Tailwind (`w-[220px]`) para que la regla de
-colapso pueda ganarle por especificidad.
+**Importante para el próximo build real** (deploy o `--build` con red): el
+`package.json`/`pnpm-lock.yaml` y `requirements.txt` ya están correctos — un
+build normal con red instala todo solo, sin curro adicional. Lo que no
+sobrevive son los parches manuales hechos directo en contenedores ya
+corriendo (no están en ninguna imagen todavía).
 
-Verificado con Playwright (login real): toggle expande/colapsa, persiste en
-`localStorage`, **recarga sin parpadeo**, persiste al navegar entre secciones,
-viewport móvil sin cambios, sin errores de consola.
+## 1. `centro-comunicaciones` — Fase 1 frontend completa
 
-Archivos: `AdminSidebarClient.tsx`, `layout.tsx`, `globals.css`.
+La pieza más grande pendiente de sesión 39. Página nueva
+`/admin/campanas/[id]/comunicaciones` (`ComunicacionesClient.tsx`):
 
-## 2. `validacion-cedula` — completada (usuario decide `done`)
+- Selector de tipo (Mensaje general/Invitación/Aviso de cierre) con badge de
+  clase LOPDP (Anuncios/Servicio).
+- Editor con toggle Visual/Código: se reutilizó `RichTextEditor.tsx`
+  (compartido con el editor de campaña) y se le agregó soporte de enlaces
+  (`@tiptap/extension-link`, no existía antes).
+- CTA(s) editables (agregar/quitar, toggle maestro) + toggle de redes
+  sociales.
+- Panel de audiencia con checkboxes ("incluir todos, desmarcar para
+  excluir") + conteo en vivo (debounce 300ms) + badge de cuota. Guard: no se
+  puede desmarcar el último checkbox marcado de un grupo (evita que "grupo
+  vacío" se interprete como "sin restricción" en el backend, que es la
+  semántica real de `AudienceIn` vacío).
+- Preview real + envío de prueba + modal de confirmación antes del envío
+  real.
+- Autosave local de borrador (`useDraft`) — sin persistencia server-side
+  todavía (eso es Fase 3).
+- **Backend nuevo no previsto en el diseño original**: `GET
+  /v1/campaigns/{id}/comms/quota` — el endpoint de cuota existente
+  (`GET /organizaciones/{id}/email-config`) es `platform_admin`-only, pero un
+  `gestor` de campaña también necesita ver la cuota (R21). Se agregó un
+  endpoint de solo lectura con scope de campaña, sin exponer credenciales.
+- El popup `AdherentCommsModal` **se mantiene, no se retira**: tiene campos
+  estructurados (fecha/lugar/mapa de invitación, conteo final de cierre) que
+  el nuevo frame no reconstruye (Fase 1 del centro simplificó los 3 tipos a
+  contenido genérico). Retirarlo es una decisión pendiente del usuario.
 
-Era una **spec retroactiva** (sesión 24): la validación (`crypto.py:verify_cedula`
-+ el gate en `signature_service.create_signature`) ya estaba en producción.
-`test_cedula.py` (T4) ya estaba commiteado (`c99c445`) sin que `tasks.md` lo
-reflejara — otro caso de "verificar antes de confiar en el estado de la spec".
-Solo faltaba T5 (integración): `test_validacion_cedula_integracion.py` — 4
-tests contra `create_signature` real (nacional sin cédula/cédula
-inválida/válida, internacional con id libre).
+**Bug real encontrado y corregido en la verificación**: hydration mismatch de
+React en cada carga de la página — `useDraft` leía `localStorage` dentro del
+inicializador de `useState`, que corre distinto en servidor (sin `window`)
+que en cliente. Se movió la carga a un `useEffect` (post-hidratación).
 
-## 3. `config-email-org` — Fase 1 completa (usuario decide `done`)
+**A pedido del usuario**, se agregaron además botones de acceso directo al
+centro: en el header del editor de campaña (junto a "Guardar cambios"/"Ver
+firmas") y en el header de la página de firmas (junto a los botones de
+exportar).
 
-Sesión 37 había dejado el núcleo backend (transporte Resend, cifrado,
-resolución de remitente, endpoints CRUD). Esta sesión cerró todo lo pendiente:
+## 2. `centro-comunicaciones` — Fase 2 completa (subida de imágenes)
 
-- **R7 — Contador de cuota Redis**: `services/email_quota.py`
-  (`record_usage`/`get_usage`), provider-agnóstico (`mail:quota:<config_id>:
-  <día/mes>`) + snapshot de headers de Resend (`mail:resend-quota:<config_id>`).
-  Conectado en `_send()` (nuevo parámetro `quota_key`) y en `send_test()`.
-  Expuesto en `OrgEmailConfigResponse` (`daily_used`/`monthly_used`/
-  `provider_snapshot`).
-- **R13 — Rate limit** del endpoint de test: `5/minute` (slowapi). Verificado
-  con HTTP real (6º intento → 429).
-- **R2b/D4 — Alta de organización** materializa su `org_email_config` inicial
-  (provider=resend, `allowed_domains=[domain]`) — sin credenciales ni
-  `default_from` por seguridad (evita spoofing en un dominio no autenticado
-  hasta que se configure de verdad).
-- **Frontend**: card nueva "Configuración de email" en el perfil de
-  organización (`OrgEmailConfigCard.tsx`), con **mockup aprobado primero**
-  (`specs/config-email-org/design-export.html`) por regla del proyecto. Bug de
-  UX encontrado y corregido en la verificación: la pill decía "configurada"
-  apenas se creaba la org (por el shell de R2b) aunque no hubiera API key real
-  — ahora depende de `has_credentials`, no de "existe una fila de config".
+- Migración **039**: tabla `comms_upload` (org_id, campaign_id, path, mime,
+  bytes, created_by) con RLS — mismo patrón `NULLIF` que 038.
+- Sniffing de imagen **por firma de bytes** (jpg/png/gif/webp) en vez de
+  `python-magic`/libmagic — sin dependencias nuevas, evitando instalar
+  paquetes de sistema con el contenedor sin red. SVG y cualquier otro tipo no
+  matchean ninguna firma → rechazados sin lógica especial.
+- `POST /v1/campaigns/{id}/comms/uploads`: multipart, ≤25 MB, nombre uuid,
+  rate limit `20/minute`.
+- `GET /media/{org_id}/{campaign_id}/{filename}` — Opción A del design.md
+  (FastAPI sirve el volumen directamente, sin tocar nginx), público sin auth
+  (las imágenes se embeben en emails), cache `immutable`, filename validado
+  contra el patrón exacto que genera el backend (evita path traversal).
+- Volumen persistente: bind mount en dev (`./apps/api/data/uploads`,
+  gitignorado) y named volume en producción (`petition_uploads_data`) en
+  ambos `docker-compose`.
+- Editor: botón "🖼 Añadir medios" (modal drag&drop) inserta la imagen subida
+  por URL vía `RichTextEditorHandle` (ref imperativo nuevo,
+  `@tiptap/extension-image`, gated por `allowImages` — nunca activado en el
+  editor de campaña).
+- Se corrigió `_uploads_origin()` en `comms_service.py`: usaba
+  `settings.next_public_app_url` (el frontend) en vez de
+  `settings.api_public_url` (que ya incluye el prefijo `/api` que nginx
+  proxea hacia la API en el mismo dominio público) — apuntaba al origen
+  equivocado para el `img@src` allowlist de la sanitización.
+- Tests nuevos (`test_comms_upload.py`, 11): sniff por firma (los 4 formatos
+  válidos + SVG/texto plano/extensión disfrazada rechazados), rechazo de
+  tamaño excesivo, guardado correcto en disco+DB, y **aislamiento RLS entre
+  organizaciones**.
 
-**Bug real descartado con evidencia**: varios 500 intermitentes en la
-creación de organizaciones durante las pruebas resultaron ser una carrera con
-el `--reload` del servidor de desarrollo (se disparaba justo cuando se
-editaban archivos), no un bug de la implementación — confirmado con 7/7
-creaciones exitosas seguidas sin ediciones de por medio.
+**Dos bugs reales más encontrados y corregidos en la verificación**:
+1. **CORS**: se agregó `Authorization` a `allow_headers` del
+   `CORSMiddleware` — originado en un hallazgo del agente de verificación que
+   luego resultó ser un falso positivo de su propio script de prueba (el
+   navegador real nunca manda ese header, la app es cookie-only). El fix
+   quedó igual porque es un ensanche inofensivo, no porque fuera la causa real.
+2. **CSP real** (sí confirmado): `img-src` en `next.config.mjs` tenía
+   `'self' data: https:` sin la excepción dev-only para
+   `http://localhost:8011` que `connect-src` ya tenía — las imágenes subidas
+   no se renderizaban visualmente en dev (bloqueadas por CSP) aunque el HTML
+   y el backend estaban perfectamente bien. Se corrigió replicando el mismo
+   patrón dev/prod que ya existía para `connect-src`. Verificado con
+   Playwright real (`naturalWidth` del pixel, no solo presencia del tag
+   `<img>`) tanto en el editor como en la vista previa del email.
 
-Pendiente (no bloqueante para `centro-comunicaciones`): conectar la
-resolución a los ~15 flujos de email legacy, y campos cosméticos de
-remitente en el editor de campaña.
+**Pendiente de coordinar con el usuario**: nginx tiene `client_max_body_size
+10M` en `location /api/` (`infra/nginx/cauce.ecuadornotlc.org.conf`) —
+bloquearía uploads reales cercanos a 25 MB en producción. No se tocó (regla
+del proyecto de no modificar nginx sin pedido explícito).
 
-## 4. `centro-comunicaciones` — Fase 1 backend completa, falta frontend
+## Limpieza de datos de prueba
 
-Feature más grande del proyecto (4 fases). Diseño Claude Design ya aprobado
-en sesión 37 (7 frames, `design-export.html`). Esta sesión implementó **solo
-el backend de la Fase 1** (frame + editor + segmentación + envío inmediato —
-sin imágenes/cola/programación, eso es Fase 2-3):
-
-- `comms_service.py` (nuevo): `sanitize_comms_html` (`nh3`, allowlist
-  anti-XSS, `img@src` restringido al dominio de uploads); `build_segment_filters`
-  /`count_recipients`/`get_recipients` (R8–R11 — la clase LOPDP fuerza el
-  universo antes de la segmentación, impuesto en backend
-  independientemente de lo que mande el cliente: *anuncios* exige
-  `notify_updates`+confirmada+no archivada, *servicio* exige confirmada sin
-  ese consentimiento; secretas nunca se exponen); `build_comms_email_html`
-  (plantilla + CTA(s) editables con normalización de URL + toggle de redes,
-  reusa `_social_icon_links`/`_powered_by_block`/`_PLATFORM_FOOTER_HTML`).
-- 3 endpoints nuevos en `campaigns.py`: `POST .../comms/recipients/count`,
-  `.../comms/preview`, `.../comms/send` (rate limit `5/minute` en el envío
-  real) — remitente y cuota resueltos por `config-email-org`
-  (`_resolve_campaign_email_context`), el centro nunca define credenciales
-  propias (R16/R17).
-- 13 tests nuevos (`test_comms_segmentation.py`). Verificado también con HTTP
-  real (conteo, preview, tipo inválido → 400; el envío real no se pudo probar
-  end-to-end por la falta de red del contenedor en ese momento — la lógica de
-  "solo cuenta como enviado si `_send` devuelve `ok`" ya está cubierta por
-  `test_email_quota.py`).
-
-**Nota pendiente para Fase 3**: el "recordatorio de confirmación" (única vía
-para que `pending_confirmation` reciba algo, R11) no es uno de los 3 tipos de
-Fase 1 — evaluar si se agrega como 4º tipo o se deja como la feature separada
-"Recordar a pendientes" que ya existe en `dashboard-firmas`.
-
-**Lo que falta de Fase 1** (la parte más grande): frontend completo — editor
-TipTap (Visual/Código), bloques CTA + toggle de redes, panel de audiencia con
-checkboxes + conteo en vivo + cuota, preview real, envío de prueba/inmediato,
-autosave local de borrador. Coexistencia con el popup `AdherentCommsModal`
-hasta cubrir los 3 tipos.
-
----
+Toda la data de prueba generada durante la verificación (uploads en disco +
+filas `comms_upload`, organizaciones huérfanas de corridas de test fallidas
+mientras se depuraba el test de RLS) se borró antes de cerrar la sesión.
 
 ## Suite de tests
 
-**190 passed** (171 al cierre de sesión 38 → +4 validación-cédula +5
-email-quota +1 alta-org-materializa-config +13 comms-segmentación, con algún
-ajuste neto — ver `git log` para el detalle exacto por commit).
+**201 passed** (190 al cierre de sesión 39 → +11 `test_comms_upload.py`).
 
 ## Datos dev
 
@@ -154,45 +164,49 @@ ajuste neto — ver `git log` para el detalle exacto por commit).
 | Email admin | `admin@cauce.ec` / `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
 | API | `http://localhost:8011` |
-| Docker | Arriba y sano. |
-| Alembic dev | `038 (head)` — sin cambios esta sesión |
-| Dev limpio | Todas las orgs/campañas de prueba creadas durante la verificación (Playwright + curl) fueron borradas al final de cada bloque. |
+| Docker | Arriba y sano, pero con parches manuales sin bakear en imagen (ver arriba) — un `--build` con red los reemplaza sin curro. |
+| Alembic dev | `039 (head)` |
+| Dev limpio | Toda la data de prueba de esta sesión fue borrada al cierre. |
 
 ## Datos producción
 
-Sin cambios esta sesión — sigue en `753641d` (PR #18, deploy sesión 38),
-alembic `038`. Nada de esta sesión está en producción todavía (ni commiteado
-a `dev` hasta el cierre).
-
----
+Sin cambios esta sesión — nada de lo implementado está desplegado todavía
+(ni commiteado a `dev`). Antes del próximo deploy: **rebuild real** de ambas
+imágenes (para bakear `nh3`, `@tiptap/extension-link`,
+`@tiptap/extension-image` correctamente) y aplicar la migración `039`.
 
 ## Pendientes para la próxima sesión
 
 ### 🟡 Seguir implementando
-1. **`centro-comunicaciones` Fase 1 — frontend**: la pieza más grande que
-   queda. Editor TipTap + panel de audiencia + preview + acciones, siguiendo
-   `design-export.html` (7 frames) al pie de la letra. Considerar arrancar
-   por una vertical slice pequeña (shell del frame + panel de audiencia con
-   conteo en vivo, editor simple sin TipTap todavía) antes de meter TipTap.
-2. Luego, Fases 2–4 de `centro-comunicaciones`: storage de imágenes, cola
-   multi-día + programación + historial, footer de cumplimiento (coordinado
-   con `email-cumplimiento-masivo`, que sigue `pending`).
-3. Pendientes menores de `config-email-org`: conectar la resolución a los
-   ~15 flujos de email legacy (no bloqueante), campos cosméticos de
-   remitente en el editor de campaña.
+1. **`centro-comunicaciones` Fase 3**: programación + cola multi-día +
+   historial (modelos `scheduled_send`/`send_batch`/`send_log` con RLS, loop
+   scheduler en el lifespan, borrador server-side).
+2. Luego Fase 4: remitente por dominio propio (Pro) + footer/desuscripción
+   coordinado con `email-cumplimiento-masivo`.
+3. Decisión pendiente del usuario: ¿retirar `AdherentCommsModal` ya, o
+   esperar a que el centro cubra los campos estructurados de invitación/cierre
+   (probablemente en una fase futura)?
 
-### 🟢 Verificar
-4. Confirmar en el VPS que el deploy de PR #18 (sesión 38) corrió bien y que
-   `alembic current` en producción está en `038` — sigue sin verificarse
-   desde sesión 38.
+### 🟢 Coordinar / verificar
+4. **nginx**: subir `client_max_body_size` a 25M en `location /api/` de
+   `cauce.ecuadornotlc.org.conf` antes de que uploads grandes funcionen en
+   producción — requiere OK explícito del usuario (regla del proyecto).
+5. Confirmar en el VPS que el deploy de PR #18 (sesión 38) corrió bien y que
+   `alembic current` en producción está en `038` (antes de esta sesión) —
+   sigue sin verificarse desde sesión 38.
+6. Al hacer el próximo deploy: rebuild real (no incremental) para que los
+   parches manuales de esta sesión (`nh3`, paquetes de tiptap) queden
+   bakeados en la imagen — un `docker compose up -d --build` normal con red
+   ya alcanza, no hace falta nada especial más allá de tener red.
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # por si el daemon se cayó
 git checkout dev && git status                    # debería estar limpio tras los commits de cierre
-git fetch origin
+git fetch origin                                   # venía fallando toda esta sesión — reintentar
 git log --oneline origin/main..dev                 # vacío si ya se hizo PR + merge
-docker exec petition-api-dev alembic current       # 038 en dev; verificar prod aparte
-docker exec petition-api-dev pip show nh3          # confirmar que sigue instalado (o que el build lo reinstaló)
+docker exec petition-api-dev alembic current       # 039 en dev; verificar prod aparte (sigue en 038)
+docker exec petition-api-dev python -c "import nh3; print('ok')"   # confirmar que sigue instalado
+docker exec petition-web-dev node -e "console.log(require.resolve('@tiptap/extension-image'))"  # ídem
 ```
