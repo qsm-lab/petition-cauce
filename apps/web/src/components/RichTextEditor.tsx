@@ -1,8 +1,11 @@
 "use client";
 
+import { forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Heading from "@tiptap/extension-heading";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 
 interface Props {
@@ -10,6 +13,13 @@ interface Props {
   onChange: (html: string) => void;
   placeholder?: string;
   minHeight?: number;
+  /** Habilita el nodo de imagen (nunca activado en el editor de campaña —
+   * solo lo usa el centro de comunicaciones, que sí tiene subida propia). */
+  allowImages?: boolean;
+}
+
+export interface RichTextEditorHandle {
+  insertImage: (url: string) => void;
 }
 
 function ToolbarButton({
@@ -39,7 +49,10 @@ function ToolbarButton({
   );
 }
 
-export default function RichTextEditor({ value, onChange, placeholder, minHeight = 200 }: Props) {
+const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichTextEditor(
+  { value, onChange, placeholder, minHeight = 200, allowImages = false },
+  ref,
+) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -47,8 +60,17 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         codeBlock: false,
         code: false,
         horizontalRule: false,
+        link: false, // se configura aparte, más abajo — evita registrarla dos veces
       }),
       Heading.configure({ levels: [2, 3] }),
+      Link.configure({
+        openOnClick: false,
+        autolink: false,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+      }),
+      ...(allowImages
+        ? [Image.configure({ HTMLAttributes: { style: "max-width:100%;border-radius:8px;" } })]
+        : []),
       Placeholder.configure({
         placeholder: placeholder ?? "Escribe aquí…",
       }),
@@ -66,7 +88,23 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     },
   });
 
+  useImperativeHandle(ref, () => ({
+    insertImage: (url: string) => {
+      editor?.chain().focus().setImage({ src: url }).run();
+    },
+  }), [editor]);
+
   if (!editor) return null;
+
+  function toggleLink() {
+    if (editor!.isActive("link")) {
+      editor!.chain().focus().unsetLink().run();
+      return;
+    }
+    const url = window.prompt("URL del enlace");
+    if (!url) return;
+    editor!.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  }
 
   return (
     <div>
@@ -137,6 +175,13 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         >
           "
         </ToolbarButton>
+        <ToolbarButton
+          title={editor.isActive("link") ? "Quitar enlace" : "Insertar enlace"}
+          active={editor.isActive("link")}
+          onClick={toggleLink}
+        >
+          🔗
+        </ToolbarButton>
 
         <div className="w-px h-4 mx-1" style={{ background: "var(--bbord)" }} />
 
@@ -184,6 +229,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
           list-style: decimal;
           margin: 6px 0;
         }
+        .petition-rich-editor a {
+          color: var(--bp, #3d6b35);
+          text-decoration: underline;
+        }
         .petition-rich-editor blockquote {
           border-left: 3px solid var(--bp);
           padding-left: 12px;
@@ -202,7 +251,14 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         .petition-rich-editor p + p {
           margin-top: 6px;
         }
+        .petition-rich-editor img {
+          max-width: 100%;
+          border-radius: 8px;
+          margin: 8px 0;
+        }
       `}</style>
     </div>
   );
-}
+});
+
+export default RichTextEditor;

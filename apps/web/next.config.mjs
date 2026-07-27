@@ -10,6 +10,16 @@ const connectSrc = [
   ...(isDev ? ["http://localhost:8011"] : []),
 ].join(" ");
 
+// Imágenes del centro de comunicaciones (GET /media/...) sirven desde la API
+// — mismo origen dev-only que connect-src, por la misma razón (http en dev,
+// https vía /api/ en prod).
+const imgSrc = [
+  "'self'",
+  "data:",
+  "https:",
+  ...(isDev ? ["http://localhost:8011"] : []),
+].join(" ");
+
 const csp = [
   "default-src 'self'",
   // 'unsafe-eval' es necesario para Next.js dev (HMR) y algunos módulos de runtime.
@@ -17,7 +27,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
-  "img-src 'self' data: https:",
+  `img-src ${imgSrc}`,
   `connect-src ${connectSrc}`,
   "frame-src https://challenges.cloudflare.com",
   // Turnstile ejecuta un Web Worker desde blob URL
