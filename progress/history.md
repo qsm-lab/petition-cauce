@@ -3,6 +3,74 @@
 
 ---
 
+## 2026-07-26 — Sesión 39: sidebar + validación-cédula cerrados, config-email-org Fase 1 completa, centro-comunicaciones Fase 1 backend
+
+Sesión larga de implementación pura (sin cambios de spec), todo verificado
+con tests y con HTTP/navegador real (Playwright).
+
+**`admin-sidebar-colapsable`**: implementada y verificada. Bug real
+encontrado en la verificación (no al escribir el código): el ancho inline de
+React le ganaba en especificidad a la regla CSS de colapso — el toggle no
+hacía nada visualmente hasta corregirlo (clase Tailwind en vez de `style`).
+
+**`validacion-cedula`**: spec retroactiva (sesión 24) — la lógica ya vivía en
+producción; `test_cedula.py` ya estaba commiteado sin que `tasks.md` lo
+reflejara. Solo faltaba el test de integración contra `create_signature` real.
+
+**`config-email-org` Fase 1 completa**: contador de cuota Redis por
+credencial (provider-agnóstico + snapshot de headers Resend), rate limit del
+endpoint de test, alta de organización materializa su `org_email_config`
+inicial (sin credenciales por seguridad), y el frontend (card en perfil de
+org, con mockup aprobado primero). Bug de UX corregido: la pill no debe decir
+"configurada" solo porque existe una fila de config sin credenciales reales.
+Bug de infraestructura descartado con evidencia: los 500 intermitentes al
+crear organizaciones eran una carrera con el `--reload` del dev server, no un
+bug real (7/7 éxitos seguidos sin ediciones de por medio).
+
+**`centro-comunicaciones` Fase 1 backend**: `comms_service.py` (sanitización
+`nh3`, segmentación por clase LOPDP R8-R11, armado de HTML con CTA+redes) + 3
+endpoints en `campaigns.py` (recipients/count, preview, send) + 13 tests.
+Remitente y cuota resueltos por `config-email-org`, nunca definidos en el
+centro. Falta el frontend (TipTap + audiencia + preview), la parte más
+grande de la Fase 1.
+
+**Infraestructura**: el contenedor `petition-api-dev` se quedó sin salida a
+internet a mitad de sesión (bloqueó `pip install nh3` y, brevemente,
+`git fetch` en el host) — se resolvió instalando `nh3` desde un wheel
+descargado en el host (que sí tenía red) y copiado al contenedor; luego el
+usuario reconectó la red general y todo volvió a la normalidad.
+
+Suite completa: **190 passed** (era 171 al cierre de sesión 38).
+
+`progress/current.md`/`history.md` de sesión 38 habían quedado redactados sin
+commitear — se reescribieron con el estado real de ambas sesiones juntas.
+
+---
+
+## 2026-07-26 — Sesión 38: cierre de sesión 37 — 5 commits + PR #18 mergeado a main
+
+Sesión corta de cierre. Todo el trabajo que sesión 37 había dejado sin
+commitear en el working tree de `dev` (specs + embudo-post-firma + fundación
+de config-email-org) se dividió en **5 commits lógicos**: fix `_social_href`,
+`embudo-post-firma` (migración 036, con `git add -p` para separar el hunk de
+`_social_href` del refactor de `_send` que compartían el mismo archivo),
+núcleo backend de `config-email-org` (migración 038), specs nuevas, y cierre
+de sesión 37. El commit de embudo se hizo primero sin título por error
+(`82d9607`) — corregido con `git commit --amend` antes de push.
+
+Hallazgo al armar el PR: `origin/main` ya tenía mergeado el PR #17 con todo lo
+de sesión 36 (`99aea11`), contradiciendo la nota de `current.md` de sesión 37
+que decía "pendientes de PR a main" — el PR de esta sesión solo necesitó
+cubrir los 5 commits nuevos.
+
+El usuario abrió y mergeó **PR #18** (`dev`→`main`, `753641d`), que dispara
+`deploy.yml` a producción. **No verificado en esta sesión** si el deploy
+corrió bien en el VPS ni si Alembic llegó a `038` en producción — primer
+pendiente de la próxima sesión, con prioridad por el fix de RLS (`037`) que
+corrige un bug activo.
+
+---
+
 ## 2026-07-24/25 — Sesión 37: diseño SDD de 4 features + implementación de embudo-post-firma y del backend de config-email-org
 
 Sesión larga de diseño e implementación. Al inicio se confirmó que el deploy de
