@@ -15,9 +15,11 @@ from app.models.organization import Organization
 from app.models.signature import Signature
 from app.models.user import User
 from app.services.comms_service import (
-    AudienceFilter, CtaButton, InvalidCommsType, build_comms_email_html,
-    build_segment_filters, count_recipients, get_recipients, sanitize_comms_html,
+    AudienceFilter, CtaButton, InvalidCommsType, MergeContext, RecipientData, build_comms_email_html,
+    build_merge_context, build_segment_filters, count_recipients, get_recipients, render_merge_tags,
+    sanitize_comms_html, unsubscribe_url_for,
 )
+from app.services.signature_service import unsubscribe_by_token, unsubscribe_token
 
 
 # ── Sanitización (R6) ─────────────────────────────────────────────────────
@@ -41,6 +43,41 @@ def test_sanitiza_img_src_fuera_del_dominio_de_uploads():
     html = '<img src="https://evil.com/tracker.png">'
     out = sanitize_comms_html(html)
     assert "evil.com" not in out
+
+
+def test_img_style_se_fuerza_a_valor_seguro_ignorando_el_del_autor():
+    """El estándar de ancho de email (600px) exige que las imágenes sean
+    responsivas — el style se reinyecta con un valor fijo, sin importar lo
+    que traiga el HTML original (ni siquiera si intenta CSS injection)."""
+    from app.config import settings
+    origin = (settings.api_public_url or "").rstrip("/")
+    html = f'<img src="{origin}/media/x.png" style="width:2000px;background:url(evil.com)">'
+    out = sanitize_comms_html(html)
+    assert 'style="max-width:100%;height:auto;display:block;border-radius:8px;margin:8px 0;"' in out
+    assert "2000px" not in out
+    assert "evil.com" not in out
+
+
+def test_img_sin_style_previo_tambien_recibe_el_valor_seguro():
+    from app.config import settings
+    origin = (settings.api_public_url or "").rstrip("/")
+    html = f'<img src="{origin}/media/x.png" alt="x">'
+    out = sanitize_comms_html(html)
+    assert 'style="max-width:100%' in out
+
+
+def test_sanitiza_permite_alineacion_de_texto():
+    out = sanitize_comms_html('<p style="text-align: center">centrado</p><h2 style="text-align:right">der</h2>')
+    assert 'style="text-align:center;"' in out
+    assert 'style="text-align:right;"' in out
+
+
+def test_sanitiza_rechaza_css_arbitrario_en_style():
+    """Solo text-align:left|center|right sobrevive — cualquier otro valor
+    (incluido un intento de inyección) se descarta entero."""
+    out = sanitize_comms_html('<p style="background:url(evil.com);text-align:center">x</p>')
+    assert "evil.com" not in out
+    assert "style=" not in out
 
 
 def test_html_vacio_no_falla():
@@ -82,6 +119,63 @@ def test_redes_sociales_toggle():
     )
     assert "instagram" in con_redes.lower()
     assert "instagram" not in sin_redes.lower()
+
+
+# ── Merge tags <tag> (sin saludo fijo) ──────────────────────────────────────
+
+def test_no_hay_saludo_fijo_en_el_template():
+    html = build_comms_email_html(org_name="Acme", heading="T", body_html="<p>x</p>")
+    assert "Hola" not in html
+
+
+def test_render_merge_tags_sustituye_forma_escapada_del_editor_visual():
+    """El editor visual (TipTap) serializa texto plano tipeado con entidades
+    HTML — <nombre> tipeado como texto normal llega como &lt;nombre&gt;."""
+    ctx = MergeContext(nombre="Ana", nombre_completo="Ana Pérez")
+    out = render_merge_tags("<p>Hola &lt;nombre&gt;, tu nombre completo es &lt;nombre completo&gt;</p>", ctx)
+    assert "Hola Ana," in out
+    assert "Ana Pérez" in out
+    assert "&lt;nombre&gt;" not in out
+
+
+def test_render_merge_tags_sustituye_forma_literal():
+    ctx = MergeContext(nombre="Ana")
+    out = render_merge_tags("<p>Hola <nombre></p>", ctx)
+    assert "Hola Ana" in out
+
+
+def test_render_merge_tags_escapa_el_valor_sustituido():
+    """El nombre de un firmante podría contener caracteres HTML — se escapa
+    antes de insertarse para no poder inyectar markup en el email."""
+    ctx = MergeContext(nombre='<script>alert(1)</script>')
+    out = render_merge_tags("<p>Hola <nombre></p>", ctx)
+    assert "<script>" not in out
+    assert "&lt;script&gt;" in out
+
+
+def test_render_merge_tags_tag_sin_valor_muestra_guion():
+    ctx = MergeContext()
+    out = render_merge_tags("<p>Cédula: <cedula></p>", ctx)
+    assert "Cédula: —" in out
+
+
+def test_build_merge_context_enmascara_cedula_email_telefono():
+    """Mismo patrón que la descarga normal de firmas (admin_signature_service):
+    2 primeros + 3 últimos de cédula, 3 primeros + dominio de email, últimos
+    4 dígitos de teléfono."""
+    from app.crypto import encrypt_pii
+    r = RecipientData(
+        signature_id=uuid.uuid4(), email="juanperez@ejemplo.com", name="Juan Pérez",
+        cedula_encrypted=encrypt_pii("1712345601"), celular_encrypted=encrypt_pii("0991234321"),
+        provincia="Pichincha", country=None, org_name=None, signer_type="natural",
+    )
+    ctx = build_merge_context(r)
+    assert ctx.nombre == "Juan"
+    assert ctx.nombre_completo == "Juan Pérez"
+    assert ctx.cedula == "17XXXXX601"
+    assert ctx.email == "juaXXXXXX@ejemplo.com"
+    assert ctx.telefono == "XXXXXX4321"
+    assert ctx.provincia == "Pichincha"
 
 
 # ── Segmentación (R8-R11), con datos reales en DB ─────────────────────────
@@ -252,3 +346,66 @@ async def test_get_recipients_decifra_email_y_nombre(db):
         assert name == "Ana Pérez"
     finally:
         await _cleanup(db, org, user, camp)
+
+
+# ── Desuscripción (R20) ──────────────────────────────────────────────────────
+
+def test_unsubscribe_token_es_determinista_por_firma():
+    sig_id = uuid.uuid4()
+    assert unsubscribe_token(sig_id) == unsubscribe_token(sig_id)
+    assert unsubscribe_token(sig_id) != unsubscribe_token(uuid.uuid4())
+
+
+def test_unsubscribe_url_incluye_id_y_token():
+    sig_id = uuid.uuid4()
+    url = unsubscribe_url_for(sig_id)
+    assert str(sig_id) in url
+    assert f"token={unsubscribe_token(sig_id)}" in url
+    assert "/v1/public-campaign/signatures/" in url and "/unsubscribe" in url
+
+
+def test_build_comms_email_html_incluye_link_desuscripcion_si_se_pasa():
+    con_link = build_comms_email_html(
+        org_name="Acme", heading="T", body_html="<p>x</p>", unsubscribe_url="https://x.test/unsub",
+    )
+    sin_link = build_comms_email_html(org_name="Acme", heading="T", body_html="<p>x</p>")
+    assert "https://x.test/unsub" in con_link
+    assert "Cancelar suscripción" in con_link
+    assert "Cancelar suscripción" not in sin_link
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_by_token_token_correcto_desactiva_notify_updates(db):
+    org, user = await _make_org(db)
+    camp = await _make_campaign(db, org, user)
+    try:
+        sig = await _make_signature(db, camp, org, notify_updates=True)
+        token = unsubscribe_token(sig.id)
+        ok = await unsubscribe_by_token(db, sig.id, token)
+        assert ok is True
+
+        result = await db.execute(text("SELECT notify_updates FROM consents WHERE signature_id = :sid"), {"sid": str(sig.id)})
+        assert result.scalar() is False
+    finally:
+        await _cleanup(db, org, user, camp)
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_by_token_token_incorrecto_no_cambia_nada(db):
+    org, user = await _make_org(db)
+    camp = await _make_campaign(db, org, user)
+    try:
+        sig = await _make_signature(db, camp, org, notify_updates=True)
+        ok = await unsubscribe_by_token(db, sig.id, "token-inventado")
+        assert ok is False
+
+        result = await db.execute(text("SELECT notify_updates FROM consents WHERE signature_id = :sid"), {"sid": str(sig.id)})
+        assert result.scalar() is True
+    finally:
+        await _cleanup(db, org, user, camp)
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_by_token_firma_inexistente(db):
+    ok = await unsubscribe_by_token(db, uuid.uuid4(), "cualquier-token")
+    assert ok is False

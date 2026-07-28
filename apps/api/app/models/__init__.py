@@ -20,6 +20,9 @@ from app.models.retention_run import RetentionRun
 from app.models.arco_request import ArcoRequest
 from app.models.org_email_config import OrgEmailConfig
 from app.models.comms_upload import CommsUpload
+from app.models.scheduled_send import ScheduledSend
+from app.models.send_batch import SendBatch
+from app.models.send_log import SendLog
 
 __all__ = [
     "Base",
@@ -49,4 +52,7 @@ __all__ = [
     "ArcoRequest",
     "OrgEmailConfig",
     "CommsUpload",
+    "ScheduledSend",
+    "SendBatch",
+    "SendLog",
 ]

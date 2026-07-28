@@ -154,8 +154,11 @@ def resolve_sender(campaign_meta: dict | None, org_cfg, org) -> dict:
 
 def platform_transport() -> ResendTransport:
     """Transporte por defecto de la plataforma (Resend global actual). Fallback
-    para organizaciones sin configuración propia (R5)."""
-    return ResendTransport(settings.resend_api_key, plan=None)
+    para organizaciones sin configuración propia (R5). El plan de ESTA cuenta
+    (no el de ninguna org) se declara vía `settings.resend_platform_plan` —
+    sin esto, `capabilities()` asumía Free (100/día) sin importar el plan
+    real de la cuenta de Resend de la plataforma."""
+    return ResendTransport(settings.resend_api_key, plan=settings.resend_platform_plan)
 
 
 async def resolve_transport_for_org(db, org_id) -> EmailTransport:
