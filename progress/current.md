@@ -1,4 +1,4 @@
-# Estado actual — tras sesión 41 (2026-07-28)
+# Estado actual — tras sesión 41 (2026-07-28) — CERRADA, mergeada y desplegada
 
 ## Resumen de sesión 41
 
@@ -13,15 +13,29 @@ revisados en la cabeza. Todo verificado con HTTP real contra dev y, en el
 caso de la desuscripción y la cuota, contra el comportamiento real
 confirmado por el usuario.
 
-## Estado de git — SIN COMMITEAR
+## Estado de git — CERRADO, mergeado a main y desplegado
 
-Todo el trabajo de esta sesión está en el working tree, sin commitear (regla
-del proyecto: el usuario commitea manualmente). Al pedir el cierre, el
-usuario pidió **drafts de mensajes de commit** (no que Claude commiteara) —
-ver el plan de 4 commits propuesto en `progress/history.md` (entrada de esta
-sesión, sección "Plan de commits propuesto al cierre"). Al inicio de sesión
-había además un commit local de sesión 40 sin pushear (`5b15a04`) — sigue
-sin pushear.
+Claude entregó 5 drafts de mensajes de commit (a pedido explícito del
+usuario, sin ejecutar `git commit` — regla del proyecto) y un draft de
+título/descripción de PR. El usuario los ejecutó manualmente: 5 commits en
+`dev` (`fa83037`…`e600c59`), pusheados, PR **#20** (`dev` → `main`) abierto
+y mergeado (`5748dad`). El commit local `5b15a04` de sesión 40 que llevaba
+pendiente de pushear también quedó incluido.
+
+`origin/main` == `origin/dev` == `dev` local, todo en `e600c59`. Sin
+divergencia.
+
+**Deploy verificado en producción** (GitHub Actions, push a `main` → SSH
+VPS): `GET https://cauce.ecuadornotlc.org/` → 200; `GET .../api/health` →
+`{"status":"ok","db":"ok","redis":"ok"}`; `GET .../api/v1/public-campaign/
+signatures/<uuid-inexistente>/unsubscribe?token=x` → **302** (confirma que
+la ruta nueva de desuscripción — la única ruta pública nueva de toda la
+sesión — está viva; el primer chequeo dio 404 porque el deploy todavía
+estaba corriendo, un segundo chequeo ~10s después ya dio 302); ruta
+`/media` responde (422 en un path malformado, ruta viva); campaña pública
+existente responde 200. No se verificó `alembic current` en prod
+directamente (sin acceso SSH con passphrase desde este entorno) —
+**pendiente confirmar `041` en la próxima sesión con acceso al VPS**.
 
 Alembic dev: **039 → 041 (head)**.
 
@@ -111,11 +125,15 @@ verificación → +8 merge tags/masking → +6 desuscripción).
 
 ## Datos producción
 
-**No se tocó producción esta sesión.** Todos los bugs reportados (uploads
-500, schedule 500, cuota incorrecta) siguen activos en producción hasta que
-el usuario commitee y deploye (working tree local, sin commitear — el
-usuario pidió drafts de mensajes en vez de que Claude commiteara). Alembic
-de producción sigue en `039` (pendiente confirmar desde sesión 40).
+**Desplegado y verificado.** PR #20 mergeado a `main` (`5748dad`), deploy
+corrido (GitHub Actions, `main` → VPS). Los 3 bugs de producción reportados
+por el usuario en esta sesión (uploads 500, schedule 500, cuota de Resend
+incorrecta) quedaron corregidos y desplegados. Verificado desde este
+entorno: web 200, `/api/health` OK, ruta nueva de desuscripción viva (302).
+**Pendiente**: confirmar `alembic current` en prod (`041` esperado — sin
+acceso SSH directo desde este entorno) y que el usuario setee
+`RESEND_PLATFORM_PLAN=pro` en el `.env` de producción (no tocado por
+Claude — la cuota seguirá mostrando topes de Free hasta que se setee).
 
 ## Pendientes para la próxima sesión
 
