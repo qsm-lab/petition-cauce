@@ -19,13 +19,16 @@ from app.routers import admin_retention
 from app.routers import arco
 from app.routers import media
 from app.scheduler import start_scheduler, shutdown_scheduler
+from app.comms_scheduler_loop import start_comms_queue_loop, stop_comms_queue_loop
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_redis()
     start_scheduler()
+    start_comms_queue_loop()
     yield
+    await stop_comms_queue_loop()
     shutdown_scheduler()
     await close_redis()
 

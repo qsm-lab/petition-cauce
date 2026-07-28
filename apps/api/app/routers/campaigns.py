@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -12,11 +14,20 @@ from app.schemas.campaign import (
     LifecycleStageUpdate, NotifySignersRequest, AdminCampaignDetailResponse,
     LifecycleEventOut, EventInvitationRequest, ClosingNotificationRequest,
 )
-from app.schemas.comms import CommsPreviewRequest, CommsQuotaResponse, CommsSendRequest, RecipientsCountRequest
+from app.schemas.comms import (
+    CommsPreviewRequest, CommsQuotaResponse, CommsSendRequest, DraftOut, DraftSaveRequest,
+    RecipientsCountRequest, ScheduleRequest, ScheduledSendOut, SendLogOut,
+)
 from app.services.campaign_service import CampaignService
 from app.services.comms_service import (
-    AudienceFilter, CtaButton, InvalidCommsType, UploadRejected, build_comms_email_html,
-    comms_upload_url, count_recipients, get_recipients, sanitize_comms_html, save_comms_upload,
+    COMMS_TYPES, SAMPLE_MERGE_CONTEXT, AudienceFilter, CtaButton, InvalidCommsType, RecipientData,
+    UploadRejected, build_comms_email_html, build_merge_context, comms_upload_url, count_recipients,
+    get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html, save_comms_upload,
+    unsubscribe_url_for,
+)
+from app.services.comms_queue_service import (
+    DraftNotFound, SendNotCancellable, cancel_scheduled_send, delete_draft, get_draft, list_drafts,
+    list_history, list_queue, log_send, save_draft, schedule_send,
 )
 from app.services.email_service import (
     _send,
@@ -422,14 +433,30 @@ async def comms_quota(
     usage = await get_usage(quota_key)
     sender = resolve_sender(campaign.meta, active_cfg, org)
 
+    # El snapshot reportado por el proveedor (headers de Resend en el último
+    # envío real) es más autoritativo que nuestro contador propio — que solo
+    # ve los envíos hechos DESDE esta app, no la cuenta completa de Resend
+    # (otros envíos/canales fuera de la plataforma no lo incrementan). Sin
+    # snapshot todavía (proveedores que no lo reportan, o ningún envío real
+    # hecho aún), se cae al contador propio.
+    snapshot = usage["provider_snapshot"]
+    daily_used = (
+        snapshot["daily_quota_used"] if snapshot and snapshot.get("daily_quota_used") is not None
+        else usage["daily_used"]
+    )
+    monthly_used = (
+        snapshot["monthly_quota_used"] if snapshot and snapshot.get("monthly_quota_used") is not None
+        else usage["monthly_used"]
+    )
+
     return CommsQuotaResponse(
         provider=active_cfg.provider if active_cfg else "resend",
         plan=(active_cfg.plan if active_cfg and active_cfg.plan else "free"),
-        daily_used=usage["daily_used"],
+        daily_used=daily_used,
         daily_quota=(active_cfg.daily_quota if active_cfg and active_cfg.daily_quota is not None else caps.daily_quota),
-        monthly_used=usage["monthly_used"],
+        monthly_used=monthly_used,
         monthly_quota=(active_cfg.monthly_quota if active_cfg and active_cfg.monthly_quota is not None else caps.monthly_quota),
-        updated_at=(usage["provider_snapshot"]["updated_at"] if usage["provider_snapshot"] else None),
+        updated_at=(snapshot["updated_at"] if snapshot else None),
         sender=sender["from_"],
         org_name=org.name if org else "",
     )
@@ -483,7 +510,8 @@ async def comms_preview(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
-    """R7: vista previa real — mismo armado de HTML que el envío."""
+    """R7: vista previa real — mismo armado de HTML que el envío. Los merge
+    tags (<nombre>, <cedula>, etc.) se muestran con datos de muestra."""
     campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
@@ -491,15 +519,17 @@ async def comms_preview(
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
 
     sanitized = sanitize_comms_html(data.body_html)
+    tagged = render_merge_tags(sanitized, SAMPLE_MERGE_CONTEXT)
+    is_anuncios = COMMS_TYPES[data.type] == "anuncios"
     html = build_comms_email_html(
         org_name=org.name if org else "",
         org_logo_url=(org.logo_url or "") if org else "",
-        heading=_COMMS_HEADING[data.type],
-        body_html=sanitized,
+        heading=data.heading.strip() or _COMMS_HEADING[data.type],
+        body_html=tagged,
         ctas=[CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas],
         include_social=data.include_social,
         social_links=campaign.social_links,
-        signer_name="Nombre Apellido",
+        unsubscribe_url=unsubscribe_url_for(uuid.uuid4()) if is_anuncios else None,
     )
     return {"html": html}
 
@@ -526,39 +556,181 @@ async def comms_send(
 
     sanitized = sanitize_comms_html(data.body_html)
     ctas = [CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas]
+    heading = data.heading.strip() or _COMMS_HEADING[data.type]
 
     if data.test_emails:
-        recipients = [(email, "Nombre Apellido") for email in data.test_emails]
+        # No hay firma real detrás de una dirección de prueba: los merge tags
+        # se muestran con datos de muestra, igual que la vista previa.
+        recipients = [
+            RecipientData(
+                signature_id=uuid.uuid4(), email=email, name="", cedula_encrypted=None,
+                celular_encrypted=None, provincia=None, country=None, org_name=None, signer_type="natural",
+            )
+            for email in data.test_emails
+        ]
     else:
-        recipients = await get_recipients(db, campaign.id, data.type, _audience_filter(data.audience))
+        ids = await get_recipient_ids(db, campaign.id, data.type, _audience_filter(data.audience))
+        recipients = await get_recipient_data_by_ids(db, ids)
 
     transport, sender, quota_key = await _resolve_campaign_email_context(db, campaign, org)
 
+    is_anuncios = COMMS_TYPES[data.type] == "anuncios"
     sent_count = 0
-    for email, name in recipients:
+    for r in recipients:
+        ctx = SAMPLE_MERGE_CONTEXT if data.test_emails else build_merge_context(r)
+        tagged = render_merge_tags(sanitized, ctx)
         html = build_comms_email_html(
             org_name=org.name if org else "",
             org_logo_url=(org.logo_url or "") if org else "",
-            heading=_COMMS_HEADING[data.type],
-            body_html=sanitized,
+            heading=heading,
+            body_html=tagged,
             ctas=ctas,
             include_social=data.include_social,
             social_links=campaign.social_links,
-            signer_name=name,
+            unsubscribe_url=unsubscribe_url_for(r.signature_id) if is_anuncios else None,
         )
         ok = await _send(
-            email, data.subject, html,
+            r.email, data.subject, html,
             transport=transport, from_=sender["from_"], reply_to=sender["reply_to"],
             quota_key=quota_key,
         )
         if ok:
             sent_count += 1
 
+    await log_send(
+        db, org_id=campaign.org_id, campaign_id=campaign.id, type=data.type, comms_class=COMMS_TYPES[data.type],
+        subject=data.subject, recipient_count=len(recipients), sent_count=sent_count,
+        failed_count=len(recipients) - sent_count, mode="test" if data.test_emails else "real",
+        trigger="manual", triggered_by=current_user.id,
+    )
+
     return {
         "sent_count": sent_count,
         "recipient_count": len(recipients),
         "mode": "test" if data.test_emails else "real",
     }
+
+
+# ── Centro de comunicaciones — Fase 3: borradores, programación, cola, historial ──
+
+@router.post("/{campaign_id}/comms/drafts", response_model=DraftOut)
+async def comms_save_draft(
+    campaign_id: str,
+    data: DraftSaveRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R22: guarda/actualiza un borrador server-side del envío en curso."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    try:
+        draft = await save_draft(
+            db, org_id=campaign.org_id, campaign_id=campaign.id,
+            draft_id=uuid.UUID(data.draft_id) if data.draft_id else None,
+            type=data.type, subject=data.subject, heading=data.heading, body_html=data.body_html,
+            ctas=[c.model_dump() for c in data.ctas], include_social=data.include_social,
+            audience=data.audience.model_dump(), created_by=current_user.id,
+        )
+    except InvalidCommsType:
+        raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+    except DraftNotFound:
+        raise HTTPException(status_code=404, detail="Borrador no encontrado")
+    return DraftOut.from_orm_str_ids(draft)
+
+
+@router.get("/{campaign_id}/comms/drafts", response_model=list[DraftOut])
+async def comms_list_drafts(
+    campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    drafts = await list_drafts(db, campaign.id)
+    return [DraftOut.from_orm_str_ids(d) for d in drafts]
+
+
+@router.get("/{campaign_id}/comms/drafts/{draft_id}", response_model=DraftOut)
+async def comms_get_draft(
+    campaign_id: str, draft_id: str,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    draft = await get_draft(db, campaign.id, uuid.UUID(draft_id))
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Borrador no encontrado")
+    return DraftOut.from_orm_str_ids(draft)
+
+
+@router.delete("/{campaign_id}/comms/drafts/{draft_id}")
+async def comms_delete_draft(
+    campaign_id: str, draft_id: str,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    ok = await delete_draft(db, campaign.id, uuid.UUID(draft_id))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Borrador no encontrado")
+    return {"ok": True}
+
+
+@router.post("/{campaign_id}/comms/schedule", response_model=ScheduledSendOut)
+async def comms_schedule(
+    campaign_id: str,
+    data: ScheduleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_with_org),
+):
+    """R12: programa un envío para una fecha/hora futura — el loop lo dispara
+    al vencer (R13)."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    if campaign.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Campaña archivada")
+    try:
+        send = await schedule_send(
+            db, org_id=campaign.org_id, campaign_id=campaign.id,
+            draft_id=uuid.UUID(data.draft_id) if data.draft_id else None,
+            type=data.type, subject=data.subject, heading=data.heading, body_html=data.body_html,
+            ctas=[c.model_dump() for c in data.ctas], include_social=data.include_social,
+            audience=data.audience.model_dump(), scheduled_at=data.scheduled_at, created_by=current_user.id,
+        )
+    except InvalidCommsType:
+        raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+    except DraftNotFound:
+        raise HTTPException(status_code=404, detail="Borrador no encontrado")
+    return ScheduledSendOut.from_orm_str_ids(send)
+
+
+@router.get("/{campaign_id}/comms/queue", response_model=list[ScheduledSendOut])
+async def comms_get_queue(
+    campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    """Cola en curso (`sending`) + programados (`pending`) — R13 panel."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    queue = await list_queue(db, campaign.id)
+    return [ScheduledSendOut.from_orm_str_ids(s) for s in queue]
+
+
+@router.post("/{campaign_id}/comms/queue/{send_id}/cancel", response_model=ScheduledSendOut)
+async def comms_cancel_queue_item(
+    campaign_id: str, send_id: str,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    """R15: cancela mientras queden lotes pending; no se edita in-place."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    try:
+        send = await cancel_scheduled_send(db, campaign.id, uuid.UUID(send_id))
+    except DraftNotFound:
+        raise HTTPException(status_code=404, detail="Envío no encontrado")
+    except SendNotCancellable:
+        raise HTTPException(status_code=409, detail="El envío ya no se puede cancelar")
+    return ScheduledSendOut.from_orm_str_ids(send)
+
+
+@router.get("/{campaign_id}/comms/history", response_model=list[SendLogOut])
+async def comms_get_history(
+    campaign_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db_with_org),
+):
+    """R14: historial de metadatos — nunca contenido/HTML."""
+    campaign = await _get_owned_campaign(campaign_id, current_user, db)
+    logs = await list_history(db, campaign.id)
+    return [SendLogOut.from_orm_str_ids(log) for log in logs]
 
 
 @router.get("/{campaign_id}/qr")

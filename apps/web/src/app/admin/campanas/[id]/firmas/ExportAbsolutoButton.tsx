@@ -38,7 +38,16 @@ export default function ExportAbsolutoButton({ campaignId, total }: Props) {
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
-        throw new Error(typeof err.detail === "string" ? err.detail : "No se pudo completar la descarga");
+        const detail = typeof err.detail === "string" ? err.detail : "No se pudo completar la descarga";
+        // El backend usa 401 tanto para "contraseña incorrecta" (re-validación
+        // de este paso) como para sesión vencida (get_current_user) — solo la
+        // segunda debe mandar a relogueáse; la primera se muestra inline para
+        // que el admin reintente la contraseña.
+        if (res.status === 401 && detail !== "Contraseña incorrecta") {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error(detail);
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";

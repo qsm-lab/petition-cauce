@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     # ── Email (Resend) ─────────────────────────────────────────────────────
     resend_api_key: str = ""
     resend_from_email: str = "noreply@cauce.ec"
+    # Plan de la cuenta de Resend de PLATAFORMA (el fallback cuando una org no
+    # tiene org_email_config propia — platform_transport()). "free" por
+    # default (conservador); poner "pro" en producción si la cuenta real está
+    # en ese plan, si no el panel de cuota muestra los topes de Free (100/día,
+    # 3000/mes) aunque la cuenta real tenga más capacidad.
+    resend_platform_plan: str = "free"
     # Clave dedicada para cifrar credenciales de proveedores de email por
     # organización (config-email-org, D6). 64 hex (32 bytes, AES-256-GCM).
     # Si vacía, cae a PII_ENCRYPTION_KEY como fallback operativo — en producción
@@ -86,6 +92,9 @@ class Settings(BaseSettings):
     # Volumen del VPS: /data/uploads/<org_id>/<campaign_id>/<uuid>.<ext> (D2).
     uploads_dir: str = "/data/uploads"
     comms_upload_max_bytes: int = 25 * 1024 * 1024
+
+    # ── Cola del centro de comunicaciones (centro-comunicaciones, Fase 3) ──
+    comms_queue_poll_seconds: int = 30
 
 
 settings = Settings()

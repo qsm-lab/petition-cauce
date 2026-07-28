@@ -10,10 +10,20 @@ import {
   previewComms,
   sendComms,
   uploadCommsImage,
+  saveCommsDraft,
+  listCommsDrafts,
+  deleteCommsDraft,
+  scheduleComms,
+  getCommsQueue,
+  cancelCommsQueueItem,
+  getCommsHistory,
   type CommsType,
   type AudienceIn,
   type CtaButtonIn,
   type CommsQuota,
+  type DraftOut,
+  type ScheduledSendOut,
+  type SendLogOut,
 } from "@/lib/comms-api";
 
 const IMAGE_MAX_BYTES = 25 * 1024 * 1024;
@@ -27,6 +37,22 @@ const TYPES: { id: CommsType; label: string; clase: "anuncios" | "servicio" }[] 
   { id: "general", label: "Mensaje general", clase: "anuncios" },
   { id: "invitation", label: "Invitación al evento", clase: "servicio" },
   { id: "closing", label: "Aviso de cierre", clase: "servicio" },
+];
+
+const HEADING_DEFAULTS: Record<CommsType, string> = {
+  general: "Novedades de la campaña",
+  invitation: "Invitación",
+  closing: "Aviso de cierre",
+};
+
+const MERGE_TAGS: { tag: string; label: string }[] = [
+  { tag: "nombre", label: "primer nombre" },
+  { tag: "nombre completo", label: "nombre completo" },
+  { tag: "cedula", label: "cédula (enmascarada)" },
+  { tag: "email", label: "email (enmascarado)" },
+  { tag: "telefono", label: "teléfono (enmascarado)" },
+  { tag: "provincia", label: "provincia/país" },
+  { tag: "organizacion", label: "organización (si firmó como org)" },
 ];
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -53,6 +79,7 @@ const AUDIENCE_DEFAULT: AudienceState = {
 interface Draft {
   type: CommsType;
   subject: string;
+  heading: string;
   bodyHtml: string;
   ctaEnabled: boolean;
   ctas: { text: string; url: string }[];
@@ -62,6 +89,7 @@ interface Draft {
 const DRAFT_DEFAULT: Draft = {
   type: "general",
   subject: "",
+  heading: HEADING_DEFAULTS.general,
   bodyHtml: "",
   ctaEnabled: false,
   ctas: [{ text: "", url: "" }],
@@ -131,6 +159,38 @@ function toAudienceIn(a: AudienceState): AudienceIn {
     if (a.anonima) visibilities.push("anonima");
   }
   return { include_confirmed: true, include_pending: false, signer_types, locations, visibilities };
+}
+
+function fromAudienceIn(a: AudienceIn): AudienceState {
+  return {
+    natural: a.signer_types.length === 0 || a.signer_types.includes("natural"),
+    org: a.signer_types.length === 0 || a.signer_types.includes("org"),
+    nacional: a.locations.length === 0 || a.locations.includes("nacional"),
+    internacional: a.locations.length === 0 || a.locations.includes("internacional"),
+    publica: a.visibilities.length === 0 || a.visibilities.includes("publica"),
+    anonima: a.visibilities.length === 0 || a.visibilities.includes("anonima"),
+  };
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Programado", sending: "Enviando", sent: "Enviado", cancelled: "Cancelado", failed: "Fallido",
+};
+
+const AUTOSAVE_LABEL: Record<string, { text: string; color: string }> = {
+  idle: { text: "", color: "var(--bmut)" },
+  dirty: { text: "● Cambios sin guardar", color: "#b45309" },
+  saving: { text: "Guardando…", color: "var(--bmut)" },
+  saved: { text: "✓ Guardado automático", color: "#3d6b35" },
+  error: { text: "⚠ No se pudo guardar — reintentará con el próximo cambio", color: "#c2410c" },
+};
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("es-EC", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-EC", { day: "2-digit", month: "short" });
 }
 
 function wordCount(html: string): number {
@@ -212,6 +272,7 @@ function Checkbox({ label, checked, onChange, disabled, note }: {
 interface ContentPayload {
   type: CommsType;
   subject: string;
+  heading: string;
   body_html: string;
   ctas: CtaButtonIn[];
   include_social: boolean;
@@ -226,6 +287,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
   const editorRef = useRef<RichTextEditorHandle>(null);
 
   const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaMode, setMediaMode] = useState<"insert" | "replace">("insert");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -247,6 +309,25 @@ export default function ComunicacionesClient({ campaign }: Props) {
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+
+  // Fase 3: borrador server-side, programación, cola, historial.
+  const [serverDraftId, setServerDraftId] = useState<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveSkipNextRef = useRef(true);
+
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  const [panelTab, setPanelTab] = useState<"drafts" | "sending" | "scheduled" | "history">("sending");
+  const [panelDrafts, setPanelDrafts] = useState<DraftOut[]>([]);
+  const [panelQueue, setPanelQueue] = useState<ScheduledSendOut[]>([]);
+  const [panelHistory, setPanelHistory] = useState<SendLogOut[]>([]);
+  const [panelRefreshKey, setPanelRefreshKey] = useState(0);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const activeType = TYPES.find((t) => t.id === draft.type)!;
   const audienceIn: AudienceIn = toAudienceIn(draft.audience);
@@ -290,6 +371,14 @@ export default function ComunicacionesClient({ campaign }: Props) {
   }
 
   function openMedia() {
+    setMediaMode("insert");
+    setMediaFile(null);
+    setMediaError(null);
+    setMediaOpen(true);
+  }
+
+  function openMediaToReplace() {
+    setMediaMode("replace");
     setMediaFile(null);
     setMediaError(null);
     setMediaOpen(true);
@@ -317,7 +406,11 @@ export default function ComunicacionesClient({ campaign }: Props) {
     setMediaError(null);
     try {
       const res = await uploadCommsImage(campaign.id, mediaFile);
-      editorRef.current?.insertImage(res.url);
+      if (mediaMode === "replace") {
+        editorRef.current?.replaceSelectedImage(res.url);
+      } else {
+        editorRef.current?.insertImage(res.url);
+      }
       setMediaOpen(false);
       setMediaFile(null);
     } catch (e) {
@@ -337,6 +430,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
     return {
       type: draft.type,
       subject: draft.subject.trim(),
+      heading: draft.heading.trim() || HEADING_DEFAULTS[draft.type],
       body_html: draft.bodyHtml,
       ctas: buildCtas(),
       include_social: draft.includeSocial,
@@ -395,6 +489,128 @@ export default function ComunicacionesClient({ campaign }: Props) {
       setSending(false);
     }
   }
+
+  useEffect(() => {
+    listCommsDrafts(campaign.id).then(setPanelDrafts).catch(() => setPanelDrafts([]));
+    getCommsQueue(campaign.id).then(setPanelQueue).catch(() => setPanelQueue([]));
+    getCommsHistory(campaign.id).then(setPanelHistory).catch(() => setPanelHistory([]));
+  }, [campaign.id, panelRefreshKey]);
+
+  function refreshPanel() {
+    setPanelRefreshKey((k) => k + 1);
+  }
+
+  async function saveDraftToServer() {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    setAutosaveStatus("saving");
+    try {
+      const res = await saveCommsDraft(campaign.id, {
+        ...buildContentPayload(), audience: audienceIn, draft_id: serverDraftId,
+      });
+      setServerDraftId(res.id);
+      setAutosaveStatus("saved");
+      refreshPanel();
+    } catch {
+      setAutosaveStatus("error");
+    }
+  }
+
+  // Autosave server-side (R22) — debounced 2s tras el último cambio. La
+  // barra local (useDraft/localStorage) sigue como red de seguridad
+  // adicional; esto persiste en el servidor para retomar entre dispositivos.
+  useEffect(() => {
+    if (autosaveSkipNextRef.current) {
+      autosaveSkipNextRef.current = false;
+      return;
+    }
+    const hasContent = draft.subject.trim().length > 0 || wordCount(draft.bodyHtml) > 0;
+    if (!hasContent) {
+      setAutosaveStatus("idle");
+      return;
+    }
+    setAutosaveStatus("dirty");
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => { saveDraftToServer(); }, 2000);
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign.id, draft.type, draft.subject, draft.heading, draft.bodyHtml, draft.ctaEnabled, JSON.stringify(draft.ctas), draft.includeSocial, JSON.stringify(draft.audience)]);
+
+  function loadDraftIntoEditor(d: DraftOut) {
+    autosaveSkipNextRef.current = true; // recién sincronizado con el servidor, no es un cambio "sucio"
+    setServerDraftId(d.id);
+    setDraft({
+      type: d.type,
+      subject: d.subject,
+      heading: d.heading || HEADING_DEFAULTS[d.type],
+      bodyHtml: d.body_html,
+      ctaEnabled: d.ctas.some((c) => c.enabled),
+      ctas: d.ctas.length > 0 ? d.ctas.map((c) => ({ text: c.text, url: c.url })) : [{ text: "", url: "" }],
+      includeSocial: d.include_social,
+      audience: fromAudienceIn(d.audience),
+    });
+    switchToVisual();
+    setAutosaveStatus("idle");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function deleteDraftFromServer(id: string) {
+    await deleteCommsDraft(campaign.id, id);
+    if (serverDraftId === id) setServerDraftId(null);
+    refreshPanel();
+  }
+
+  async function cancelQueueItem(id: string) {
+    setCancellingId(id);
+    try {
+      await cancelCommsQueueItem(campaign.id, id);
+      refreshPanel();
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  function openSchedule() {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    setScheduleDate(tomorrow.toISOString().slice(0, 10));
+    setScheduleTime("09:00");
+    setScheduleError(null);
+    setScheduleOpen(true);
+  }
+
+  async function confirmSchedule() {
+    setScheduling(true);
+    setScheduleError(null);
+    try {
+      // Hora de Guayaquil (UTC-5, sin horario de verano) — explícita porque el
+      // servidor persiste scheduled_at en UTC y el input no lleva huso propio.
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00-05:00`).toISOString();
+      await scheduleComms(campaign.id, {
+        ...buildContentPayload(), audience: audienceIn, draft_id: serverDraftId, scheduled_at: scheduledAt,
+      });
+      setScheduleOpen(false);
+      // No se limpia el editor: el contenido programado deja de ser un
+      // borrador editable (se soltó serverDraftId), pero el usuario puede
+      // seguir editando y guardar/programar de nuevo sin perder el progreso.
+      setServerDraftId(null);
+      if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
+      setAutosaveStatus("idle");
+      setSendResult("✓ Envío programado. Podés seguir editando este contenido — se guardará como un borrador nuevo si hacés más cambios.");
+      refreshPanel();
+      setPanelTab("scheduled");
+    } catch (e) {
+      setScheduleError(e instanceof Error ? e.message : "No se pudo programar el envío");
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  const sendingItems = panelQueue.filter((s) => s.status === "sending");
+  const scheduledItems = panelQueue.filter((s) => s.status === "pending");
 
   const dailyRemaining = quota?.daily_quota != null ? quota.daily_quota - quota.daily_used : null;
   const quotaExceeded = dailyRemaining != null && count != null && count > dailyRemaining;
@@ -457,10 +673,22 @@ export default function ComunicacionesClient({ campaign }: Props) {
 
         {/* Columna izquierda: tipo + editor */}
         <div style={{ ...cardStyle, padding: 22 }}>
-          <div style={eyebrow}>Tipo de comunicación</div>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div style={eyebrow}>Tipo de comunicación</div>
+            {autosaveStatus !== "idle" && (
+              <span className="text-[11px] font-bold" style={{ color: AUTOSAVE_LABEL[autosaveStatus].color }}>
+                {AUTOSAVE_LABEL[autosaveStatus].text}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2 flex-wrap mt-2 mb-2">
             {TYPES.map((t) => (
-              <TypePill key={t.id} active={draft.type === t.id} onClick={() => setDraft((p) => ({ ...p, type: t.id }))}>
+              <TypePill key={t.id} active={draft.type === t.id} onClick={() => setDraft((p) => ({
+                ...p, type: t.id,
+                // Solo auto-rellena el título si el admin no lo editó a mano
+                // (sigue siendo el default del tipo anterior).
+                heading: p.heading.trim() === "" || p.heading === HEADING_DEFAULTS[p.type] ? HEADING_DEFAULTS[t.id] : p.heading,
+              }))}>
                 {t.label}
               </TypePill>
             ))}
@@ -482,8 +710,19 @@ export default function ComunicacionesClient({ campaign }: Props) {
             value={draft.subject}
             onChange={(e) => setDraft((p) => ({ ...p, subject: e.target.value }))}
             placeholder="Asunto del email"
-            style={{ ...inputStyle, marginBottom: 16 }}
+            style={{ ...inputStyle, marginBottom: 4 }}
           />
+          <p className="text-[11px] mb-3" style={{ color: "var(--bmut)" }}>Lo que se ve en la bandeja de entrada.</p>
+
+          <label style={fieldLabel}>Título del mensaje</label>
+          <input
+            type="text"
+            value={draft.heading}
+            onChange={(e) => setDraft((p) => ({ ...p, heading: e.target.value }))}
+            placeholder={HEADING_DEFAULTS[draft.type]}
+            style={{ ...inputStyle, marginBottom: 4 }}
+          />
+          <p className="text-[11px] mb-3" style={{ color: "var(--bmut)" }}>El título grande dentro del email.</p>
 
           <label style={fieldLabel}>Contenido general</label>
           <div style={{ border: "1.5px solid var(--bink)", borderRadius: 12, overflow: "hidden" }}>
@@ -520,6 +759,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
                 placeholder="Escribe el contenido del envío…"
                 minHeight={180}
                 allowImages
+                onRequestReplaceImage={openMediaToReplace}
               />
             ) : (
               <textarea
@@ -539,6 +779,23 @@ export default function ComunicacionesClient({ campaign }: Props) {
           <p className="text-[11.5px] mt-2.5" style={{ color: "var(--bmut)", lineHeight: 1.5 }}>
             El contenido se envuelve en la plantilla de la plataforma (encabezado, footer y desuscripción) al enviarse.
           </p>
+          <div className="rounded-[10px] px-3 py-2.5 mt-2" style={{ background: "var(--bbg)" }}>
+            <p className="text-[11px] font-bold mb-1.5" style={{ color: "var(--bink)" }}>
+              Personalizá el mensaje escribiendo estos tags dentro del contenido — se reemplazan por el dato de cada destinatario al enviar:
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {MERGE_TAGS.map((m) => (
+                <span
+                  key={m.tag}
+                  title={m.label}
+                  className="text-[11px] font-mono rounded-[6px] px-1.5 py-0.5"
+                  style={{ background: "#fff", border: "1px solid var(--bbord)", color: "var(--bink)" }}
+                >
+                  {`<${m.tag}>`}
+                </span>
+              ))}
+            </div>
+          </div>
 
           <hr style={{ border: "none", height: 1, background: "var(--bbord)", margin: "18px 0" }} />
 
@@ -704,11 +961,181 @@ export default function ComunicacionesClient({ campaign }: Props) {
             >
               Enviar ahora
             </button>
+            <button
+              type="button"
+              onClick={openSchedule}
+              disabled={!canOperate || count === 0}
+              style={{
+                width: "100%", padding: 15, fontSize: 15, fontWeight: 700, borderRadius: 30, marginBottom: 9,
+                cursor: (!canOperate || count === 0) ? "not-allowed" : "pointer",
+                background: (!canOperate || count === 0) ? "rgba(22,38,31,0.1)" : "var(--bink)",
+                color: (!canOperate || count === 0) ? "var(--bmut)" : "#fff",
+                border: "1.5px solid var(--bink)",
+              }}
+            >
+              🗓 Programar envío
+            </button>
+            <button
+              type="button"
+              onClick={saveDraftToServer}
+              disabled={autosaveStatus === "saving" || (!draft.subject.trim() && bodyIsEmpty)}
+              style={{
+                width: "100%", background: "none", border: "none", color: "var(--bmut)", fontSize: 12.5,
+                fontWeight: 700, cursor: autosaveStatus === "saving" ? "not-allowed" : "pointer", padding: "14px 0 2px",
+              }}
+            >
+              💾 {autosaveStatus === "saving" ? "Guardando…" : "Guardar como borrador"}
+            </button>
+            {autosaveStatus !== "idle" && (
+              <p className="text-[11px] text-center" style={{ color: AUTOSAVE_LABEL[autosaveStatus].color }}>{AUTOSAVE_LABEL[autosaveStatus].text}</p>
+            )}
             <p className="text-[11px] text-center" style={{ color: "var(--bmut)", lineHeight: 1.5 }}>
-              ✓ Borrador guardado automáticamente en este navegador
+              ✓ Guardado automático en este navegador y en el servidor · podés cambiar de frame o seguir editando después de programar sin perder el progreso
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Panel de envíos: Borradores · En curso · Programados · Historial (Frame 5) */}
+      <div style={{ marginTop: 24 }}>
+        <div className="flex gap-1.5 mb-4">
+          {([
+            ["drafts", `Borradores${panelDrafts.length ? ` · ${panelDrafts.length}` : ""}`],
+            ["sending", "En curso"],
+            ["scheduled", "Programados"],
+            ["history", "Historial"],
+          ] as const).map(([id, label], i, arr) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setPanelTab(id)}
+              style={{
+                padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                borderRadius: i === 0 ? "8px 0 0 8px" : i === arr.length - 1 ? "0 8px 8px 0" : 0,
+                border: "1.5px solid var(--bink)", borderLeft: i === 0 ? "1.5px solid var(--bink)" : "none",
+                background: panelTab === id ? "var(--bink)" : "#fff",
+                color: panelTab === id ? "#fff" : "var(--bink)",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {panelTab === "drafts" && (
+          panelDrafts.length === 0 ? (
+            <p className="text-[13px]" style={{ color: "var(--bmut)" }}>No hay borradores guardados.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {panelDrafts.map((d) => (
+                <div key={d.id} style={{ ...cardStyle, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <span className="font-bold text-[14px]" style={{ color: "var(--bink)" }}>{d.subject || "(sin asunto)"}</span>
+                    <div className="text-[12px] mt-0.5" style={{ color: "var(--bmut)" }}>
+                      {TYPES.find((t) => t.id === d.type)?.label} · actualizado {fmtDateTime(d.updated_at)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => loadDraftIntoEditor(d)} style={{ padding: "7px 14px", fontSize: 12, borderRadius: 30, background: "#fff", border: "1.5px solid var(--bink)", color: "var(--bink)", cursor: "pointer", fontWeight: 700 }}>
+                      Retomar
+                    </button>
+                    <button type="button" onClick={() => deleteDraftFromServer(d.id)} style={{ padding: "7px 14px", fontSize: 12, borderRadius: 30, background: "#fff", border: "1.5px solid var(--danger, #c2410c)", color: "var(--danger, #c2410c)", cursor: "pointer", fontWeight: 700 }}>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {panelTab === "sending" && (
+          sendingItems.length === 0 ? (
+            <p className="text-[13px]" style={{ color: "var(--bmut)" }}>No hay envíos en curso.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {sendingItems.map((s) => (
+                <div key={s.id} style={{ ...cardStyle, padding: 18 }}>
+                  <div className="flex items-center justify-between gap-2.5 flex-wrap mb-2.5">
+                    <div>
+                      <span className="inline-flex items-center font-bold text-[11px] rounded-full mr-2" style={{ background: "rgba(43,78,234,0.1)", color: "#2B4EEA", padding: "3px 10px" }}>
+                        {STATUS_LABEL[s.status]}
+                      </span>
+                      <span className="font-bold text-[14px]" style={{ color: "var(--bink)" }}>
+                        {TYPES.find((t) => t.id === s.type)?.label} · «{s.subject}»
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => cancelQueueItem(s.id)} disabled={cancellingId === s.id} style={{ padding: "7px 14px", fontSize: 12, borderRadius: 30, background: "#fff", border: "1.5px solid #c2410c", color: "#c2410c", cursor: "pointer", fontWeight: 700 }}>
+                      {cancellingId === s.id ? "Cancelando…" : "Cancelar"}
+                    </button>
+                  </div>
+                  <div style={{ height: 10, background: "rgba(22,38,31,0.1)", borderRadius: 99, overflow: "hidden", marginBottom: 8 }}>
+                    <div style={{ width: `${s.recipient_count ? Math.min(100, (s.sent_count / s.recipient_count) * 100) : 0}%`, height: "100%", background: "#3d6b35", borderRadius: 99 }} />
+                  </div>
+                  <div className="text-[12px]" style={{ color: "var(--bmut)" }}>
+                    {s.sent_count} / {s.recipient_count} enviados
+                    {s.failed_count > 0 && <> · {s.failed_count} fallidos</>}
+                    {" · "}{s.comms_class === "anuncios" ? "Anuncios" : "Servicio"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {panelTab === "scheduled" && (
+          scheduledItems.length === 0 ? (
+            <p className="text-[13px]" style={{ color: "var(--bmut)" }}>No hay envíos programados.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {scheduledItems.map((s) => (
+                <div key={s.id} style={{ ...cardStyle, padding: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <span className="inline-flex items-center font-bold text-[11px] rounded-full mr-2" style={{ background: "var(--bsec)", color: "var(--bink)", padding: "3px 10px" }}>
+                      Programado
+                    </span>
+                    <span className="font-bold text-[14px]" style={{ color: "var(--bink)" }}>
+                      {TYPES.find((t) => t.id === s.type)?.label} · «{s.subject}»
+                    </span>
+                    <div className="text-[12px] mt-1" style={{ color: "var(--bmut)" }}>
+                      {fmtDateTime(s.scheduled_at)} · {s.recipient_count} destinatarios · {s.comms_class === "anuncios" ? "Anuncios" : "Servicio"}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => cancelQueueItem(s.id)} disabled={cancellingId === s.id} style={{ padding: "7px 14px", fontSize: 12, borderRadius: 30, background: "#fff", border: "1.5px solid #c2410c", color: "#c2410c", cursor: "pointer", fontWeight: 700 }}>
+                    {cancellingId === s.id ? "Cancelando…" : "Cancelar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {panelTab === "history" && (
+          panelHistory.length === 0 ? (
+            <p className="text-[13px]" style={{ color: "var(--bmut)" }}>Todavía no hay envíos registrados.</p>
+          ) : (
+            <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--bbord)", fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--bmut)", display: "grid", gridTemplateColumns: "1.4fr .8fr .7fr .6fr", gap: 8 }}>
+                <span>Asunto</span><span>Tipo · Clase</span><span>Destinatarios</span><span>Cuándo</span>
+              </div>
+              {panelHistory.map((h, i) => (
+                <div key={h.id} style={{ padding: "12px 18px", borderBottom: i < panelHistory.length - 1 ? "1px solid var(--bbord)" : "none", fontSize: 13, display: "grid", gridTemplateColumns: "1.4fr .8fr .7fr .6fr", gap: 8, alignItems: "center", background: h.mode === "test" ? "var(--bbg)" : "transparent" }}>
+                  <span>
+                    {h.subject || "(sin asunto)"}
+                    {h.mode === "test" && (
+                      <span className="inline-flex items-center font-bold text-[11px] rounded-full ml-1.5" style={{ background: "#fff", color: "var(--bmut)", border: "1px solid var(--bbord)", padding: "2px 8px" }}>
+                        prueba
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ color: "var(--bmut)" }}>{TYPES.find((t) => t.id === h.type)?.label} · {h.comms_class === "anuncios" ? "Anuncios" : "Servicio"}</span>
+                  <span>{h.recipient_count}</span>
+                  <span style={{ color: "var(--bmut)" }}>{fmtDate(h.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
       </div>
 
       {/* Modal: Añadir medios (Frame 6) */}
@@ -719,7 +1146,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
         >
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: "#fff", borderRadius: 20, padding: 24 }}>
             <div className="flex items-center justify-between mb-3.5">
-              <h2 className="font-heading" style={{ fontSize: 18, color: "var(--bink)" }}>Añadir imagen</h2>
+              <h2 className="font-heading" style={{ fontSize: 18, color: "var(--bink)" }}>{mediaMode === "replace" ? "Reemplazar imagen" : "Añadir imagen"}</h2>
               <button onClick={() => setMediaOpen(false)} aria-label="Cerrar" style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 20, color: "var(--bmut)" }}>×</button>
             </div>
 
@@ -766,7 +1193,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
                 color: !mediaFile || mediaUploading ? "var(--bmut)" : "var(--bop)",
                 border: "1.5px solid var(--bink)", cursor: !mediaFile || mediaUploading ? "not-allowed" : "pointer",
               }}>
-                {mediaUploading ? "Subiendo…" : "Insertar"}
+                {mediaUploading ? "Subiendo…" : mediaMode === "replace" ? "Reemplazar" : "Insertar"}
               </button>
             </div>
             <p className="text-[11px] mt-3" style={{ color: "var(--bmut)", lineHeight: 1.5 }}>
@@ -832,6 +1259,45 @@ export default function ComunicacionesClient({ campaign }: Props) {
               {testSending ? "Enviando…" : `Enviar prueba (${testEmails.length} dirección(es))`}
             </button>
             {testResult && <p className="text-[12px] mt-2" style={{ color: testResult.startsWith("✓") ? "#3d6b35" : "#c2410c" }}>{testResult}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Programar envío (Frame 4) */}
+      {scheduleOpen && (
+        <div
+          onClick={() => !scheduling && setScheduleOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(22,38,31,0.5)", padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#fff", borderRadius: 20, padding: 24 }}>
+            <h2 className="font-heading" style={{ fontSize: 20, color: "var(--bink)", marginBottom: 6 }}>Programar envío</h2>
+            <p className="text-[12.5px] mb-4.5" style={{ color: "var(--bmut)", lineHeight: 1.55 }}>
+              {activeType.label} · {count ?? "—"} destinatarios · clase {activeType.clase === "anuncios" ? "Anuncios" : "Servicio"}. Un envío programado no se edita: se cancela y se crea de nuevo.
+            </p>
+            <div className="flex gap-3 mb-4">
+              <div style={{ flex: 1 }}>
+                <label style={fieldLabel}>Fecha</label>
+                <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={fieldLabel}>Hora (Guayaquil)</label>
+                <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+              </div>
+            </div>
+            {dailyRemaining != null && count != null && count > dailyRemaining && (
+              <div style={{ background: "var(--bbg)", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "rgba(22,38,31,0.75)", lineHeight: 1.55, marginBottom: 20 }}>
+                Con la cuota de <strong>{dailyRemaining < 0 ? 0 : dailyRemaining}/día</strong> restante hoy, el envío se repartirá en una <strong>cola de varios días</strong> a partir de la fecha elegida. Verás el progreso en el panel de envíos.
+              </div>
+            )}
+            {scheduleError && <p className="text-[12.5px] mb-3" style={{ color: "#c2410c" }}>{scheduleError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setScheduleOpen(false)} disabled={scheduling} style={{ padding: "10px 18px", fontSize: 13, borderRadius: 10, background: "#fff", border: "1.5px solid var(--bink)", color: "var(--bink)", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button type="button" onClick={confirmSchedule} disabled={scheduling || !scheduleDate} style={{ padding: "10px 18px", fontSize: 13, borderRadius: 10, background: "var(--bink)", border: "1.5px solid var(--bink)", color: "#fff", fontWeight: 700, cursor: scheduling ? "not-allowed" : "pointer" }}>
+                {scheduling ? "Programando…" : "Programar"}
+              </button>
+            </div>
           </div>
         </div>
       )}
