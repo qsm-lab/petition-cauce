@@ -3,6 +3,297 @@
 
 ---
 
+## 2026-07-27 — Sesión 41: fix de bug de producción (upload de imágenes) + centro-comunicaciones Fase 3 completa
+
+**Bug de producción resuelto**: `POST /comms/uploads` daba 500 en producción
+(`sqlalchemy.exc.InvalidRequestError: Could not refresh instance`) al subir
+imágenes desde el editor — funcionaba en dev, fallaba siempre en producción.
+Causa: `comms_service.save_comms_upload` hacía `db.commit()` seguido de
+`db.refresh(upload)`; el `refresh()` dispara una SELECT bajo RLS que, en
+producción con tráfico real concurrente, puede caer sobre una conexión física
+del pool distinta a la que tenía seteado el GUC de sesión
+`app.current_org_id` (seteado con `is_local=false`, es decir de sesión, no de
+transacción) — la RLS bloquea esa SELECT y SQLAlchemy la reporta como "no se
+pudo refrescar". Fix: se eliminó el `refresh()` — con
+`expire_on_commit=False` y Postgres/asyncpg, `created_at` (el único campo
+server-side) ya llega poblado por el `RETURNING` implícito del INSERT; nadie
+consumía ese campo de todos modos. Verificado con HTTP real en dev (sniff +
+persistencia + `/media`) y con la suite completa. **Hallazgo pendiente,
+fuera de alcance de este fix puntual**: el mismo patrón `commit()`+`refresh()`
+bajo RLS aparece en varios otros servicios (`campaign_service.py`,
+`category_service.py`, `organization_service.py`, etc.) — comparten el mismo
+riesgo teórico bajo carga concurrente real, no confirmado si ya están rotos
+en producción. Pendiente de auditoría si el usuario lo pide.
+
+**centro-comunicaciones Fase 3 — programación + cola multi-día + historial**
+(R12-R15, R21-R22 de la spec, aprobada desde sesión 37): implementación
+completa, backend + frontend.
+
+- **Modelos + migración 040**: `scheduled_send` (borrador/programado/en
+  cola/enviado/cancelado — un único registro para R22+R12), `send_batch`
+  (lotes trozados por cuota diaria, referencian `signature_ids` sin duplicar
+  PII), `send_log` (historial, solo metadatos — nunca HTML, R14). RLS con el
+  mismo patrón NULLIF que 038/039, `org_id` denormalizado en las tres para
+  políticas simples sin joins.
+- **Servicio de cola** (`comms_queue_service.py`, nuevo): CRUD de borradores
+  server-side (guardar/retomar/eliminar, R22), `schedule_send` (promueve un
+  borrador o crea directo en `pending`), `cancel_scheduled_send` (R15, frena
+  lotes `pending`, no edita in-place), `expand_into_batches` (resuelve
+  destinatarios reusando `get_recipient_ids`/`get_recipients_by_ids` — nuevas
+  en `comms_service.py`, con `get_recipients` de Fase 1 refactorizado para
+  reusarlas sin duplicar la lógica de segmento — y trocea por cuota diaria),
+  claim atómico por lote (`UPDATE...WHERE status=pending RETURNING`),
+  `_process_claimed_batch` (envía lo que quepa en la cuota restante de HOY;
+  si el lote no cabe entero, envía lo posible y crea un lote nuevo `pending`
+  con el resto — D4 "reprograma para el día siguiente"), lote fallido por
+  excepción inesperada queda `failed` con el error sin reintento automático
+  (R15).
+- **Loop asíncrono in-process** (`comms_scheduler_loop.py`, nuevo): R13 pide
+  explícitamente **no** reusar el `AsyncIOScheduler`/APScheduler que ya corre
+  para el job de retención — loop propio (`asyncio.create_task` + polling
+  cada 30s configurable) con lock Redis de corta duración por tick (se
+  autolibera si la instancia se cae a mitad de un tick, a diferencia del lock
+  de sesión larga de retención).
+- **Endpoints nuevos** en `campaigns.py` bajo `/comms/*`: `POST drafts`
+  (upsert), `GET drafts`, `GET drafts/{id}`, `DELETE drafts/{id}`,
+  `POST schedule`, `GET queue`, `POST queue/{id}/cancel`, `GET history`.
+  Se parcheó también el endpoint de envío inmediato de Fase 1 (`POST send`)
+  para que escriba `send_log` — R14 exige registrar inmediatos, no solo
+  programados, y eso no existía antes de esta fase.
+- **Tests** (`test_comms_scheduling.py`, 14 nuevos): borradores CRUD,
+  programar promueve borrador, cancelar frena lotes pending, expansión
+  trocea por cuota diaria, claim atómico no duplica, reparto multi-día si
+  excede cuota, lote fallido sin reintento, flujo completo del loop escribe
+  historial, aislamiento RLS entre orgs. Suite completa: **215 passed** (201
+  al cierre de sesión 40 → +14).
+- **Frontend**: se extendió `ComunicacionesClient.tsx` (ya existente, Fase 1)
+  siguiendo el Frame 4 (modal "Programar envío") y Frame 5 (panel de envíos
+  con tabs Borradores/En curso/Programados/Historial) del `design-export.html`
+  aprobado en sesión 37 — sin ronda de diseño nueva, el diseño ya cubría esto.
+  Botones nuevos "🗓 Programar envío" y "💾 Guardar como borrador" junto a
+  "Enviar ahora"; panel de 4 tabs debajo del editor con progreso en vivo de
+  envíos "en curso" (barra + conteo + fallidos), programados con botón
+  cancelar, y tabla de historial con badge "prueba" para distinguir de los
+  reales. `comms-api.ts` extendido con las 8 funciones nuevas. TypeScript
+  compila limpio (`tsc --noEmit`), SSR de la página verificado con HTTP real
+  (200, todos los textos clave presentes). **Sin verificación de interacción
+  real en navegador** (no había herramienta Playwright/browser disponible en
+  este entorno) — pendiente de que el usuario la pruebe a mano o de una
+  próxima sesión con esa herramienta disponible.
+
+**Segundo bug real encontrado y corregido en la verificación** (no solo en
+la cabeza): `ScheduledSend.updated_at` usaba `onupdate=func.now()` (server-
+side) — el mismo patrón de fondo que el bug de producción de arriba, pero
+disparado distinto: un UPDATE con default server-side queda "expired" en el
+objeto ORM, y el siguiente acceso sincrónico al atributo (serializando la
+respuesta HTTP, código Pydantic no-async) dispara un lazy-load fuera del
+contexto async/greenlet → `MissingGreenlet`. Reproducido real programando un
+envío vía curl (`POST /comms/schedule` → 500). Fix: se quitó `onupdate` del
+modelo y se agregó un evento SQLAlchemy `before_update` que setea
+`updated_at` en Python antes del flush — sin round-trip al servidor. Patrón
+nuevo de esta sesión, no existe en ningún otro modelo del proyecto (no hace
+falta auditoría más amplia).
+
+**Tercer bug encontrado en la verificación**: el camino corto de
+`expand_into_batches` (0 destinatarios → `sent` directo sin lotes) no
+atravesaba `_finalize_if_done`, así que nunca escribía `send_log` — un envío
+con 0 destinatarios quedaba invisible en el historial. Corregido escribiendo
+el log también en ese camino; test nuevo cubre el caso.
+
+**Verificación end-to-end en dev**: flujo HTTP real completo (login → guardar
+borrador → programar promoviendo el borrador → ver en cola → cancelar → ver
+historial vacío tras cancelar; luego un segundo programado con fecha pasada
+para que el loop lo dispare solo → confirmado `status=sent` y entrada en
+historial con `trigger=scheduled`). Envío inmediato de prueba confirma
+`trigger=manual` en el historial. Toda la data de prueba generada (drafts,
+scheduled_send, send_log) se borró antes de cerrar.
+
+**Docker Desktop no estaba corriendo al inicio de sesión** — se levantó
+manualmente (`open -a Docker`) antes de `docker compose up -d`; no es un
+problema del proyecto, es el daemon del Mac.
+
+**Git**: no se commiteó nada (regla del proyecto) — el usuario revisa y
+commitea manualmente. Al inicio de sesión había un commit local sin pushear
+(`5b15a04`, cierre de sesión 40) — se lo señalé al usuario, no lo toqué.
+
+### Continuación (misma sesión 41): 3 rondas de feedback tras probar en el navegador
+
+El usuario probó la Fase 3 en el navegador real (algo que este entorno no
+pudo hacer solo, sin Playwright) y reportó varios problemas/pedidos en 3
+rondas sucesivas. Todo verificado con HTTP real + suite completa en cada
+ronda; **231 passed** al cierre (225 tras ronda 2, +6 en ronda 3).
+
+**Ronda 1 — bugs encontrados al probar Fase 3 en vivo:**
+1. **500 al programar** (`POST /comms/schedule`): `sqlalchemy.orm.exc.
+   StaleDataError` — `schedule_send()` llamaba a `save_draft()` (que hacía su
+   propio `commit()` intermedio) y seguía mutando el mismo objeto antes de un
+   segundo commit; el autoflush de `count_recipients()` entre medio corría
+   sobre una conexión de pool distinta al GUC de sesión (mismo riesgo de RLS
+   que el bug de uploads de la primera parte de esta sesión). Fix: se separó
+   `_upsert_scheduled_send()` (arma en memoria, sin commit) de `save_draft()`/
+   `schedule_send()` (cada uno commitea una sola vez al final) — una sola
+   transacción de principio a fin, sin conexión de pool cambiando en el medio.
+2. **Editar tras programar**: ya no se limpia el editor al programar (antes
+   `clearDraft()` bloqueaba seguir trabajando) — solo se suelta `serverDraftId`
+   (la entidad programada deja de ser un borrador editable). Autosave
+   server-side agregado (debounce 2s) con indicador dinámico "● Cambios sin
+   guardar / Guardando… / ✓ Guardado automático", visible arriba del editor y
+   junto a los botones.
+3. **Ancho estándar de email**: la plantilla usaba 480px (no un estándar real)
+   → 600px (Litmus/Campaign Monitor/Mailchimp). Las imágenes reciben SIEMPRE
+   `max-width:100%;height:auto` forzado en el sanitizador (nh3 no permite
+   `style` en la allowlist; se reinyecta con un valor FIJO, ignorando
+   cualquier CSS del autor — sin superficie de inyección).
+4. **Quitar/reemplazar imagen**: barra contextual en el editor al seleccionar
+   una imagen ("🔄 Reemplazar" reabre el modal de subida en modo reemplazo;
+   "🗑 Quitar" borra el nodo).
+
+**Ronda 2 — más feedback tras seguir probando:**
+5. **401 al subir imagen** ("No autenticado" atascado en el modal): no era un
+   bug del endpoint (probado con sesión fresca: 200 OK) — la sesión JWT había
+   vencido (dura 120 min) y `uploadCommsImage` usaba un `fetch()` que no
+   compartía el manejo de sesión vencida de `apiFetch` (que sí redirige a
+   `/login`). Fix aplicado ahí, y el usuario pidió auditar el resto del
+   proyecto: de 15 archivos con `fetch()` crudo, solo 2 más compartían el
+   mismo patrón real (endpoints admin autenticados por cookie JWT sin manejo
+   de 401) — `RemindPendingButton.tsx` (fix directo) y `ExportAbsolutoButton.tsx`
+   (más sutil: el backend sobrecarga 401 para "sesión vencida" Y "contraseña
+   de re-validación incorrecta" — el fix distingue por el mensaje, redirige
+   solo en el primer caso, verificado contra el backend real). El resto
+   (`signatures-api.ts`, `campaign-api.ts`, `arco-api.ts`, `api-server.ts`,
+   flujos públicos) no aplica: pegan a endpoints públicos, usan `Authorization:
+   Bearer` (mecanismo propio del portal ARCO) o corren server-side.
+6. **Título del mensaje editable**: el H1 del email era fijo por tipo
+   (`_COMMS_HEADING` hardcodeado) → nuevo campo `heading` (migración 041,
+   columna en `scheduled_send`), editable en el frontend con auto-relleno
+   inteligente (solo prefilla el default del tipo si el admin no lo tocó a
+   mano).
+7. **Merge tags en vez de saludo fijo**: se quitó el `Hola {nombre},`
+   hardcodeado de `build_comms_email_html`. Nueva sintaxis `<nombre>`,
+   `<nombre completo>`, `<cedula>`, `<email>`, `<telefono>`, `<provincia>`,
+   `<organizacion>` usable libremente dentro del contenido general — se
+   sustituye por el dato real del destinatario al enviar. Cédula/email/
+   teléfono llegan SIEMPRE enmascarados con el mismo patrón que la descarga
+   normal de firmas (reusa `_mask_cedula`/`_mask_email`/`_mask_phone` de
+   `admin_signature_service.py`, no duplicado). Vista previa usa datos de
+   muestra. Cuidado técnico: nh3 interpretaría `<nombre>` crudo como una
+   etiqueta HTML desconocida y la descartaría — el regex de sustitución cubre
+   tanto la forma literal como la escapada (`&lt;nombre&gt;`, lo que produce
+   el editor visual al serializar texto plano tipeado).
+8. **Alineación de texto + copiar/pegar**: `@tiptap/extension-text-align`
+   instalado (host + contenedor, persistido en `package.json`/lockfile) con
+   botones Izq/Ctr/Der; sanitizador backend actualizado para permitir
+   `style="text-align:left|center|right"` en p/h1/h2/h3 — cualquier otro
+   valor de `style` se descarta entero (mismo criterio que el de imágenes:
+   allowlist estricta, no pasar CSS arbitrario). Botones explícitos de
+   copiar/pegar agregados a la toolbar (el navegador ya soportaba Ctrl+C/V
+   nativo; se sumaron por pedido explícito).
+
+**Ronda 3 — ajustes de detalle + un bug de datos en producción:**
+9. **"+CAUCES" fuera de la tarjeta**: el eyebrow superior dentro de la
+   tarjeta usaba `org_name` (la org de la campaña) — coincidía visualmente con
+   "+CAUCES" solo porque la org de dev se llama así (se había renombrado a
+   pedido del usuario en la ronda anterior de esta misma sesión, ver más
+   abajo). Se separó conceptualmente: badge FIJO "+CAUCES" (marca de
+   plataforma) ahora vive fuera de la tarjeta blanca, más chico, alineado a
+   la derecha; el heading pasa a ser el primer elemento visible dentro de la
+   tarjeta. "Impulsado por" (`_powered_by_block`) ya usaba correctamente
+   `org_name` de la campaña — no necesitó cambio, solo separarlo
+   conceptualmente del badge de plataforma.
+10. **Redes sociales centradas** (`text-align:center` al bloque "Seguí la
+    causa" — antes quedaba a la izquierda).
+11. **Desuscripción funcional en el footer** (no decorativa — LOPDP: no
+    prometer un derecho que no funciona): nuevo token HMAC determinístico sin
+    expiración (`unsubscribe_token`, `signature_service.py`) — distinto del
+    `newsletter_token` existente (2h de vida, pensado para el embudo
+    post-firma inmediato, no serviría para un link en un envío que puede
+    llegar semanas después). Nuevo endpoint público `GET /v1/public-campaign/
+    signatures/{id}/unsubscribe?token=` (sin auth, estándar de la industria),
+    redirige a la landing con `?desuscripcion=ok|invalida` (mismo patrón que
+    `confirm-visibility`). Aparece solo en la clase Anuncios. `_PLATFORM_
+    FOOTER_HTML` (constante compartida por ~10 plantillas de email) pasó a
+    ser una función `_platform_footer_html(unsubscribe_url=None)` para no
+    forzar el link en emails transaccionales/servicio que no son marketing.
+    Probado end-to-end contra la base real (token correcto cambia
+    `Consent.notify_updates` a `False`; token falso no toca nada). 8 tests
+    nuevos.
+12. **Cuota de Resend incorrecta en producción** (usuario reportó 50000
+    disponibles/~6K usados reales vs. el panel mostrando otra cosa) — dos
+    causas reales:
+    - El endpoint de cuota ignoraba el snapshot reportado por Resend (headers
+      del último envío real, "más autoritativo" según el propio comentario
+      del código) y siempre usaba el contador propio de la app en Redis, que
+      no ve envíos hechos fuera de esta app. Corregido: preferir el snapshot
+      cuando existe.
+    - **Causa de fondo**: `org_email_config` está **vacía en producción**
+      (ninguna organización tiene config propia todavía) — todo cae al
+      transporte de plataforma (`platform_transport()`), que estaba
+      hardcodeado con `plan=None` → asume Free (100/día, 3000/mes) sin
+      importar el plan real de la cuenta de Resend de la plataforma. Se
+      agregó `settings.resend_platform_plan` (env var `RESEND_PLATFORM_PLAN`,
+      default `"free"` conservador) — confirmado con `pro`: da
+      `daily_quota=None, monthly_quota=50000`, como reportó el usuario.
+      **Pendiente del usuario**: agregar `RESEND_PLATFORM_PLAN=pro` al `.env`
+      de producción (no tocado — regla del proyecto). El `daily_used`/
+      `monthly_used` mostrado seguirá en 0 hasta el primer envío real desde
+      el centro (Resend no tiene endpoint de solo-consulta de uso).
+13. **Renombre de dato** (a pedido del usuario, confirmado explícitamente):
+    la organización de dev `c19d0c13-…` se llamaba "Cauce Ecuador" — se
+    renombró a "+CAUCES" en la base de dev (cambio de dato, no de código).
+
+**Suite de tests**: 231 passed al cierre (201 al cierre de sesión 40 → +14
+Fase 3 → +2 fixes → +8 merge tags/masking → +6 desuscripción).
+
+**Nada de esta sesión está commiteado** — el usuario pidió al cierre los
+drafts de los mensajes de commit (ver abajo) en vez de que Claude commiteara
+directamente, respetando la regla del proyecto.
+
+### Plan de commits propuesto al cierre (drafts, sin ejecutar)
+
+1. `feat(centro-comunicaciones): Fase 3 — programación, cola multi-día,
+   historial` — modelos scheduled_send/send_batch/send_log + migraciones
+   040/041, comms_queue_service.py, comms_scheduler_loop.py, endpoints,
+   frontend (tabs Borradores/En curso/Programados/Historial + modal
+   Programar), tests.
+2. `fix(centro-comunicaciones): bugs de producción y UX reportados en vivo`
+   — refresh() bajo RLS (uploads), StaleDataError (schedule), 401 sin manejo
+   de sesión vencida (3 archivos), autosave, ancho de email, alineación,
+   reemplazar/quitar imagen, título editable, merge tags con enmascarado.
+3. `feat(centro-comunicaciones): desuscripción funcional + fix cuota Resend
+   en producción` — unsubscribe_token/endpoint, RESEND_PLATFORM_PLAN,
+   snapshot de cuota preferido sobre contador propio, badge +CAUCES fuera de
+   la tarjeta, redes centradas.
+4. `docs: cierre de sesión 41` — progress/current.md, progress/history.md,
+   feature_list.json.
+
+### Pendiente para la próxima sesión
+
+1. **Deployar todo lo de esta sesión** (nada commiteado ni pusheado
+   todavía) — commit local `5b15a04` de sesión 40 sigue sin pushear también.
+2. Agregar `RESEND_PLATFORM_PLAN=pro` al `.env` de producción (o el valor
+   real del plan) para que el panel de cuota refleje la capacidad real.
+3. **Fase 4** de `centro-comunicaciones`: remitente por dominio propio (Pro).
+   El footer de cumplimiento (`email-cumplimiento-masivo`) ya no bloquea
+   habilitar la clase Anuncios en producción — la desuscripción real ya
+   existe (R20 cumplido); falta confirmar si el resto de esa spec (páginas de
+   términos/privacidad de plataforma, "ver en navegador") sigue pendiente.
+4. Decisión pendiente del usuario: ¿retirar `AdherentCommsModal`?
+5. Auditoría opcional del patrón `commit()`+`refresh()` bajo RLS en otros
+   servicios (`campaign_service.py`, `category_service.py`,
+   `organization_service.py`, etc.) — mismo riesgo teórico, no confirmado si
+   ya causa fallos en producción.
+6. Coordinar con el usuario subir `client_max_body_size` de nginx a 25M
+   (pendiente desde sesión 40, uploads grandes en producción).
+7. Confirmar `alembic current` en producción (pendiente desde sesión 40) —
+   tras el deploy de esta sesión debería quedar en `041`.
+8. **Verificación visual en navegador completa** de todo lo nuevo de esta
+   sesión (alineación, merge tags, desuscripción, badge +CAUCES) — el
+   usuario probó en su propio navegador durante la sesión y reportó bugs
+   reales (ver arriba), pero este entorno sigue sin herramienta Playwright
+   propia para una pasada final.
+
+---
+
 ## 2026-07-27 — Sesión 40: centro-comunicaciones Fase 1 frontend + Fase 2 completas
 
 Sesión larga de implementación pura. Se cerró todo lo que sesión 39 había

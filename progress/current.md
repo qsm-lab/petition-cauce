@@ -1,163 +1,102 @@
-# Estado actual — tras sesión 40 (2026-07-27)
+# Estado actual — tras sesión 41 (2026-07-28)
 
-## Resumen de sesión 40
+## Resumen de sesión 41
 
-Sesión larga de implementación pura (sin cambios de spec): se completó el
-**frontend de la Fase 1** de `centro-comunicaciones` (lo más grande que
-quedaba pendiente de sesión 39) y **toda la Fase 2** (subida de imágenes),
-backend + frontend. Todo verificado con tests (pytest) y con HTTP/navegador
-real (Playwright) — varios bugs reales encontrados y corregidos en la
-verificación, no solo revisados en la cabeza (ver abajo).
+Sesión larga en 4 tramos: (1) fix de un bug real de producción (upload de
+imágenes 500) reportado por el usuario; (2) implementación completa de
+`centro-comunicaciones` Fase 3 (programación + cola multi-día + historial),
+backend + frontend, spec ya aprobada desde sesión 37; (3-4) tres rondas de
+feedback del usuario probando todo en su propio navegador (algo que este
+entorno no puede hacer solo, sin herramienta Playwright/browser disponible),
+con varios bugs reales encontrados y corregidos en cada ronda — no solo
+revisados en la cabeza. Todo verificado con HTTP real contra dev y, en el
+caso de la desuscripción y la cuota, contra el comportamiento real
+confirmado por el usuario.
 
-## Estado de git — CERRADO
+## Estado de git — SIN COMMITEAR
 
-`dev` local partió de `fd9e55c` (cierre de sesión 39). El trabajo de esta
-sesión se dividió en **6 commits** (`3fc4908`…`eb35b94`), el usuario los
-commiteó manualmente, abrió **PR #19** (`dev` → `main`) y lo mergeó
-(`67b9641`). `git fetch` volvió a funcionar al cierre (la falla de red de
-toda la sesión — ver abajo — era del contenedor, no del host) y confirmó
-`origin/main` == `dev` local (sin divergencia).
+Todo el trabajo de esta sesión está en el working tree, sin commitear (regla
+del proyecto: el usuario commitea manualmente). Al pedir el cierre, el
+usuario pidió **drafts de mensajes de commit** (no que Claude commiteara) —
+ver el plan de 4 commits propuesto en `progress/history.md` (entrada de esta
+sesión, sección "Plan de commits propuesto al cierre"). Al inicio de sesión
+había además un commit local de sesión 40 sin pushear (`5b15a04`) — sigue
+sin pushear.
 
-**Producción verificada arriba y sana** tras el deploy: `GET
-https://cauce.ecuadornotlc.org/` → 200, `GET .../api/health` → `{"status":
-"ok","db":"ok","redis":"ok"}`, `GET .../api/media/<uuid>/<uuid>/<uuid>.png`
-(inexistente) → 404 esperado (confirma que el router `media` está vivo). No
-se verificó `alembic current` en prod directamente (sin acceso SSH desde este
-entorno) — pendiente para el próximo `git fetch`/sesión con acceso al VPS.
+Alembic dev: **039 → 041 (head)**.
 
-Alembic dev pasó de **038** a **039** (head) — migración nueva de
-`centro-comunicaciones` Fase 2 (`comms_upload`, con RLS).
+## Resumen por tema (detalle completo en `progress/history.md`)
 
-## Hallazgo de infraestructura: red del contenedor, otra vez
+### 1. Fix bug de producción: upload de imágenes 500
+`db.refresh()` tras `db.commit()` en `save_comms_upload` disparaba una SELECT
+bajo RLS que en producción (tráfico concurrente real) podía caer sobre una
+conexión de pool sin el GUC de sesión `app.current_org_id` seteado. Fix:
+eliminado el `refresh()` (innecesario — nada consumía el único campo
+server-side, `created_at`, que ya llega poblado por el `RETURNING` implícito
+del INSERT). **Hallazgo pendiente sin resolver**: el mismo patrón
+`commit()`+`refresh()` aparece en ~10 otros servicios — riesgo teórico igual,
+no confirmado si ya falla en producción, auditoría opcional pendiente.
 
-El contenedor `petition-api-dev` volvió a quedarse sin salida a internet en
-algún momento entre el cierre de sesión 39 y el arranque de esta sesión (o
-durante ella — no se pudo precisar el instante exacto). Esto causó dos
-problemas concretos:
+### 2. `centro-comunicaciones` Fase 3 completa
+Modelos `scheduled_send`/`send_batch`/`send_log` (migración 040, RLS),
+`comms_queue_service.py` (borradores, programar, cancelar, expansión por
+cuota, claim atómico, reparto multi-día D4), `comms_scheduler_loop.py` (loop
+asíncrono propio — R13 prohíbe explícitamente reusar el `AsyncIOScheduler`
+de retención), 8 endpoints nuevos, frontend con panel de 4 tabs (Borradores/
+En curso/Programados/Historial) + modal Programar. 14 tests nuevos.
 
-1. **`nh3` desapareció** al recrear el contenedor `petition-api-dev` para
-   aplicar el volumen de uploads nuevo (`docker compose up -d
-   petition-api-dev`, sin `--build`): el fix manual de sesión 39 vivía en la
-   capa efímera del contenedor viejo, **no en la imagen** (nunca se pudo hacer
-   un build real con `requirements.txt` actualizado). Se resolvió igual que
-   sesión 39: wheel de `nh3` descargado en el host (que sí tiene red) y
-   copiado al contenedor con `docker cp` + `pip install --no-index`.
-2. **`docker compose up -d --build`** para el contenedor web (necesario para
-   instalar `@tiptap/extension-link` y `@tiptap/extension-image` como
-   dependencias reales) **falló** en el paso `corepack prepare pnpm@9.15.9`
-   (sin red). Se resolvió con el mismo patrón: `pnpm install` en el host
-   (que sí tiene red, actualiza `package.json`/`pnpm-lock.yaml` correctamente)
-   y luego copiar el paquete ya resuelto desde el store de pnpm del host al
-   store del contenedor (`docker cp` al directorio `.pnpm/`) + symlink manual
-   en `node_modules/@tiptap/`.
+### 3. Ronda 1 de feedback (bugs probando Fase 3 en vivo)
+- **500 al programar**: `StaleDataError` por un `commit()` intermedio en
+  medio de una operación lógica única — refactorizado a una sola transacción
+  (`_upsert_scheduled_send` sin commit + un solo commit al final).
+- **Seguir editando tras programar** + autosave server-side con indicador
+  visual dinámico (● Cambios sin guardar / Guardando… / ✓ Guardado
+  automático).
+- **Ancho estándar de email**: 480px → 600px (Litmus/Campaign Monitor/
+  Mailchimp). Imágenes con `max-width:100%` forzado de forma segura en el
+  sanitizador.
+- **Quitar/reemplazar imagen** en el editor (barra contextual al
+  seleccionar).
 
-**Importante para el próximo build real** (deploy o `--build` con red): el
-`package.json`/`pnpm-lock.yaml` y `requirements.txt` ya están correctos — un
-build normal con red instala todo solo, sin curro adicional. Lo que no
-sobrevive son los parches manuales hechos directo en contenedores ya
-corriendo (no están en ninguna imagen todavía).
+### 4. Ronda 2 de feedback
+- **401 sin manejo de sesión vencida**: `uploadCommsImage` no compartía el
+  auto-redirect-a-login de `apiFetch`. Auditado el resto del proyecto (15
+  archivos con `fetch()` crudo) — solo `RemindPendingButton.tsx` y
+  `ExportAbsolutoButton.tsx` compartían el mismo patrón real; el segundo
+  necesitó lógica más fina porque el backend sobrecarga 401 para dos casos
+  distintos (sesión vencida vs. contraseña de re-validación incorrecta).
+- **Título del mensaje editable** (`heading`, migración 041) — antes fijo
+  por tipo.
+- **Merge tags** `<nombre>`, `<cedula>`, `<email>`, `<telefono>`,
+  `<provincia>`, `<organizacion>` en vez del saludo fijo — cédula/email/
+  teléfono siempre enmascarados (mismo patrón que la descarga normal de
+  firmas).
+- **Alineación de texto** (izq/centro/der, `@tiptap/extension-text-align`) +
+  botones de copiar/pegar.
 
-## 1. `centro-comunicaciones` — Fase 1 frontend completa
-
-La pieza más grande pendiente de sesión 39. Página nueva
-`/admin/campanas/[id]/comunicaciones` (`ComunicacionesClient.tsx`):
-
-- Selector de tipo (Mensaje general/Invitación/Aviso de cierre) con badge de
-  clase LOPDP (Anuncios/Servicio).
-- Editor con toggle Visual/Código: se reutilizó `RichTextEditor.tsx`
-  (compartido con el editor de campaña) y se le agregó soporte de enlaces
-  (`@tiptap/extension-link`, no existía antes).
-- CTA(s) editables (agregar/quitar, toggle maestro) + toggle de redes
-  sociales.
-- Panel de audiencia con checkboxes ("incluir todos, desmarcar para
-  excluir") + conteo en vivo (debounce 300ms) + badge de cuota. Guard: no se
-  puede desmarcar el último checkbox marcado de un grupo (evita que "grupo
-  vacío" se interprete como "sin restricción" en el backend, que es la
-  semántica real de `AudienceIn` vacío).
-- Preview real + envío de prueba + modal de confirmación antes del envío
-  real.
-- Autosave local de borrador (`useDraft`) — sin persistencia server-side
-  todavía (eso es Fase 3).
-- **Backend nuevo no previsto en el diseño original**: `GET
-  /v1/campaigns/{id}/comms/quota` — el endpoint de cuota existente
-  (`GET /organizaciones/{id}/email-config`) es `platform_admin`-only, pero un
-  `gestor` de campaña también necesita ver la cuota (R21). Se agregó un
-  endpoint de solo lectura con scope de campaña, sin exponer credenciales.
-- El popup `AdherentCommsModal` **se mantiene, no se retira**: tiene campos
-  estructurados (fecha/lugar/mapa de invitación, conteo final de cierre) que
-  el nuevo frame no reconstruye (Fase 1 del centro simplificó los 3 tipos a
-  contenido genérico). Retirarlo es una decisión pendiente del usuario.
-
-**Bug real encontrado y corregido en la verificación**: hydration mismatch de
-React en cada carga de la página — `useDraft` leía `localStorage` dentro del
-inicializador de `useState`, que corre distinto en servidor (sin `window`)
-que en cliente. Se movió la carga a un `useEffect` (post-hidratación).
-
-**A pedido del usuario**, se agregaron además botones de acceso directo al
-centro: en el header del editor de campaña (junto a "Guardar cambios"/"Ver
-firmas") y en el header de la página de firmas (junto a los botones de
-exportar).
-
-## 2. `centro-comunicaciones` — Fase 2 completa (subida de imágenes)
-
-- Migración **039**: tabla `comms_upload` (org_id, campaign_id, path, mime,
-  bytes, created_by) con RLS — mismo patrón `NULLIF` que 038.
-- Sniffing de imagen **por firma de bytes** (jpg/png/gif/webp) en vez de
-  `python-magic`/libmagic — sin dependencias nuevas, evitando instalar
-  paquetes de sistema con el contenedor sin red. SVG y cualquier otro tipo no
-  matchean ninguna firma → rechazados sin lógica especial.
-- `POST /v1/campaigns/{id}/comms/uploads`: multipart, ≤25 MB, nombre uuid,
-  rate limit `20/minute`.
-- `GET /media/{org_id}/{campaign_id}/{filename}` — Opción A del design.md
-  (FastAPI sirve el volumen directamente, sin tocar nginx), público sin auth
-  (las imágenes se embeben en emails), cache `immutable`, filename validado
-  contra el patrón exacto que genera el backend (evita path traversal).
-- Volumen persistente: bind mount en dev (`./apps/api/data/uploads`,
-  gitignorado) y named volume en producción (`petition_uploads_data`) en
-  ambos `docker-compose`.
-- Editor: botón "🖼 Añadir medios" (modal drag&drop) inserta la imagen subida
-  por URL vía `RichTextEditorHandle` (ref imperativo nuevo,
-  `@tiptap/extension-image`, gated por `allowImages` — nunca activado en el
-  editor de campaña).
-- Se corrigió `_uploads_origin()` en `comms_service.py`: usaba
-  `settings.next_public_app_url` (el frontend) en vez de
-  `settings.api_public_url` (que ya incluye el prefijo `/api` que nginx
-  proxea hacia la API en el mismo dominio público) — apuntaba al origen
-  equivocado para el `img@src` allowlist de la sanitización.
-- Tests nuevos (`test_comms_upload.py`, 11): sniff por firma (los 4 formatos
-  válidos + SVG/texto plano/extensión disfrazada rechazados), rechazo de
-  tamaño excesivo, guardado correcto en disco+DB, y **aislamiento RLS entre
-  organizaciones**.
-
-**Dos bugs reales más encontrados y corregidos en la verificación**:
-1. **CORS**: se agregó `Authorization` a `allow_headers` del
-   `CORSMiddleware` — originado en un hallazgo del agente de verificación que
-   luego resultó ser un falso positivo de su propio script de prueba (el
-   navegador real nunca manda ese header, la app es cookie-only). El fix
-   quedó igual porque es un ensanche inofensivo, no porque fuera la causa real.
-2. **CSP real** (sí confirmado): `img-src` en `next.config.mjs` tenía
-   `'self' data: https:` sin la excepción dev-only para
-   `http://localhost:8011` que `connect-src` ya tenía — las imágenes subidas
-   no se renderizaban visualmente en dev (bloqueadas por CSP) aunque el HTML
-   y el backend estaban perfectamente bien. Se corrigió replicando el mismo
-   patrón dev/prod que ya existía para `connect-src`. Verificado con
-   Playwright real (`naturalWidth` del pixel, no solo presencia del tag
-   `<img>`) tanto en el editor como en la vista previa del email.
-
-**Pendiente de coordinar con el usuario**: nginx tiene `client_max_body_size
-10M` en `location /api/` (`infra/nginx/cauce.ecuadornotlc.org.conf`) —
-bloquearía uploads reales cercanos a 25 MB en producción. No se tocó (regla
-del proyecto de no modificar nginx sin pedido explícito).
-
-## Limpieza de datos de prueba
-
-Toda la data de prueba generada durante la verificación (uploads en disco +
-filas `comms_upload`, organizaciones huérfanas de corridas de test fallidas
-mientras se depuraba el test de RLS) se borró antes de cerrar la sesión.
+### 5. Ronda 3 de feedback
+- **"+CAUCES" fuera de la tarjeta** del email (badge fijo de plataforma,
+  separado conceptualmente de "Impulsado por", que sigue mostrando la org de
+  la campaña).
+- **Redes sociales centradas**.
+- **Desuscripción funcional** (no decorativa): token HMAC determinístico sin
+  expiración, endpoint público `GET .../signatures/{id}/unsubscribe`,
+  probado end-to-end contra la base real. Aparece solo en la clase Anuncios.
+- **Cuota de Resend incorrecta en producción**: dos causas reales — (a) el
+  endpoint ignoraba el snapshot más autoritativo reportado por Resend, y (b)
+  **causa de fondo**: `org_email_config` está vacía en producción (ninguna
+  org tiene config propia), así que todo cae al transporte de plataforma,
+  que no tenía forma de declarar su plan real (asumía Free). Se agregó
+  `RESEND_PLATFORM_PLAN` (env var) — confirmado con `pro` que da los valores
+  correctos (50000/mes, sin tope diario). **Pendiente del usuario**: setear
+  esa variable en el `.env` de producción.
+- Renombre de dato (a pedido explícito del usuario): org de dev "Cauce
+  Ecuador" → "+CAUCES".
 
 ## Suite de tests
 
-**201 passed** (190 al cierre de sesión 39 → +11 `test_comms_upload.py`).
+**231 passed** (201 al cierre de sesión 40 → +14 Fase 3 → +2 fixes de
+verificación → +8 merge tags/masking → +6 desuscripción).
 
 ## Datos dev
 
@@ -166,55 +105,38 @@ mientras se depuraba el test de RLS) se borró antes de cerrar la sesión.
 | Email admin | `admin@cauce.ec` / `admin123dev` |
 | URL admin | `http://localhost:3002/admin/resumen` |
 | API | `http://localhost:8011` |
-| Docker | Arriba y sano, pero con parches manuales sin bakear en imagen (ver arriba) — un `--build` con red los reemplaza sin curro. |
-| Alembic dev | `039 (head)` |
-| Dev limpio | Toda la data de prueba de esta sesión fue borrada al cierre. |
+| Docker | Arriba y sano. Docker Desktop no estaba corriendo al inicio de sesión — se levantó manualmente. |
+| Alembic dev | `041 (head)` |
+| Dev limpio | Toda la data de prueba propia se borró al cierre (quedan algunas filas del propio testeo del usuario en `scheduled_send`, no tocadas). |
 
 ## Datos producción
 
-**Desplegado.** PR #19 mergeado a `main` (`67b9641`), deploy corrido (GitHub
-Actions, `main` → VPS). Verificado desde este entorno: web 200, `/api/health`
-OK, ruta `/media` responde (404 esperado para archivo inexistente). El deploy
-de producción usa `docker compose up -d --build` con red real (no los
-parches manuales de esta sesión), así que `nh3` y los paquetes de tiptap
-deberían haber quedado bakeados correctamente en la imagen — no verificado
-directamente (sin acceso SSH desde este entorno), pero consistente con que
-`requirements.txt`/`package.json` ya estaban corregidos antes del PR.
-Falta confirmar `alembic current` en prod (`039` esperado) en la próxima
-sesión con acceso al VPS.
+**No se tocó producción esta sesión.** Todos los bugs reportados (uploads
+500, schedule 500, cuota incorrecta) siguen activos en producción hasta que
+el usuario commitee y deploye (working tree local, sin commitear — el
+usuario pidió drafts de mensajes en vez de que Claude commiteara). Alembic
+de producción sigue en `039` (pendiente confirmar desde sesión 40).
 
 ## Pendientes para la próxima sesión
 
-### 🟡 Seguir implementando
-1. **`centro-comunicaciones` Fase 3**: programación + cola multi-día +
-   historial (modelos `scheduled_send`/`send_batch`/`send_log` con RLS, loop
-   scheduler en el lifespan, borrador server-side).
-2. Luego Fase 4: remitente por dominio propio (Pro) + footer/desuscripción
-   coordinado con `email-cumplimiento-masivo`.
-3. Decisión pendiente del usuario: ¿retirar `AdherentCommsModal` ya, o
-   esperar a que el centro cubra los campos estructurados de invitación/cierre
-   (probablemente en una fase futura)?
-
-### 🟢 Coordinar / verificar
-4. **nginx**: subir `client_max_body_size` a 25M en `location /api/` de
-   `cauce.ecuadornotlc.org.conf` antes de que uploads grandes funcionen en
-   producción — requiere OK explícito del usuario (regla del proyecto).
-5. Confirmar `alembic current` en producción (`039` esperado tras el deploy
-   de PR #19) — no verificable desde este entorno, sin acceso SSH. De paso
-   confirmar también el `alembic current` de PR #18 (sesión 38, `038`), que
-   quedó sin verificar en su momento y nunca se retomó.
-6. ~~Rebuild real para bakear los parches manuales de esta sesión~~ — hecho:
-   el deploy de PR #19 usó `docker compose up -d --build` con red real en el
-   VPS (GitHub Actions), no los parches manuales de esta sesión.
+Ver la lista completa (8 puntos) en la entrada de sesión 41 de
+`progress/history.md`, sección "Pendiente para la próxima sesión". Resumen:
+deployar todo lo de esta sesión (nada commiteado ni pusheado todavía);
+setear `RESEND_PLATFORM_PLAN` en producción; decidir Fase 4 de
+`centro-comunicaciones` (el footer de cumplimiento ya no bloquea la clase
+Anuncios — la desuscripción real ya existe); decisión sobre retirar
+`AdherentCommsModal`; auditoría opcional de `commit()`+`refresh()` en otros
+servicios; nginx `client_max_body_size`; confirmar `alembic current` en
+producción; verificación visual final en navegador (el usuario ya probó y
+reportó bugs reales durante la sesión, pero una pasada final con Playwright
+propio sigue pendiente).
 
 ## Al inicio de la próxima sesión
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # por si el daemon se cayó
-git checkout dev && git status                    # debería estar limpio, dev == origin/main
-git fetch origin                                   # confirmar que sigue funcionando
-git log --oneline origin/main..dev                 # vacío si no hay trabajo nuevo sin PR
-docker exec petition-api-dev alembic current       # 039 en dev
-docker exec petition-api-dev python -c "import nh3; print('ok')"   # confirmar que sigue instalado (dev)
-docker exec petition-web-dev node -e "console.log(require.resolve('@tiptap/extension-image'))"  # ídem
+git checkout dev && git status                    # va a mostrar cambios sin commitear de esta sesión
+git fetch origin
+git log --oneline origin/dev..dev                  # el commit 5b15a04 de sesión 40 sigue sin pushear
+docker exec petition-api-dev alembic current       # 041 en dev
 ```
