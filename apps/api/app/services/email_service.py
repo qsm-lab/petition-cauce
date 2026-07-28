@@ -23,11 +23,19 @@ _TZ_EC = ZoneInfo("America/Guayaquil")
 _CONFIRM_PATH = "/v1/public-campaign/confirm/"
 
 # Mismo texto del footer de la plataforma — transparencia en cada email (2.4)
-_PLATFORM_FOOTER_HTML = (
-    "<p style='margin:16px 0 0;font-size:11px;color:#9aaa92;text-align:center;line-height:1.5;'>"
-    "Plataforma sin fines de lucro hecha en Ecuador · +Cauces · Todos los derechos reservados 2026"
-    "</p>"
-)
+def _platform_footer_html(unsubscribe_url: str | None = None) -> str:
+    """`unsubscribe_url` solo lo pasa `comms_service.build_comms_email_html`
+    para la clase *Anuncios* (R20) — el resto de emails (transaccionales/
+    servicio) no llevan desuscripción porque no son marketing."""
+    unsubscribe_link = (
+        f" · <a href=\"{unsubscribe_url}\" style=\"color:#9aaa92;text-decoration:underline;\">Cancelar suscripción</a>"
+        if unsubscribe_url else ""
+    )
+    return (
+        "<p style='margin:16px 0 0;font-size:11px;color:#9aaa92;text-align:center;line-height:1.5;'>"
+        f"Plataforma sin fines de lucro hecha en Ecuador · +Cauces · Todos los derechos reservados 2026{unsubscribe_link}"
+        "</p>"
+    )
 
 # Qué implica cada visibilidad — reiterado en el email de confirmación (LOPDP)
 _VISIBILITY_EXPLANATIONS = {
@@ -93,7 +101,7 @@ def _signer_action_html(
           </p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -166,7 +174,7 @@ def _lifecycle_base_html(campaign_title: str, old_stage: str, new_stage: str, no
           {changed_by_block}
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -228,7 +236,7 @@ async def send_lifecycle_signer_notification(
           {message_block}
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -376,7 +384,7 @@ async def send_thanks_share_email(
           </p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -525,7 +533,7 @@ async def send_arco_org_notification(
           <p style="margin:8px 0 0;font-size:13px;color:#7a8a72;">Fecha: {requested_at}</p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -581,7 +589,7 @@ async def send_arco_deletion_notification(
           </p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -639,7 +647,7 @@ async def send_archive_notification(
           </p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -733,7 +741,7 @@ async def send_export_absoluto_notification(
           </p>
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -905,7 +913,7 @@ def _powered_by_block(org_name: str) -> str:
     if not org_name:
         return ""
     return (
-        "<p style='margin:16px 0 0;font-size:12px;color:#7a8a72;'>"
+        "<p style='margin:16px 0 0;font-size:12px;color:#7a8a72;text-align:center;'>"
         f"Impulsado por: <strong style='color:#1a2516;'>{org_name}</strong></p>"
     )
 
@@ -1027,7 +1035,7 @@ def _build_delivery_event_invitation_html(
           {social_block}
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>
@@ -1147,7 +1155,7 @@ def _build_campaign_closing_html(
           {links_block}
         </td></tr>
       </table>
-      {_PLATFORM_FOOTER_HTML}
+      {_platform_footer_html()}
     </td></tr>
   </table>
 </body>

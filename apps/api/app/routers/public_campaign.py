@@ -29,6 +29,7 @@ from app.services.signature_service import (
     get_signature_count,
     get_total_signature_count,
     set_newsletter_consent,
+    unsubscribe_by_token,
 )
 from app.services.turnstile_service import verify_turnstile
 
@@ -338,6 +339,34 @@ async def newsletter_consent(
     if not ok:
         raise HTTPException(status_code=404, detail="Enlace inválido o expirado")
     return Response(status_code=204)
+
+
+@router.get("/signatures/{signature_id}/unsubscribe")
+@limiter.limit("10/minute")
+async def unsubscribe_signature(
+    signature_id: uuid.UUID, token: str, request: Request, db: AsyncSession = Depends(get_db),
+):
+    """R20: desuscripción de un clic desde el footer de la clase Anuncios —
+    sin autenticación (estándar de la industria), token HMAC verificado
+    server-side. Setea `Consent.notify_updates = False`; redirige a la
+    landing de la campaña con un aviso, igual que confirm-visibility."""
+    from fastapi.responses import RedirectResponse
+    from app.config import settings
+
+    app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+
+    result = await db.execute(select(Signature).where(Signature.id == signature_id))
+    sig = result.scalar_one_or_none()
+    slug = ""
+    if sig:
+        campaign_result = await db.execute(select(Campaign).where(Campaign.id == sig.campaign_id))
+        campaign = campaign_result.scalar_one_or_none()
+        slug = campaign.slug if campaign else ""
+
+    ok = await unsubscribe_by_token(db, signature_id, token)
+    if not ok:
+        return RedirectResponse(f"{app_url}/c/{slug}?desuscripcion=invalida", status_code=302)
+    return RedirectResponse(f"{app_url}/c/{slug}?desuscripcion=ok", status_code=302)
 
 
 @router.get("/confirm-visibility/{token}")

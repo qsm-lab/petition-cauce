@@ -251,6 +251,42 @@ async def set_newsletter_consent(db: AsyncSession, token: str, notify_updates: b
     return True
 
 
+def unsubscribe_token(signature_id: uuid.UUID) -> str:
+    """Token de desuscripción (R20, footer de la clase Anuncios) — HMAC
+    determinístico, sin expiración ni fila nueva en DB (a diferencia de
+    `newsletter_token`, que vive solo 2h para el embudo post-firma y no sirve
+    para un link que puede llegar semanas después en un envío programado)."""
+    return compute_hmac(f"unsub:{signature_id}")
+
+
+async def unsubscribe_by_token(db: AsyncSession, signature_id: uuid.UUID, token: str) -> bool:
+    """Verifica el token (constant-time) y setea `Consent.notify_updates =
+    False` — mismo efecto que el opt-out desde el portal ARCO, pero de un
+    clic sin autenticación (estándar de la industria para desuscripción)."""
+    import hmac as hmac_lib
+    if not hmac_lib.compare_digest(unsubscribe_token(signature_id), token):
+        return False
+
+    result = await db.execute(select(Signature).where(Signature.id == signature_id))
+    sig = result.scalar_one_or_none()
+    if not sig:
+        return False
+
+    await db.execute(
+        text("SELECT set_config('app.current_org_id', :org_id, true)"),
+        {"org_id": str(sig.org_id)},
+    )
+    consent_result = await db.execute(select(Consent).where(Consent.signature_id == sig.id))
+    consent = consent_result.scalar_one_or_none()
+    if not consent:
+        return False
+
+    consent.notify_updates = False
+    consent.notify_updates_at = datetime.now(timezone.utc)
+    await db.commit()
+    return True
+
+
 async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     """Confirma firma por token. Retorna {status, slug, count, goal} o None si el token no existe.
 
