@@ -1,12 +1,13 @@
 "use client";
 
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Heading from "@tiptap/extension-heading";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
 
 interface Props {
   value: string;
@@ -16,10 +17,15 @@ interface Props {
   /** Habilita el nodo de imagen (nunca activado en el editor de campaña —
    * solo lo usa el centro de comunicaciones, que sí tiene subida propia). */
   allowImages?: boolean;
+  /** El padre abre el modal de subida en modo "reemplazar" (la imagen
+   * seleccionada actualmente se sustituye en vez de insertar una nueva). */
+  onRequestReplaceImage?: () => void;
 }
 
 export interface RichTextEditorHandle {
   insertImage: (url: string) => void;
+  replaceSelectedImage: (url: string) => void;
+  removeSelectedImage: () => void;
 }
 
 function ToolbarButton({
@@ -50,9 +56,10 @@ function ToolbarButton({
 }
 
 const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichTextEditor(
-  { value, onChange, placeholder, minHeight = 200, allowImages = false },
+  { value, onChange, placeholder, minHeight = 200, allowImages = false, onRequestReplaceImage },
   ref,
 ) {
+  const [imageSelected, setImageSelected] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -63,6 +70,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
         link: false, // se configura aparte, más abajo — evita registrarla dos veces
       }),
       Heading.configure({ levels: [2, 3] }),
+      TextAlign.configure({ types: ["paragraph", "heading"], alignments: ["left", "center", "right"] }),
       Link.configure({
         openOnClick: false,
         autolink: false,
@@ -88,9 +96,28 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
     },
   });
 
+  useEffect(() => {
+    if (!editor) return;
+    const update = () => setImageSelected(editor.isActive("image"));
+    editor.on("selectionUpdate", update);
+    editor.on("transaction", update);
+    return () => {
+      editor.off("selectionUpdate", update);
+      editor.off("transaction", update);
+    };
+  }, [editor]);
+
   useImperativeHandle(ref, () => ({
     insertImage: (url: string) => {
       editor?.chain().focus().setImage({ src: url }).run();
+    },
+    replaceSelectedImage: (url: string) => {
+      if (!editor?.isActive("image")) return;
+      editor.chain().focus().updateAttributes("image", { src: url }).run();
+    },
+    removeSelectedImage: () => {
+      if (!editor?.isActive("image")) return;
+      editor.chain().focus().deleteSelection().run();
     },
   }), [editor]);
 
@@ -104,6 +131,25 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
     const url = window.prompt("URL del enlace");
     if (!url) return;
     editor!.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  }
+
+  async function copySelection() {
+    const { from, to, empty } = editor!.state.selection;
+    const text = empty ? editor!.getText() : editor!.state.doc.textBetween(from, to, "\n");
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* el navegador bloqueó el acceso al portapapeles — Ctrl+C/Cmd+C nativo sigue funcionando */
+    }
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) editor!.chain().focus().insertContent(text).run();
+    } catch {
+      window.alert("No se pudo leer el portapapeles automáticamente — usá Ctrl+V (Cmd+V en Mac).");
+    }
   }
 
   return (
@@ -155,6 +201,30 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
         <div className="w-px h-4 mx-1" style={{ background: "var(--bbord)" }} />
 
         <ToolbarButton
+          title="Alinear a la izquierda"
+          active={editor.isActive({ textAlign: "left" })}
+          onClick={() => editor.chain().focus().setTextAlign("left").run()}
+        >
+          Izq
+        </ToolbarButton>
+        <ToolbarButton
+          title="Centrar"
+          active={editor.isActive({ textAlign: "center" })}
+          onClick={() => editor.chain().focus().setTextAlign("center").run()}
+        >
+          Ctr
+        </ToolbarButton>
+        <ToolbarButton
+          title="Alinear a la derecha"
+          active={editor.isActive({ textAlign: "right" })}
+          onClick={() => editor.chain().focus().setTextAlign("right").run()}
+        >
+          Der
+        </ToolbarButton>
+
+        <div className="w-px h-4 mx-1" style={{ background: "var(--bbord)" }} />
+
+        <ToolbarButton
           title="Lista con viñetas"
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -199,7 +269,42 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, Props>(function RichText
         >
           ↪
         </ToolbarButton>
+
+        <div className="w-px h-4 mx-1" style={{ background: "var(--bbord)" }} />
+
+        <ToolbarButton title="Copiar" active={false} onClick={() => { copySelection(); }}>
+          📋
+        </ToolbarButton>
+        <ToolbarButton title="Pegar" active={false} onClick={() => { pasteFromClipboard(); }}>
+          📥
+        </ToolbarButton>
       </div>
+
+      {/* Barra contextual: aparece solo con una imagen seleccionada */}
+      {imageSelected && allowImages && (
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold"
+          style={{ background: "var(--bbg)", borderBottom: "1px solid var(--bbord)", color: "var(--bink)" }}
+        >
+          <span>🖼 Imagen seleccionada</span>
+          {onRequestReplaceImage && (
+            <button
+              type="button"
+              onClick={onRequestReplaceImage}
+              style={{ border: "none", background: "transparent", color: "var(--bp, #3d6b35)", fontWeight: 700, cursor: "pointer" }}
+            >
+              🔄 Reemplazar
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => editor.chain().focus().deleteSelection().run()}
+            style={{ border: "none", background: "transparent", color: "#c2410c", fontWeight: 700, cursor: "pointer" }}
+          >
+            🗑 Quitar
+          </button>
+        </div>
+      )}
 
       {/* Editor area */}
       <EditorContent editor={editor} />
