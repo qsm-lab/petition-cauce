@@ -25,6 +25,12 @@ export default function RemindPendingButton({ campaignId }: Props) {
         `${API_URL}/v1/admin/campaigns/${campaignId}/signatures/remind-pending`,
         { method: "POST", credentials: "include" },
       );
+      if (res.status === 401) {
+        // Mismo manejo que apiFetch (api.ts): sesión vencida → relogueo,
+        // no un error genérico atascado en el botón.
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Error desconocido" }));
         throw new Error(typeof err.detail === "string" ? err.detail : "No se pudo enviar el recordatorio");
