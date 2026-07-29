@@ -5,6 +5,18 @@
 
 ## 2026-07-27 — Sesión 41: fix de bug de producción (upload de imágenes) + centro-comunicaciones Fase 3 completa
 
+**Confirmación de cierre**: los 5 commits (`fa83037`…`e600c59`, drafts
+entregados por Claude, ejecutados por el usuario) se pushearon, el usuario
+abrió PR **#20** (`dev` → `main`, título/descripción también draft de
+Claude) y lo mergeó (`5748dad`). Deploy de GitHub Actions verificado desde
+este entorno: web 200, `/api/health` OK, y la ruta nueva de desuscripción
+(`GET .../signatures/{id}/unsubscribe`) responde 302 en producción — la
+única ruta pública nueva de toda la sesión, confirma que el deploy tomó el
+código nuevo. `origin/main` == `origin/dev` == `dev` local, sin
+divergencia. Pendiente: confirmar `alembic current` en prod (`041`
+esperado, sin acceso SSH desde este entorno) y que el usuario setee
+`RESEND_PLATFORM_PLAN=pro` en el `.env` de producción.
+
 **Bug de producción resuelto**: `POST /comms/uploads` daba 500 en producción
 (`sqlalchemy.exc.InvalidRequestError: Could not refresh instance`) al subir
 imágenes desde el editor — funcionaba en dev, fallaba siempre en producción.

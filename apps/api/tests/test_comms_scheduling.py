@@ -20,8 +20,8 @@ from app.models.user import User
 from app.redis_client import close_redis, get_redis, init_redis
 from app.services import comms_queue_service
 from app.services.comms_queue_service import (
-    DraftNotFound, SendNotCancellable, _claim_batch, _process_claimed_batch, cancel_scheduled_send,
-    delete_draft, expand_into_batches, get_draft, list_drafts, list_history, list_queue,
+    DraftNotFound, SendNotCancellable, _claim_batch, _finalize_if_done, _process_claimed_batch,
+    cancel_scheduled_send, delete_draft, expand_into_batches, get_draft, list_drafts, list_history, list_queue,
     process_due_scheduled_sends, save_draft, schedule_send,
 )
 from app.services.email_quota import record_usage
@@ -483,6 +483,51 @@ async def test_process_due_scheduled_sends_flujo_completo_escribe_historial(db, 
         assert history[0].sent_count == 2
         # R14: el historial no persiste contenido/HTML — solo metadatos.
         assert not hasattr(history[0], "body_html")
+    finally:
+        await _cleanup(db, org, user, camp)
+
+
+@pytest.mark.asyncio
+async def test_finalize_no_cierra_si_queda_lote_sending(db):
+    """Regresión de incidente de producción (sesión 42): dos ticks
+    concurrentes del loop pueden dejar más de un lote en `sending` a la vez
+    (TTL del lock corto frente a un lote lento). `_finalize_if_done` debía
+    mirar solo `pending` y por eso cerraba el envío como completo mientras
+    otro lote seguía genuinamente en curso — 622 destinatarios reales
+    quedaron sin correo antes de detectarse."""
+    org, user = await _make_org(db)
+    camp = await _make_campaign(db, org, user)
+    try:
+        send = await schedule_send(
+            db, org_id=org.id, campaign_id=camp.id, draft_id=None, type="general",
+            subject="x", body_html="<p>x</p>", ctas=[], include_social=False,
+            audience={}, scheduled_at=datetime.now(timezone.utc), created_by=user.id,
+        )
+        send.status = "sending"
+        db.add(send)
+        db.add(SendBatch(
+            scheduled_send_id=send.id, org_id=org.id, batch_index=0,
+            signature_ids=["11111111-1111-1111-1111-111111111111"], status="sent", sent_count=1,
+        ))
+        sending_batch = SendBatch(
+            scheduled_send_id=send.id, org_id=org.id, batch_index=1,
+            signature_ids=["22222222-2222-2222-2222-222222222222"], status="sending",
+        )
+        db.add(sending_batch)
+        await db.commit()
+
+        await _finalize_if_done(db, send)
+        db_result = await db.execute(select(ScheduledSend).where(ScheduledSend.id == send.id))
+        assert db_result.scalar_one().status == "sending", "no debe cerrarse con un lote todavía en sending"
+
+        sending_batch.status = "sent"
+        sending_batch.sent_count = 1
+        db.add(sending_batch)
+        await db.commit()
+
+        await _finalize_if_done(db, send)
+        db_result = await db.execute(select(ScheduledSend).where(ScheduledSend.id == send.id))
+        assert db_result.scalar_one().status == "sent", "sí debe cerrarse una vez que no queda pending ni sending"
     finally:
         await _cleanup(db, org, user, camp)
 
