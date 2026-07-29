@@ -3,6 +3,130 @@
 
 ---
 
+## 2026-07-28/29 — Sesión 42: incidente de producción en la cola de envíos de centro-comunicaciones (3 bugs de concurrencia)
+
+**Confirmación de cierre**: 3 commits (`deea075`, `c8d93a7`, `e4a89fa`,
+drafts entregados por Claude, ejecutados por el usuario), cada uno con su
+propio PR (#21, #22, #23) mergeado a `main`. `origin/main` == `origin/dev`
+== `dev` local en `9c8ab19`, sin divergencia. Deploy verificado tras cada
+uno (`/api/health` OK).
+
+**Punto de partida**: pedido de rutina — verificar que la cuota diaria de
+Resend en producción estuviera realmente en plan Pro (pendiente desde el
+cierre de sesión 41, donde se había agregado `RESEND_PLATFORM_PLAN` pero
+no se había confirmado que el usuario ya lo hubiera seteado en el `.env`
+de producción). Verificado vía `GET /comms/quota` con login real: seguía
+en valores de Free (`daily_quota:100, monthly_quota:3000`) pese a que el
+`.env` ya tenía la línea correcta — causa: `docker compose restart` no
+relee `.env`, hace falta recrear el contenedor. El usuario corrió
+`docker compose up -d --force-recreate petition-api`, confirmado con
+`docker exec petition-api env | grep RESEND_PLATFORM_PLAN` y con el
+endpoint (`daily_quota:null, monthly_quota:50000`).
+
+**El incidente**: ese mismo reinicio (y uno anterior, `docker compose
+restart`, antes de descubrir que hacía falta `--force-recreate`) cortó un
+envío real en curso: el aviso de cierre de campaña a 1236 destinatarios
+confirmados de `soberania-tlc-ecu-usa` (`scheduled_send` tipo `closing`),
+que la cola de `centro-comunicaciones` (Fase 3, sesión 41) estaba
+procesando en lotes de ~100 por la cuota diaria vieja (Free=100). El
+usuario reportó "el envío actual quedó bloqueado y con este reset el
+envío en curso de los siguientes 100 se borró" — arrancó una sesión de
+diagnóstico con consultas SQL de solo lectura contra producción (vía
+`docker exec petition-db psql`, `SET app.is_platform_admin='true'` para
+bypassear RLS) para entender el estado exacto sin arriesgar más datos.
+
+**Diagnóstico inicial**: de los 15 lotes del envío, 2 (114 destinatarios)
+ya habían salido de verdad; 13 quedaron en `status=sending` con
+`sent_count=0` — reclamados pero nunca procesados, sin riesgo de
+duplicados (ninguno tenía evidencia de haber mandado nada). El registro
+padre (`scheduled_send`) estaba marcado `status=sent` (completo) pese a
+faltar 1122 destinatarios — el primer síntoma del **bug 1**.
+
+**Bug 1 — `_finalize_if_done` ignoraba lotes `sending`**
+(`comms_queue_service.py`): la función que decide si un envío terminó
+solo contaba lotes `pending`. En cuanto no quedaba ninguno con ese
+estado exacto (aunque hubiera varios genuinamente `sending`, reclamados
+por ticks concurrentes del loop —el lock de Redis tenía TTL=30s, igual al
+intervalo de polling, insuficiente para un lote real de ~100 correos por
+red, así que expiraba a mitad de tick y dejaba solapar el siguiente—), el
+envío se daba por completo. Fix: la condición ahora exige que no quede
+ningún lote ni `pending` ni `sending`. Además: TTL del lock subido a
+300s, y la adquisición del lock (antes fuera del `try/except` del tick)
+protegida — una falla puntual de Redis ya no mata la tarea de `asyncio`
+completa en silencio. Test de regresión nuevo
+(`test_finalize_no_cierra_si_queda_lote_sending`). Reset manual vía SQL
+(liberar lotes `sending`→`pending`, envío padre `sent`→`sending`) para
+reanudar mientras se armaba el fix — **se repitió 3 veces** durante la
+sesión, cada vez topando con una causa distinta (bugs 1, 2 y 3, cada uno
+enmascarando al siguiente hasta corregir el anterior). Suite: 232
+passed. PR #21 (`deea075`).
+
+**Bug 2 — GUC de RLS transaccional, no de sesión**: con el fix del bug 1
+desplegado, el envío se volvió a frenar (usuario: "hace una hora no se
+envía nuevos emails"). Log de producción (`docker logs petition-api`)
+mostró el traceback exacto: `AttributeError: 'NoneType' object has no
+attribute 'signature_ids'` — un lote recién reclamado (`_claim_batch`,
+que comitea de inmediato) desaparecía para la sesión al hacer
+`db.get(SendBatch, batch_id)` justo después. Causa:
+`process_due_scheduled_sends` seteaba `app.is_platform_admin` con
+`set_config(..., true)` (`SET LOCAL`, transaccional) en vez de `false`
+(de sesión) — se perdía en el primer `commit()` del tick (el de
+`_claim_batch`), dejando el resto de las consultas del mismo tick sin
+RLS habilitado como `platform_admin`. El propio docstring decía imitar
+el patrón de `retention_service.py`, que sí usa `false` — confirmado por
+grep, la inconsistencia era el bug. Fix de una palabra (`true`→`false`)
++ guard defensivo (loguear y saltar el lote si `db.get()` vuelve a
+devolver `None`, en vez de romper en cascada al intentar loguear
+`batch.id` sobre `None`). Suite: 232 passed. PR #22 (`c8d93a7`).
+
+**Bug 3 — autoreparación real + `StaleDataError`**: tras desplegar el
+bug 2, el envío completó 11 de 15 lotes solo, pero el último quedó
+atascado de nuevo — el guard del bug 2 solo *saltaba* el lote sin
+liberarlo (log real en producción:
+`"lote f5f99dc2... reclamado pero no encontrado, se omite este tick"`,
+confirmado como el lote atascado exacto), dejándolo huérfano igual. Log
+de las últimas 5 horas también mostró un `StaleDataError: UPDATE
+statement on table 'scheduled_send' expected to update 1 row(s); 0 were
+matched` en `_finalize_if_done` — bajo dos ticks concurrentes cerrando
+el mismo envío, la asignación ORM (`send.status = "sent"` + `commit()`)
+no tolera que otro tick ya haya tocado la fila entre medio. Ninguno de
+los dos mecanismos exactos de la concurrencia de fondo se terminó de
+diagnosticar al 100% (candidato: comportamiento del pool de conexiones
+de SQLAlchemy async bajo `set_config`+RLS) — se optó por hacer que el
+sistema se autorepare ante los síntomas conocidos en vez de perseguir la
+causa exacta bajo presión de un incidente en vivo. Fix: el guard del bug
+2 ahora libera el lote a `pending` con un UPDATE directo (no solo
+loguea); el cierre en `_finalize_if_done` pasó de asignación ORM a un
+`UPDATE` atómico estilo Core condicionado a `status=="sending"` (mismo
+patrón que `_claim_batch`), que de paso evita duplicar la fila de
+historial si dos ticks lo cierran a la vez. Suite: 232 passed. PR #23
+(`e4a89fa`).
+
+**Cierre real**: tras el deploy del bug 3, el último lote (el 10,
+100 destinatarios) necesitó un reset manual más (ya estaba `sending`
+desde antes del deploy, el fix nuevo solo previene futuros huérfanos, no
+repara retroactivamente uno ya existente) — completó solo en el
+siguiente tick. Verificación final por suma de `sent_count` de los 15
+lotes (no el campo cacheado del envío padre, que quedó en `1139` por una
+carrera anterior a los 3 fixes): **1236/1236 destinatarios, 0 fallos**.
+
+**Documentación nueva**: `docs/engineering/runbook_colas_asincronas_email.md`
+(versionado, nuevo) — los 5 errores de diseño generalizados (GUC
+transaccional fuera de request, condición de "terminado" incompleta,
+transición de estado no atómica bajo concurrencia, guard que no libera
+el recurso, TTL de lock menor al peor caso real) + checklist de 8 puntos
+para la próxima feature de envío masivo, en este proyecto o en otro.
+Referenciado desde `PROJECT_REFERENCE.md` §10 y desde la entrada de
+`centro-comunicaciones` en `feature_list.json`.
+
+**Pendiente**: corregir el `scheduled_send.sent_count` desincronizado
+(1139 vs 1236 reales) de ese envío puntual — cosmético, no bloquea nada.
+Confirmar `alembic current` en producción (sigue pendiente desde sesión
+41, sin cambios de esquema en esta). Fase 4 de `centro-comunicaciones`
+sin tocar.
+
+---
+
 ## 2026-07-27 — Sesión 41: fix de bug de producción (upload de imágenes) + centro-comunicaciones Fase 3 completa
 
 **Confirmación de cierre**: los 5 commits (`fa83037`…`e600c59`, drafts
