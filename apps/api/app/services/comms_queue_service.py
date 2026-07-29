@@ -327,18 +327,28 @@ async def _process_claimed_batch(
 async def _finalize_if_done(db: AsyncSession, send: ScheduledSend) -> None:
     """Solo cierra el envío si no queda ningún lote `pending` NI `sending` —
     un lote `sending` puede ser un tick concurrente todavía en curso (ver
-    `_LOCK_TTL_SECONDS`), no equivale a "no hay más trabajo"."""
+    `_LOCK_TTL_SECONDS`), no equivale a "no hay más trabajo".
+
+    El cierre en sí es un UPDATE estilo Core (no asignación de atributo ORM
+    + commit) condicionado a `status == "sending"`, atómico igual que
+    `_claim_batch`: bajo ticks concurrentes sobre el mismo envío (visto en
+    producción), la asignación ORM disparaba `StaleDataError` si otro tick
+    ya lo había cerrado entre el SELECT y el UPDATE. Con esto, el que
+    pierde la carrera simplemente no hace nada — sin excepción y sin
+    duplicar la fila de historial."""
     result = await db.execute(
         select(func.count()).select_from(SendBatch)
         .where(SendBatch.scheduled_send_id == send.id, SendBatch.status.in_(["pending", "sending"]))
     )
     if (result.scalar() or 0) > 0:
         return
-    if send.status == "cancelled":
-        return
-    send.status = "sent"
-    db.add(send)
+    update_result = await db.execute(
+        sa_update(ScheduledSend).where(ScheduledSend.id == send.id, ScheduledSend.status == "sending")
+        .values(status="sent")
+    )
     await db.commit()
+    if update_result.rowcount != 1:
+        return
     await log_send(
         db, org_id=send.org_id, campaign_id=send.campaign_id, type=send.type, comms_class=send.comms_class,
         subject=send.subject, recipient_count=send.recipient_count, sent_count=send.sent_count,
@@ -399,12 +409,18 @@ async def process_due_scheduled_sends(db: AsyncSession) -> dict:
             continue
         batch = await db.get(SendBatch, batch_id)
         if batch is None:
-            # No debería pasar (RLS/GUC de sesión ya corregido más arriba),
-            # pero un `db.get()` en None acá dejaba el lote huérfano en
-            # `sending` para siempre y además rompía el manejo de error de
-            # abajo (`batch.id` sobre `None`) — sin este guard, ambos
-            # bugs se enmascaraban entre sí.
-            logger.error("[comms_queue] lote %s reclamado pero no encontrado, se omite este tick", batch_id)
+            # Visto en producción incluso con el GUC de sesión corregido
+            # arriba (causa exacta todavía no confirmada — sospecha de
+            # visibilidad RLS intermitente bajo ticks concurrentes). Sin
+            # este release, el lote quedaba reclamado ("sending") pero
+            # invisible para esta sesión, huérfano para siempre — nada
+            # volvía a intentarlo. Se libera con SQL directo (no hay
+            # objeto ORM disponible) para que un tick futuro lo retome.
+            logger.error(
+                "[comms_queue] lote %s reclamado pero no encontrado, se libera para reintento", batch_id
+            )
+            await db.execute(sa_update(SendBatch).where(SendBatch.id == batch_id).values(status="pending"))
+            await db.commit()
             continue
         sender = {
             "from_": sender_ctx["from_"], "reply_to": sender_ctx["reply_to"],
