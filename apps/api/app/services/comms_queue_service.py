@@ -325,9 +325,12 @@ async def _process_claimed_batch(
 
 
 async def _finalize_if_done(db: AsyncSession, send: ScheduledSend) -> None:
+    """Solo cierra el envío si no queda ningún lote `pending` NI `sending` —
+    un lote `sending` puede ser un tick concurrente todavía en curso (ver
+    `_LOCK_TTL_SECONDS`), no equivale a "no hay más trabajo"."""
     result = await db.execute(
         select(func.count()).select_from(SendBatch)
-        .where(SendBatch.scheduled_send_id == send.id, SendBatch.status == "pending")
+        .where(SendBatch.scheduled_send_id == send.id, SendBatch.status.in_(["pending", "sending"]))
     )
     if (result.scalar() or 0) > 0:
         return
