@@ -354,7 +354,7 @@ async def process_due_scheduled_sends(db: AsyncSession) -> dict:
     (mismo patrón que `retention_service`) para poder leer/escribir de
     cualquier organización."""
     from sqlalchemy import text
-    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', true)"))
+    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
 
     now = datetime.now(timezone.utc)
     result = await db.execute(
@@ -398,6 +398,14 @@ async def process_due_scheduled_sends(db: AsyncSession) -> dict:
         if not await _claim_batch(db, batch_id):
             continue
         batch = await db.get(SendBatch, batch_id)
+        if batch is None:
+            # No debería pasar (RLS/GUC de sesión ya corregido más arriba),
+            # pero un `db.get()` en None acá dejaba el lote huérfano en
+            # `sending` para siempre y además rompía el manejo de error de
+            # abajo (`batch.id` sobre `None`) — sin este guard, ambos
+            # bugs se enmascaraban entre sí.
+            logger.error("[comms_queue] lote %s reclamado pero no encontrado, se omite este tick", batch_id)
+            continue
         sender = {
             "from_": sender_ctx["from_"], "reply_to": sender_ctx["reply_to"],
             "org_name": org.name if org else "", "org_logo_url": (org.logo_url or "") if org else "",
