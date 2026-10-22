@@ -3,6 +3,46 @@
 
 ---
 
+## 2026-10-22 — Sesión 43: documento de propuesta de valor de la plataforma
+
+**Alcance**: sesión corta, solo documentación. Sin cambios de código,
+migraciones, tests ni despliegue. Sin commits (el usuario commitea).
+
+**Inicio**: lectura de `progress/current.md`, `feature_list.json` y
+`AGENTS.md`; `git fetch` sin divergencia (`dev` == `origin/dev`).
+Reporte de features en `pending` (12), `spec_ready` (3) e `in_progress` (23).
+
+**Entregable**: `docs/propuesta_de_valor.md` (local; el usuario decidió
+excluirlo del repo, agregado a `.gitignore`).
+Posicionamiento para organizaciones, aliados y financiadores: problema,
+diferenciales (dominio y marca propios por campaña, soberanía de datos y
+LOPDP como Encargado, seguridad en capas, firmas pensadas para entrega,
+visibilidad elegida por el firmante, gestión de campañas, centro de
+comunicaciones, operación reproducible), tabla comparativa, y 14 mejoras
+propuestas con orden sugerido. Cada capacidad lleva marca de estado
+(implementada / parcial / propuesta) verificada contra el código.
+
+**Hallazgos al verificar contra el código** (no corregidos, solo anotados):
+- **Dominio propio por campaña**: existen la tabla `domains`, la
+  resolución por Host con caché Redis y la marca en JSONB, pero **no hay
+  endpoints ni pantalla de admin para dar de alta un dominio**; hoy es
+  una operación asistida (fila en `domains` + DNS/Cloudflare). Es la
+  mejora propuesta de mayor impacto (§6.1 del documento).
+- **Transporte de email**: solo está implementado el adaptador de Resend;
+  SMTP y adaptadores nativos (SendGrid/Mailgun/SES) están en el diseño de
+  `config-email-org` pero no existen.
+- `SECURITY_OVERVIEW.md` y `PROJECT_REFERENCE.md` (locales, no
+  versionados) siguen marcando como "pendiente" cosas ya implementadas;
+  están desactualizados respecto al código.
+- `docs/diagrams/` sigue sin trackear (preexistente a esta sesión).
+
+**No verificado**: la cifra de 232 tests citada en el documento viene de
+`progress/current.md`; no se re-ejecutó la suite. La comparativa con
+plataformas externas se basa en su modelo público y debe validarse antes
+de usarse en difusión.
+
+---
+
 ## 2026-07-28/29 — Sesión 42: incidente de producción en la cola de envíos de centro-comunicaciones (3 bugs de concurrencia)
 
 **Confirmación de cierre**: 3 commits (`deea075`, `c8d93a7`, `e4a89fa`,

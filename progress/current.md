@@ -1,4 +1,35 @@
-# Estado actual — tras sesión 42 (2026-07-28/29) — CERRADA, mergeada y desplegada
+# Estado actual — tras sesión 43 (2026-10-22) — CERRADA (solo documentación, sin commitear)
+
+## Resumen de sesión 43
+
+Sesión corta de documentación, sin cambios de código ni despliegue. Se
+creó `docs/propuesta_de_valor.md` (propuesta de valor de la plataforma:
+funciones técnicas, seguridad, practicidad, diferenciales como dominio
+propio por campaña, y 14 mejoras propuestas). Cada capacidad está marcada
+como implementada / parcial / propuesta, verificada contra el código.
+
+**Estado de git**: `dev` == `origin/dev`. Sin commitear (el usuario
+revisa): `.gitignore` (línea nueva que excluye la propuesta), `docs/diagrams/`
+(preexistente, sin trackear), y las ediciones de `progress/`.
+`docs/propuesta_de_valor.md` queda **local, excluido del repo** por decisión
+del usuario (no se versiona).
+
+**Hallazgos para decidir** (detalle en `progress/history.md`):
+- No hay UI ni endpoints de admin para dar de alta un dominio propio por
+  campaña; hoy es manual (fila en `domains` + DNS/Cloudflare). Candidato a
+  feature nueva (spec) si se quiere vender "dominio propio" como
+  autoservicio.
+- Solo existe el adaptador de email de Resend; SMTP y los demás siguen
+  solo en el diseño de `config-email-org`.
+- `SECURITY_OVERVIEW.md` y `PROJECT_REFERENCE.md` (locales) están
+  desactualizados: marcan como pendiente lo ya implementado.
+- La cifra de 232 tests citada en el documento no se re-verificó.
+
+**Pendiente de decisión del usuario**: si `propuesta_de_valor.md` se
+reformula en tono comercial para versión pública; y validar la tabla comparativa con plataformas externas antes de
+usarla en difusión.
+
+Los pendientes de la sesión 42 (abajo) siguen vigentes sin cambios.
 
 ## Resumen de sesión 42
 
