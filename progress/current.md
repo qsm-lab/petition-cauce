@@ -1,4 +1,4 @@
-# Estado actual — tras sesión 43 (2026-10-22) — CERRADA (solo documentación, sin commitear)
+# Estado actual — tras sesión 43 (2026-10-22) — CERRADA (solo documentación, commiteada localmente)
 
 ## Resumen de sesión 43
 
@@ -8,11 +8,10 @@ funciones técnicas, seguridad, practicidad, diferenciales como dominio
 propio por campaña, y 14 mejoras propuestas). Cada capacidad está marcada
 como implementada / parcial / propuesta, verificada contra el código.
 
-**Estado de git**: `dev` == `origin/dev`. Sin commitear (el usuario
-revisa): `.gitignore` (línea nueva que excluye la propuesta), `docs/diagrams/`
-(preexistente, sin trackear), y las ediciones de `progress/`.
-`docs/propuesta_de_valor.md` queda **local, excluido del repo** por decisión
-del usuario (no se versiona).
+**Estado de git**: 2 commits locales en `dev`, aún sin push:
+`66912e8` (cierre sesión 43 + `.gitignore` que excluye la propuesta) y
+`edda346` (`docs/diagrams/`, commit aparte). `docs/propuesta_de_valor.md`
+queda **local, excluido del repo** por decisión del usuario.
 
 **Hallazgos para decidir** (detalle en `progress/history.md`):
 - No hay UI ni endpoints de admin para dar de alta un dominio propio por
