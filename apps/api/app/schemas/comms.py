@@ -120,6 +120,14 @@ class SendLogOut(BaseModel):
         )
 
 
+class PoolQuotaItem(BaseModel):
+    """brevo-pool R11: consumo por proveedor del pool de plataforma (contador
+    propio, el que usa la cola para repartir)."""
+    provider: str
+    daily_used: int
+    daily_quota: int | None
+
+
 class CommsQuotaResponse(BaseModel):
     """R21: consumo de cuota del proveedor resuelto por config-email-org, sin
     exponer credenciales — accesible a cualquier usuario con scope de la
@@ -133,3 +141,5 @@ class CommsQuotaResponse(BaseModel):
     updated_at: str | None
     sender: str
     org_name: str
+    # Solo con pool de plataforma de 2+ proveedores; vacío en el caso normal.
+    pool: list[PoolQuotaItem] = []

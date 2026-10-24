@@ -28,9 +28,9 @@ from app.services.comms_service import (
     count_recipients, get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html,
     unsubscribe_url_for,
 )
-from app.services.email_quota import PLATFORM_QUOTA_KEY, get_usage
+from app.services.email_quota import platform_quota_key, get_usage
 from app.services.email_service import _send
-from app.services.email_transport import platform_transport, resolve_sender, transport_from_config
+from app.services.email_transport import PoolMember, platform_pool, platform_transport, resolve_sender, transport_from_config
 from app.services.org_email_config_service import OrgEmailConfigService
 
 logger = logging.getLogger(__name__)
@@ -57,10 +57,28 @@ async def _resolve_email_context(db: AsyncSession, campaign: Campaign, org: Orga
     active_cfg = cfg if (cfg and cfg.status == "active") else None
     transport = transport_from_config(active_cfg) if active_cfg else platform_transport()
     sender = resolve_sender(campaign.meta, active_cfg, org)
-    quota_key = str(active_cfg.id) if active_cfg else PLATFORM_QUOTA_KEY
+    quota_key = str(active_cfg.id) if active_cfg else platform_quota_key()
     caps = transport.capabilities()
     daily_quota = active_cfg.daily_quota if active_cfg and active_cfg.daily_quota is not None else caps.daily_quota
+    if active_cfg is None:
+        pool = platform_pool()
+        if len(pool) > 1:
+            # R9: el lote se trocea por la capacidad total del pool; si algún
+            # miembro no declara tope, se cae al tope fijo (daily_quota=None).
+            quotas = [m.daily_quota for m in pool]
+            daily_quota = None if any(q is None for q in quotas) else sum(quotas)
     return transport, sender, quota_key, daily_quota
+
+
+async def _resolve_pool(db: AsyncSession, campaign: Campaign) -> list[PoolMember] | None:
+    """Pool de proveedores de plataforma para el reparto (brevo-pool R6, R8).
+    `None` si la campaña tiene `org_email_config` activa (usa solo esa) o si el
+    pool tiene un único miembro (camino de siempre)."""
+    cfg = await OrgEmailConfigService.get(db, campaign.org_id)
+    if cfg is not None and cfg.status == "active":
+        return None
+    pool = platform_pool()
+    return pool if len(pool) > 1 else None
 
 
 # ── Borradores (R22) ──────────────────────────────────────────────────────
@@ -261,29 +279,11 @@ async def _next_batch_index(db: AsyncSession, scheduled_send_id: uuid.UUID) -> i
     return (result.scalar() or -1) + 1
 
 
-async def _process_claimed_batch(
-    db: AsyncSession, batch: SendBatch, send: ScheduledSend, transport, sender, quota_key: str, daily_quota: int | None,
-) -> None:
-    """Envía lo que quepa en la cuota restante de HOY; si el lote no cabe
-    entero, envía lo posible y crea un lote nuevo `pending` con el resto
-    (D4: "reprogramar el resto para el día siguiente")."""
-    usage = await get_usage(quota_key)
-    remaining = None if daily_quota is None else max(daily_quota - usage["daily_used"], 0)
-
-    ids_all = [uuid.UUID(s) for s in batch.signature_ids]
-    if remaining is not None and remaining <= 0:
-        # Cuota agotada por hoy (posiblemente consumida por otro envío de la
-        # misma org entre la expansión y este tick) — libera el claim, se
-        # reintenta en un tick futuro.
-        batch.status = "pending"
-        db.add(batch)
-        await db.commit()
-        return
-
-    ids_to_send = ids_all if remaining is None else ids_all[:remaining]
-    remainder = [] if remaining is None else ids_all[remaining:]
-
-    recipients = await get_recipient_data_by_ids(db, ids_to_send)
+async def _send_chunk(
+    db: AsyncSession, ids: list[uuid.UUID], send: ScheduledSend, sender: dict, transport, quota_key: str,
+) -> tuple[int, int]:
+    """Envía `ids` con UN transporte y devuelve (enviados, fallidos)."""
+    recipients = await get_recipient_data_by_ids(db, ids)
     ctas = [CtaButton(**c) for c in (send.ctas or [])]
     is_anuncios = send.comms_class == "anuncios"
     sent = 0
@@ -304,6 +304,55 @@ async def _process_claimed_batch(
             sent += 1
         else:
             failed += 1
+    return sent, failed
+
+
+async def _process_claimed_batch(
+    db: AsyncSession, batch: SendBatch, send: ScheduledSend, transport, sender, quota_key: str, daily_quota: int | None,
+    pool: list[PoolMember] | None = None,
+) -> None:
+    """Envía lo que quepa en la cuota restante de HOY; si el lote no cabe
+    entero, envía lo posible y crea un lote nuevo `pending` con el resto
+    (D4: "reprogramar el resto para el día siguiente").
+
+    Con `pool` (brevo-pool R6), el lote se reparte en orden entre los
+    proveedores según el cupo diario restante de cada uno; cada destinatario
+    sale por exactamente un proveedor (R7). Sin `pool`, un único miembro: el
+    comportamiento de siempre."""
+    members = pool or [PoolMember("single", transport, quota_key, daily_quota)]
+
+    ids_all = [uuid.UUID(s) for s in batch.signature_ids]
+    assignments: list[tuple[PoolMember, list[uuid.UUID]]] = []
+    rest = ids_all
+    for m in members:
+        if not rest:
+            break
+        usage = await get_usage(m.quota_key)
+        remaining = None if m.daily_quota is None else max(m.daily_quota - usage["daily_used"], 0)
+        if remaining is not None and remaining <= 0:
+            continue
+        take = rest if remaining is None else rest[:remaining]
+        assignments.append((m, take))
+        rest = rest[len(take):]
+
+    if not assignments:
+        # Cuota agotada por hoy en todos los proveedores (posiblemente consumida
+        # por otro envío entre la expansión y este tick) — libera el claim, se
+        # reintenta en un tick futuro.
+        batch.status = "pending"
+        db.add(batch)
+        await db.commit()
+        return
+
+    ids_to_send = [i for _m, chunk in assignments for i in chunk]
+    remainder = rest
+
+    sent = 0
+    failed = 0
+    for m, chunk in assignments:
+        s_ok, s_fail = await _send_chunk(db, chunk, send, sender, m.transport, m.quota_key)
+        sent += s_ok
+        failed += s_fail
 
     batch.sent_count = sent
     batch.failed_count = failed
@@ -428,7 +477,8 @@ async def process_due_scheduled_sends(db: AsyncSession) -> dict:
             "social_links": campaign.social_links,
         }
         try:
-            await _process_claimed_batch(db, batch, send, transport, sender, quota_key, daily_quota)
+            pool = await _resolve_pool(db, campaign)
+            await _process_claimed_batch(db, batch, send, transport, sender, quota_key, daily_quota, pool=pool)
         except Exception as exc:  # noqa: BLE001
             # R15: un lote fallido queda `failed` con el error, sin
             # reintento automático — no se reprograma ni se reencola.

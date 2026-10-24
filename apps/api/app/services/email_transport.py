@@ -7,9 +7,12 @@ organización (su `org_email_config`) o cae al de plataforma (retrocompat, R5).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, replace
+from email.utils import parseaddr
 from typing import Protocol
 
 import httpx
@@ -65,12 +68,16 @@ class ResendTransport:
     """Adaptador Resend (API). Envuelve el POST a api.resend.com y captura los
     headers de consumo de cuota (`x-resend-daily/monthly-quota`)."""
 
-    def __init__(self, api_key: str, *, plan: str | None = None):
+    def __init__(self, api_key: str, *, plan: str | None = None, daily_quota: int | None = None):
         self._api_key = api_key
         self._plan = (plan or "").lower() or None
+        self._daily_quota = daily_quota
 
     def capabilities(self) -> TransportCaps:
-        return _RESEND_PLAN_CAPS.get(self._plan or "free", _RESEND_PLAN_CAPS["free"])
+        caps = _RESEND_PLAN_CAPS.get(self._plan or "free", _RESEND_PLAN_CAPS["free"])
+        if self._daily_quota is not None:
+            caps = replace(caps, daily_quota=self._daily_quota)
+        return caps
 
     async def send(self, msg: EmailMessage) -> SendResult:
         if not self._api_key:
@@ -119,7 +126,132 @@ def _as_int(v: str | None) -> int | None:
         return None
 
 
-# Registro de proveedores → clase adaptadora. Fase 1: solo Resend.
+class SesTransport:
+    """Adaptador Amazon SES (API SESv2, ses-transport). Un `SendEmail` por
+    mensaje; respeta `ses_max_send_rate` espaciando envíos para evitar
+    `Throttling`. SES no reporta consumo por headers: la cuota se cuenta con el
+    contador Redis propio (R7)."""
+
+    # Último instante de envío por proceso: compartido entre instancias porque
+    # platform_transport() crea una nueva en cada llamada.
+    _last_send = 0.0
+    _lock: asyncio.Lock | None = None
+
+    def __init__(self, *, region: str, access_key_id: str, secret_access_key: str,
+                 configuration_set: str = "", daily_quota: int = 200, max_send_rate: float = 1.0):
+        self._region = region
+        self._access_key_id = access_key_id
+        self._secret_access_key = secret_access_key
+        self._configuration_set = configuration_set
+        self._daily_quota = daily_quota
+        self._min_interval = 1.0 / max_send_rate if max_send_rate > 0 else 0.0
+
+    def capabilities(self) -> TransportCaps:
+        return TransportCaps(daily_quota=self._daily_quota, monthly_quota=None,
+                             max_batch_size=1, supports_custom_domain=True)
+
+    async def _throttle(self) -> None:
+        if not self._min_interval:
+            return
+        if SesTransport._lock is None:
+            SesTransport._lock = asyncio.Lock()
+        async with SesTransport._lock:
+            wait = SesTransport._last_send + self._min_interval - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            SesTransport._last_send = time.monotonic()
+
+    async def send(self, msg: EmailMessage) -> SendResult:
+        if not self._access_key_id:
+            logger.info("[dev] email | to=%s | subject=%s", msg.to, msg.subject)
+            return SendResult(ok=True)
+        params: dict = {
+            "FromEmailAddress": msg.from_,
+            "Destination": {"ToAddresses": list(msg.to)},
+            "Content": {"Simple": {
+                "Subject": {"Data": msg.subject, "Charset": "UTF-8"},
+                "Body": {"Html": {"Data": msg.html, "Charset": "UTF-8"}},
+            }},
+        }
+        if msg.reply_to:
+            params["ReplyToAddresses"] = [msg.reply_to]
+        if self._configuration_set:
+            params["ConfigurationSetName"] = self._configuration_set
+        await self._throttle()
+        try:
+            import aioboto3
+
+            session = aioboto3.Session(
+                aws_access_key_id=self._access_key_id,
+                aws_secret_access_key=self._secret_access_key,
+                region_name=self._region,
+            )
+            async with session.client("sesv2") as client:
+                resp = await client.send_email(**params)
+        except Exception as exc:  # noqa: BLE001
+            # R8: solo el código de error de AWS; sin destinatarios en el log.
+            code = getattr(exc, "response", {}).get("Error", {}).get("Code") if hasattr(exc, "response") else None
+            code = code or type(exc).__name__
+            logger.error("[ses] send failed: %s", code)
+            return SendResult(ok=False, error=code)
+        return SendResult(ok=True, provider_id=resp.get("MessageId"))
+
+
+class BrevoTransport:
+    """Adaptador Brevo (API v3, brevo-pool). `POST /v3/smtp/email` con header
+    `api-key`. Brevo no reporta consumo por header: la cuota se cuenta con el
+    contador Redis propio (R10)."""
+
+    _URL = "https://api.brevo.com/v3/smtp/email"
+
+    def __init__(self, api_key: str, *, daily_quota: int | None = 300):
+        self._api_key = api_key
+        self._daily_quota = daily_quota
+
+    def capabilities(self) -> TransportCaps:
+        return TransportCaps(daily_quota=self._daily_quota, monthly_quota=None,
+                             max_batch_size=1, supports_custom_domain=True)
+
+    async def send(self, msg: EmailMessage) -> SendResult:
+        if not self._api_key:
+            logger.info("[dev] email | to=%s | subject=%s", msg.to, msg.subject)
+            return SendResult(ok=True)
+        name, addr = parseaddr(msg.from_)
+        sender: dict = {"email": addr or msg.from_}
+        if name:
+            sender["name"] = name
+        payload: dict = {
+            "sender": sender,
+            "to": [{"email": e} for e in msg.to],
+            "subject": msg.subject,
+            "htmlContent": msg.html,
+        }
+        if msg.reply_to:
+            payload["replyTo"] = {"email": parseaddr(msg.reply_to)[1] or msg.reply_to}
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                resp = await client.post(
+                    self._URL,
+                    headers={"api-key": self._api_key, "accept": "application/json",
+                             "content-type": "application/json"},
+                    json=payload,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.error("[brevo] send failed: %s", type(exc).__name__)
+                return SendResult(ok=False, error=type(exc).__name__)
+        if resp.status_code not in (200, 201):
+            # R2: solo el código HTTP; nunca la clave ni el cuerpo con destinatarios.
+            logger.error("[brevo] error %s", resp.status_code)
+            return SendResult(ok=False, error="rate_limited" if resp.status_code == 429 else f"http_{resp.status_code}")
+        provider_id = None
+        try:
+            provider_id = resp.json().get("messageId")
+        except Exception:  # noqa: BLE001
+            pass
+        return SendResult(ok=True, provider_id=provider_id)
+
+
+# Registro de proveedores → clase adaptadora.
 TRANSPORTS = {"resend": ResendTransport}
 
 
@@ -131,7 +263,7 @@ def resolve_sender(campaign_meta: dict | None, org_cfg, org) -> dict:
     (o plataforma). Devuelve `{from_, reply_to}` listos para `_send`.
     """
     meta = campaign_meta or {}
-    org_from = (getattr(org_cfg, "default_from", None) if org_cfg else None) or settings.resend_from_email
+    org_from = (getattr(org_cfg, "default_from", None) if org_cfg else None) or default_from_email()
     from_ = meta.get("sender_from") or org_from
     display = (
         meta.get("sender_display_name")
@@ -152,13 +284,69 @@ def resolve_sender(campaign_meta: dict | None, org_cfg, org) -> dict:
     return {"from_": header_from, "reply_to": reply_to}
 
 
-def platform_transport() -> ResendTransport:
-    """Transporte por defecto de la plataforma (Resend global actual). Fallback
-    para organizaciones sin configuración propia (R5). El plan de ESTA cuenta
-    (no el de ninguna org) se declara vía `settings.resend_platform_plan` —
-    sin esto, `capabilities()` asumía Free (100/día) sin importar el plan
-    real de la cuenta de Resend de la plataforma."""
-    return ResendTransport(settings.resend_api_key, plan=settings.resend_platform_plan)
+def default_from_email() -> str:
+    """Remitente por defecto según el proveedor de plataforma activo (R5)."""
+    if settings.email_provider == "ses":
+        return settings.ses_from_email or settings.resend_from_email
+    if settings.email_provider == "brevo":
+        return settings.brevo_from_email or settings.resend_from_email
+    return settings.resend_from_email
+
+
+def email_enabled() -> bool:
+    """¿Hay un proveedor de plataforma configurado para enviar? Sustituye a las
+    guardas `if not settings.resend_api_key` (R4); sin él, los flujos hacen
+    log `[dev]` y no envían."""
+    return settings.provider_configured(settings.email_provider)
+
+
+def platform_transport_for(name: str) -> EmailTransport:
+    """Transporte de plataforma de un proveedor concreto (fábrica por nombre,
+    brevo-pool). Para el plan Resend se usa el de la cuenta de PLATAFORMA
+    (`settings.resend_platform_plan`), con override opcional del cupo diario."""
+    if name == "ses":
+        return SesTransport(
+            region=settings.aws_region,
+            access_key_id=settings.aws_access_key_id,
+            secret_access_key=settings.aws_secret_access_key,
+            configuration_set=settings.ses_configuration_set,
+            daily_quota=settings.ses_daily_quota,
+            max_send_rate=settings.ses_max_send_rate,
+        )
+    if name == "brevo":
+        return BrevoTransport(settings.brevo_api_key, daily_quota=settings.brevo_daily_quota)
+    return ResendTransport(
+        settings.resend_api_key, plan=settings.resend_platform_plan, daily_quota=settings.resend_daily_quota,
+    )
+
+
+def platform_transport() -> EmailTransport:
+    """Transporte por defecto de la plataforma (según `EMAIL_PROVIDER`). Fallback
+    para organizaciones sin configuración propia (R5). Los correos transaccionales
+    usan siempre este (brevo-pool R12)."""
+    return platform_transport_for(settings.email_provider)
+
+
+@dataclass
+class PoolMember:
+    name: str
+    transport: EmailTransport
+    quota_key: str
+    daily_quota: int | None
+
+
+def platform_pool() -> list[PoolMember]:
+    """Proveedores de plataforma de la cola, en orden de prioridad (brevo-pool
+    R5). Sin `EMAIL_POOL`, un solo miembro = `EMAIL_PROVIDER` (comportamiento
+    anterior)."""
+    from app.services.email_quota import platform_quota_key
+
+    names = settings.email_pool_list or [settings.email_provider]
+    members = []
+    for name in names:
+        tr = platform_transport_for(name)
+        members.append(PoolMember(name, tr, platform_quota_key(name), tr.capabilities().daily_quota))
+    return members
 
 
 async def resolve_transport_for_org(db, org_id) -> EmailTransport:
