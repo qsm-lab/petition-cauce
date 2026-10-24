@@ -103,6 +103,14 @@ que no hay envío en curso.
    (sesiones 42 y 43); revisar que se quiere publicar el runbook y los
    documentos legales.
 
+7. **Próxima sesión / campaña — popup de cierre en la landing pública**
+   (`popup-campana-cerrada` en `feature_list.json`, `pending`, sin spec aún).
+   La campaña cerrada sigue recibiendo visitas: mostrarles un popup para
+   suscribirse al mailing de novedades y seguir las redes de la campaña. Ojo:
+   el alta va al boletín de listmonk con su propio doble opt-in, sin importar
+   firmantes (`docs/legal/frontera_boletin_listmonk.md`); lleva PII (privacy_config)
+   y diseño en Claude Design antes de implementar.
+
 ## Riesgos / ideas sin spec
 
 - Resend se comparte con el boletín listmonk (el contador de la app no ve

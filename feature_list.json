@@ -443,6 +443,15 @@
       "sdd": false,
       "area": "harness",
       "phase": 0
+    },
+    {
+      "id": "popup-campana-cerrada",
+      "title": "Popup de cierre en la landing pública de la campaña",
+      "description": "Cuando la campaña está cerrada o finalizada, la landing pública sigue recibiendo visitas. Mostrar un popup (modal) a esos visitantes con dos acciones: (1) suscribirse al mailing de novedades y (2) seguir las redes sociales de la campaña (social_links de la org, solo las que tengan URL cargada). Restricciones a resolver en la spec: la suscripción va al boletín de listmonk con su propio doble opt-in, sin importar firmantes ni cruzar consentimientos (ver docs/legal/frontera_boletin_listmonk.md); es un formulario con email, o sea PII, así que requiere privacy_config aprobada en design.md y revisar RAT y aviso de privacidad; frontend: requiere diseño aprobado en Claude Design antes de implementar (design-export.html). Definir también: frecuencia del popup (no insistir: recordar el cierre por visitante, sin cookies de seguimiento), accesibilidad (foco, Esc, aria-modal), Turnstile y rate limiting en el alta, y qué hace cuando la campaña está abierta (no se muestra). Relacionada con novedades-campana y comunicaciones-cierre-campana. Anotada en sesión 44 para una próxima sesión y campaña.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 5
     }
   ]
 }
