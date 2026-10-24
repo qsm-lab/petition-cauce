@@ -37,6 +37,8 @@ class CommsPreviewRequest(BaseModel):
 class CommsSendRequest(CommsPreviewRequest):
     audience: AudienceIn = Field(default_factory=AudienceIn)
     test_emails: list[str] = Field(default_factory=list)
+    # Envío real: promueve este borrador a la cola en vez de crear otro.
+    draft_id: str | None = None
 
 
 class DraftSaveRequest(CommsPreviewRequest):

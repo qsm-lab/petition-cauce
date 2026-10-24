@@ -64,6 +64,16 @@ escapa HTML (antes insertaba el nombre sin escapar). `signatures.name` es un
 solo campo libre; separar nombre y apellido queda para la próxima iteración.
 Suite: 266 passed.
 
+**Envío real por la cola (2026-10-24)**: la alerta "Excede el remanente de cuota… cola
+en una fase futura" era un texto de la Fase 1. Se verificó que `/comms/send` enviaba
+toda la lista en un request y solo por `EMAIL_PROVIDER` (sin pool ni lotes). Ahora el
+envío real se encola y se reparte en lotes diarios; la prueba sigue inmediata. 3 tests
+nuevos (`test_comms_send_queue.py`).
+
+**Regla de "Enviar ahora" (2026-10-24)**: desactivado cuando la lista excede el cupo
+diario restante (free); el modal de Programar estima los lotes y la fecha de término, o
+confirma entrega completa si hay Pro o cabe hoy. Helper `lib/comms-delivery.ts`.
+
 **Pendientes**: ver `progress/current.md` (pixel, programar envío, AWS).
 
 ---

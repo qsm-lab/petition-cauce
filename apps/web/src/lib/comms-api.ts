@@ -58,8 +58,8 @@ export async function previewComms(
 
 export async function sendComms(
   campaignId: string,
-  data: CommsContentPayload & { audience: AudienceIn; test_emails?: string[] },
-): Promise<{ sent_count: number; recipient_count: number; mode: "test" | "real" }> {
+  data: CommsContentPayload & { audience: AudienceIn; test_emails?: string[]; draft_id?: string | null },
+): Promise<{ sent_count: number; recipient_count: number; mode: "test" | "real"; queued?: boolean; send_id?: string }> {
   return api.post(`/v1/campaigns/${campaignId}/comms/send`, data);
 }
 

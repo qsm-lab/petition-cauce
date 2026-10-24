@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,8 +22,8 @@ from app.schemas.comms import (
 from app.services.campaign_service import CampaignService
 from app.services.comms_service import (
     COMMS_TYPES, SAMPLE_MERGE_CONTEXT, AudienceFilter, CtaButton, InvalidCommsType, RecipientData, RetiredMergeTags, find_retired_merge_tags,
-    UploadRejected, build_comms_email_html, build_merge_context, comms_upload_url, count_recipients,
-    get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html, save_comms_upload,
+    UploadRejected, build_comms_email_html, comms_upload_url, count_recipients,
+    render_merge_tags, sanitize_comms_html, save_comms_upload,
     unsubscribe_url_for,
 )
 from app.services.comms_queue_service import (
@@ -575,9 +576,12 @@ async def comms_send(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_with_org),
 ):
-    """Envío inmediato (real o de prueba) del centro de comunicaciones (Fase 1,
-    sin cola/programación todavía). R16/R17: remitente y cuota resueltos por
-    config-email-org, nunca definidos acá."""
+    """Envío del centro de comunicaciones. Las pruebas (`test_emails`) salen
+    en el acto. El envío REAL no se hace acá: entra a la cola como un envío
+    programado para ahora, y el loop lo reparte por lotes según el cupo diario
+    de cada proveedor, pasando el excedente a los días siguientes hasta
+    completar la lista (mismo mecanismo que /comms/schedule). R16/R17: remitente
+    y cuota resueltos por config-email-org / el pool, nunca definidos acá."""
     campaign, org = await CampaignService.get_campaign_with_lifecycle(db, campaign_id, _org_scope(current_user))
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaña no encontrada")
@@ -587,27 +591,41 @@ async def comms_send(
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
 
     _reject_retired_tags(data.body_html)
+
+    if not data.test_emails:
+        try:
+            send = await schedule_send(
+                db, org_id=campaign.org_id, campaign_id=campaign.id,
+                draft_id=uuid.UUID(data.draft_id) if data.draft_id else None,
+                type=data.type, subject=data.subject, heading=data.heading, body_html=data.body_html,
+                ctas=[c.model_dump() for c in data.ctas], include_social=data.include_social,
+                audience=data.audience.model_dump(), scheduled_at=datetime.now(timezone.utc),
+                created_by=current_user.id,
+            )
+        except DraftNotFound:
+            raise HTTPException(status_code=404, detail="Borrador no encontrado")
+        return {
+            "sent_count": 0, "recipient_count": send.recipient_count, "mode": "real",
+            "queued": True, "send_id": str(send.id),
+        }
+
     sanitized = sanitize_comms_html(data.body_html)
     ctas = [CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas]
     heading = data.heading.strip() or _COMMS_HEADING[data.type]
 
-    if data.test_emails:
-        # No hay firma real detrás de una dirección de prueba: los merge tags
-        # se muestran con datos de muestra, igual que la vista previa.
-        recipients = [
-            RecipientData(signature_id=uuid.uuid4(), email=email, name="")
-            for email in data.test_emails
-        ]
-    else:
-        ids = await get_recipient_ids(db, campaign.id, data.type, _audience_filter(data.audience))
-        recipients = await get_recipient_data_by_ids(db, ids)
+    # No hay firma real detrás de una dirección de prueba: los merge tags
+    # se muestran con datos de muestra, igual que la vista previa.
+    recipients = [
+        RecipientData(signature_id=uuid.uuid4(), email=email, name="")
+        for email in data.test_emails
+    ]
 
     transport, sender, quota_key = await _resolve_campaign_email_context(db, campaign, org)
 
     is_anuncios = COMMS_TYPES[data.type] == "anuncios"
     sent_count = 0
     for r in recipients:
-        ctx = SAMPLE_MERGE_CONTEXT if data.test_emails else build_merge_context(r)
+        ctx = SAMPLE_MERGE_CONTEXT
         tagged = render_merge_tags(sanitized, ctx)
         html = build_comms_email_html(
             org_name=org.name if org else "",
@@ -630,14 +648,14 @@ async def comms_send(
     await log_send(
         db, org_id=campaign.org_id, campaign_id=campaign.id, type=data.type, comms_class=COMMS_TYPES[data.type],
         subject=data.subject, recipient_count=len(recipients), sent_count=sent_count,
-        failed_count=len(recipients) - sent_count, mode="test" if data.test_emails else "real",
+        failed_count=len(recipients) - sent_count, mode="test",
         trigger="manual", triggered_by=current_user.id,
     )
 
     return {
         "sent_count": sent_count,
         "recipient_count": len(recipients),
-        "mode": "test" if data.test_emails else "real",
+        "mode": "test",
     }
 
 
