@@ -25,6 +25,7 @@ import {
   type ScheduledSendOut,
   type SendLogOut,
 } from "@/lib/comms-api";
+import { estimateDelivery, formatGuayaquil } from "@/lib/comms-delivery";
 
 const IMAGE_MAX_BYTES = 25 * 1024 * 1024;
 const IMAGE_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -471,13 +472,22 @@ export default function ComunicacionesClient({ campaign }: Props) {
   }
 
   async function sendReal() {
+    // Regla: con tope diario (free) y lista que no cabe hoy, no se envía "ahora".
+    if (quotaExceeded) return;
     setSending(true);
     setSendError(null);
     try {
-      const res = await sendComms(campaign.id, { ...buildContentPayload(), audience: audienceIn });
-      setSendResult(`✓ Enviado a ${res.sent_count} de ${res.recipient_count} destinatario(s).`);
+      const res = await sendComms(campaign.id, { ...buildContentPayload(), audience: audienceIn, draft_id: serverDraftId });
+      setSendResult(
+        res.queued
+          ? `✓ Envío en cola para ${res.recipient_count} destinatario(s). Se envía en lotes según la cuota diaria y lo que no quepa hoy sigue en los días siguientes hasta completar la lista. Seguí el avance en el panel de envíos.`
+          : `✓ Enviado a ${res.sent_count} de ${res.recipient_count} destinatario(s).`,
+      );
       setConfirmOpen(false);
+      setServerDraftId(null);
       clearDraft();
+      refreshPanel();
+      if (res.queued) setPanelTab("scheduled");
     } catch (e) {
       setSendError(e instanceof Error ? e.message : "Error al enviar");
     } finally {
@@ -611,6 +621,17 @@ export default function ComunicacionesClient({ campaign }: Props) {
 
   const dailyRemaining = quota?.daily_quota != null ? quota.daily_quota - quota.daily_used : null;
   const quotaExceeded = dailyRemaining != null && count != null && count > dailyRemaining;
+  const sendNowBlocked = quotaExceeded;
+  const scheduledAtDate = scheduleDate && scheduleTime ? new Date(`${scheduleDate}T${scheduleTime}:00-05:00`) : null;
+  const deliveryEstimate =
+    scheduledAtDate && !Number.isNaN(scheduledAtDate.getTime()) && count != null && count > 0
+      ? estimateDelivery({
+          count,
+          dailyQuota: quota?.daily_quota ?? null,
+          dailyUsed: quota?.daily_used ?? 0,
+          scheduledAt: scheduledAtDate,
+        })
+      : null;
 
   return (
     <div className="p-6" style={{ maxWidth: 1160, margin: "0 auto" }}>
@@ -930,8 +951,8 @@ export default function ComunicacionesClient({ campaign }: Props) {
                 : "confirmadas sobre el propio trámite + segmento"}
             </p>
             {quotaExceeded && (
-              <div className="inline-flex items-center gap-1.5 text-[11.5px] font-bold rounded-[8px] mb-4 px-2.5 py-1.5" style={{ background: "rgba(180,83,9,0.12)", color: "#b45309" }}>
-                ⚠ Excede el remanente de cuota de hoy ({dailyRemaining}) — la cola automática llega en una fase futura; el envío inmediato puede fallar para el excedente.
+              <div className="text-[11.5px] font-bold rounded-[8px] mb-4 px-2.5 py-1.5" style={{ background: "rgba(180,83,9,0.12)", color: "#b45309", lineHeight: 1.5 }}>
+                ⚠ Excede el remanente de cuota de hoy ({dailyRemaining != null && dailyRemaining < 0 ? 0 : dailyRemaining}) — «Enviar ahora» está desactivado porque no se podría completar la entrega hoy. Usá «Programar envío»: se enviará en lotes diarios hasta completar los {count} destinatarios.
               </div>
             )}
             {!quotaExceeded && <div style={{ marginBottom: 16 }} />}
@@ -948,12 +969,13 @@ export default function ComunicacionesClient({ campaign }: Props) {
             <button
               type="button"
               onClick={() => setConfirmOpen(true)}
-              disabled={!canOperate || count === 0}
+              disabled={!canOperate || count === 0 || sendNowBlocked}
+              title={sendNowBlocked ? "La lista excede la cuota de hoy: usá «Programar envío» para enviarla en lotes diarios." : undefined}
               style={{
                 width: "100%", padding: 15, fontSize: 15, fontWeight: 700, borderRadius: 30, marginBottom: 9,
-                cursor: (!canOperate || count === 0) ? "not-allowed" : "pointer",
-                background: (!canOperate || count === 0) ? "rgba(22,38,31,0.1)" : "var(--bp)",
-                color: (!canOperate || count === 0) ? "var(--bmut)" : "var(--bop)",
+                cursor: (!canOperate || count === 0 || sendNowBlocked) ? "not-allowed" : "pointer",
+                background: (!canOperate || count === 0 || sendNowBlocked) ? "rgba(22,38,31,0.1)" : "var(--bp)",
+                color: (!canOperate || count === 0 || sendNowBlocked) ? "var(--bmut)" : "var(--bop)",
                 border: "1.5px solid var(--bink)",
               }}
             >
@@ -1282,9 +1304,18 @@ export default function ComunicacionesClient({ campaign }: Props) {
                 <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
               </div>
             </div>
-            {dailyRemaining != null && count != null && count > dailyRemaining && (
+            {deliveryEstimate && deliveryEstimate.mode === "batches" && quota?.daily_quota != null && (
               <div style={{ background: "var(--bbg)", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "rgba(22,38,31,0.75)", lineHeight: 1.55, marginBottom: 20 }}>
-                Con la cuota de <strong>{dailyRemaining < 0 ? 0 : dailyRemaining}/día</strong> restante hoy, el envío se repartirá en una <strong>cola de varios días</strong> a partir de la fecha elegida. Verás el progreso en el panel de envíos.
+                Este mensaje se enviará <strong>por lotes</strong>: la cuota diaria es de <strong>{quota.daily_quota}</strong> envíos y la lista tiene <strong>{count}</strong> destinatarios.
+                {deliveryEstimate.firstBatch > 0
+                  ? <> A la hora programada saldrán <strong>{deliveryEstimate.firstBatch}</strong> y el resto continuará en lotes diarios cuando se renueve la cuota (19:00, hora de Guayaquil).</>
+                  : <> Hoy no queda cuota: el primer lote saldrá cuando se renueve (19:00, hora de Guayaquil) y el resto continuará en lotes diarios.</>}
+                {" "}Se completaría en <strong>{deliveryEstimate.cycles} {deliveryEstimate.cycles === 1 ? "día" : "días"}</strong>, hacia el <strong>{formatGuayaquil(deliveryEstimate.completeAt)}</strong>. Verás el progreso en el panel de envíos.
+              </div>
+            )}
+            {deliveryEstimate && deliveryEstimate.mode === "complete" && scheduledAtDate && (
+              <div style={{ background: "var(--bbg)", borderRadius: 10, padding: "12px 14px", fontSize: 12, color: "rgba(22,38,31,0.75)", lineHeight: 1.55, marginBottom: 20 }}>
+                La entrega se hará <strong>completa</strong> a los <strong>{count}</strong> destinatarios en la fecha y hora programadas: <strong>{formatGuayaquil(scheduledAtDate)}</strong>.
               </div>
             )}
             {scheduleError && <p className="text-[12.5px] mb-3" style={{ color: "#c2410c" }}>{scheduleError}</p>}
@@ -1313,7 +1344,6 @@ export default function ComunicacionesClient({ campaign }: Props) {
             </p>
             <ul className="text-[13px] mb-4" style={{ color: "rgba(22,38,31,0.75)", lineHeight: 1.8, paddingLeft: 18 }}>
               <li><strong>{count ?? "—"}</strong> destinatario(s) ({activeType.label} · {activeType.clase === "anuncios" ? "Anuncios" : "Servicio"})</li>
-              {quotaExceeded && <li>Excede el remanente de cuota diaria — el excedente puede fallar en este envío inmediato</li>}
             </ul>
             {sendError && <p className="text-[12.5px] mb-3" style={{ color: "#c2410c" }}>{sendError}</p>}
             <div className="flex justify-end gap-2">

@@ -39,6 +39,41 @@ de aperturas (`r.camp.ecuadornotlc.org/tr/op/...`) y una cabecera
 tras cambiar un ajuste en Brevo **siguió mostrando el pixel**: el ajuste no
 aplica al correo transaccional, o el plan no lo permite. Sin resolver.
 
+## Envío real siempre por la cola (2026-10-24)
+
+`POST /comms/send` ya no envía en el request cuando es un envío real: lo encola como
+envío programado para ahora (`schedule_send`) y devuelve `queued: true`. El loop lo
+reparte por lotes según el cupo diario de cada proveedor (pool o único) y el excedente
+pasa a lotes `pending` de los días siguientes hasta completar la lista. Antes, "Enviar
+ahora" recorría toda la lista en un solo request y por `EMAIL_PROVIDER` (ignoraba el
+pool y la cuota). Las pruebas (`test_emails`) siguen siendo inmediatas. La UI quitó la
+alerta de "fase futura" y confirma que va en lotes diarios; el envío real promueve el
+borrador (`draft_id`). Tests: `tests/test_comms_send_queue.py`.
+
+## Regla del botón "Enviar ahora" (2026-10-24)
+
+Con tope diario (planes free: Brevo, Resend o la suma del pool) y una lista mayor al
+cupo restante de hoy, **"Enviar ahora" queda desactivado** (con la advertencia que
+sugiere "Programar envío"). `sendReal` también lo bloquea por si se invoca igual. Si
+algún proveedor está en Pro (`daily_quota: null`) o la lista cabe hoy, sigue activo.
+El modal de **Programar** calcula la entrega con `lib/comms-delivery.ts`
+(`estimateDelivery`): si hay tope y no cabe, avisa que sale por lotes (cuota diaria,
+cuánto sale a la hora programada, ciclos y fecha estimada de término; la cuota se
+renueva a las 19:00 de Guayaquil); si cabe o no hay tope, avisa que la entrega será
+completa en la fecha y hora programadas. Sin tests de frontend (no hay framework):
+el helper se probó a mano con 6 escenarios.
+
+## Deploy y visibilidad del repo (2026-10-24)
+
+El workflow `deploy.yml` (push a `main`) hace `git pull origin main` en el VPS por
+SSH. Con el repo **privado** falló: `ERROR: Repository not found` (el VPS no tiene
+deploy key para este repo; el paso Checkout de Actions sí funcionó). Al volver el repo
+a **público** el deploy corrió bien. Si se vuelve a hacer privado: crear una deploy key
+de solo lectura para este repo en el VPS (alias propio en `~/.ssh/config`, sin tocar la
+de forms-qsm), registrarla en Settings → Deploy keys y apuntar el remoto del VPS a ese
+alias. El script reconstruye y recrea contenedores: antes de cualquier re-run, comprobar
+que no hay envío en curso.
+
 ## Pendiente del usuario
 
 1. **Decidir sobre el pixel** (detalle en `docs/legal/subencargados_email.md`;
