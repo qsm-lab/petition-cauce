@@ -24,7 +24,6 @@ from app.crypto import PIIDecryptError, decrypt_pii
 from app.models.comms_upload import CommsUpload
 from app.models.consent import Consent
 from app.models.signature import Signature
-from app.services.admin_signature_service import _mask_cedula, _mask_email, _mask_phone
 from app.services.email_service import (
     _platform_footer_html,
     _powered_by_block,
@@ -32,6 +31,7 @@ from app.services.email_service import (
     _social_icon_links,
 )
 from app.services.signature_service import unsubscribe_token
+from app.services.signer_name import simple_name
 
 # Tipos de envío del centro (Fase 1) → clase LOPDP fija por tipo (D1, R9).
 # "Mensaje general" es la única clase Anuncios; el resto es Servicio.
@@ -326,23 +326,16 @@ async def get_recipients(
 
 @dataclass
 class RecipientData:
-    """Datos crudos (algunos aún cifrados) de un destinatario — suficiente
-    para armar el `MergeContext` (`build_merge_context`) sin descifrar nada
-    que el mensaje no vaya a usar."""
+    """Datos de un destinatario para armar el `MergeContext`. Solo email y
+    nombre: es lo único que los correos de comunicaciones pueden usar."""
     signature_id: uuid.UUID
     email: str
     name: str
-    cedula_encrypted: str | None
-    celular_encrypted: str | None
-    provincia: str | None
-    country: str | None
-    org_name: str | None
-    signer_type: str
 
 
 async def get_recipient_data_by_ids(db: AsyncSession, ids: list[uuid.UUID]) -> list[RecipientData]:
-    """Como `get_recipients_by_ids` pero trae también lo necesario para los
-    merge tags del cuerpo (cédula/teléfono/provincia/organización)."""
+    """Como `get_recipients_by_ids` pero devuelve `RecipientData`. Solo email y
+    nombre: ningún otro dato del firmante llega al cuerpo de los correos."""
     if not ids:
         return []
     result = await db.execute(select(Signature).where(Signature.id.in_(ids)))
@@ -354,68 +347,38 @@ async def get_recipient_data_by_ids(db: AsyncSession, ids: list[uuid.UUID]) -> l
             email = decrypt_pii(sig.email_encrypted, ref=str(sig.id))
         except PIIDecryptError:
             continue
-        recipients.append(RecipientData(
-            signature_id=sig.id, email=email, name=sig.name or "",
-            cedula_encrypted=sig.cedula_encrypted, celular_encrypted=sig.celular_encrypted,
-            provincia=sig.provincia, country=sig.country, org_name=sig.org_name, signer_type=sig.signer_type,
-        ))
+        recipients.append(RecipientData(signature_id=sig.id, email=email, name=sig.name or ""))
     return recipients
 
 
 @dataclass
 class MergeContext:
-    """Valores de sustitución para los merge tags `<tag>` del contenido
-    general. Cédula/email/teléfono llegan YA enmascarados (mismo patrón que
-    la descarga normal de firmas — `_mask_cedula`/`_mask_email`/
-    `_mask_phone` de `admin_signature_service`, reusados acá, no
-    duplicados) — el email nunca sale con PII sin enmascarar más allá de lo
-    que el destinatario ya sabe de sí mismo."""
+    """Valores de sustitución para el merge tag `<nombre>`. Es el único dato del
+    firmante que puede ir en el cuerpo de una comunicación: primer nombre (ver
+    `signer_name.simple_name`). Cédula, teléfono, provincia, organización, email
+    y nombre completo no se envían a los proveedores de correo."""
     nombre: str = ""
-    nombre_completo: str = ""
-    cedula: str = ""
-    email: str = ""
-    telefono: str = ""
-    provincia: str = ""
-    organizacion: str = ""
 
 
-SAMPLE_MERGE_CONTEXT = MergeContext(
-    nombre="Nombre", nombre_completo="Nombre Apellido", cedula="17XXXXX601",
-    email="nomXXXXXXX@ejemplo.com", telefono="XXXXXX4321", provincia="Pichincha",
-    organizacion="Organización de ejemplo",
-)
+SAMPLE_MERGE_CONTEXT = MergeContext(nombre="Nombre")
 
 
 def build_merge_context(r: RecipientData) -> MergeContext:
-    first = r.name.strip().split(" ")[0] if r.name and r.name.strip() else ""
-    cedula = ""
-    if r.cedula_encrypted:
-        try:
-            cedula = _mask_cedula(decrypt_pii(r.cedula_encrypted, ref=str(r.signature_id)))
-        except PIIDecryptError:
-            cedula = ""
-    telefono = ""
-    if r.celular_encrypted:
-        try:
-            telefono = _mask_phone(decrypt_pii(r.celular_encrypted, ref=str(r.signature_id)))
-        except PIIDecryptError:
-            telefono = ""
-    return MergeContext(
-        nombre=first, nombre_completo=r.name or "", cedula=cedula,
-        email=_mask_email(r.email) if r.email else "", telefono=telefono,
-        provincia=r.provincia or r.country or "",
-        organizacion=(r.org_name or "") if r.signer_type == "org" else "",
-    )
+    return MergeContext(nombre=simple_name(r.name))
 
 
+# Tags retirados: ya no se sustituyen ni se aceptan al guardar (ver
+# `find_retired_merge_tags`). El regex los sigue reconociendo para que un
+# borrador o envío programado anterior no los deje escritos como texto en el
+# correo: se renderizan vacíos.
 _MERGE_TAG_ALIASES = {
-    "nombre completo": "nombre_completo",
     "nombre": "nombre",
-    "cedula": "cedula", "cédula": "cedula",
-    "email": "email", "correo": "email",
-    "telefono": "telefono", "teléfono": "telefono",
-    "provincia": "provincia",
-    "organizacion": "organizacion", "organización": "organizacion",
+    "nombre completo": None,
+    "cedula": None, "cédula": None,
+    "email": None, "correo": None,
+    "telefono": None, "teléfono": None,
+    "provincia": None,
+    "organizacion": None, "organización": None,
 }
 # Cubre tanto <tag> literal (vista Código) como &lt;tag&gt; — lo que produce
 # el editor visual al serializar texto plano tipeado (TipTap escapa los
@@ -429,21 +392,36 @@ _MERGE_TAG_RE = re.compile(
 )
 
 
+class RetiredMergeTags(ValueError):
+    """El cuerpo usa etiquetas de datos del firmante que ya no se envían."""
+
+    def __init__(self, tags: list[str]):
+        self.tags = tags
+        super().__init__(", ".join(f"<{x}>" for x in tags))
+
+
+def find_retired_merge_tags(body_html: str) -> list[str]:
+    """Etiquetas retiradas presentes en el cuerpo (sin repetir, en orden)."""
+    found: list[str] = []
+    for m in _MERGE_TAG_RE.finditer(body_html or ""):
+        name = m.group(1).lower().strip()
+        if _MERGE_TAG_ALIASES.get(name) is None and name not in found:
+            found.append(name)
+    return found
+
+
 def render_merge_tags(body_html: str, ctx: MergeContext) -> str:
-    """Sustituye los tags `<nombre>`, `<cedula>`, etc. por el dato del
-    destinatario. Corre DESPUÉS de `sanitize_comms_html` y una vez por
-    destinatario — los valores se escapan (`html.escape`) antes de insertarse,
-    así que ni el nombre de un firmante puede inyectar HTML en el email."""
-    values = {
-        "nombre": ctx.nombre, "nombre_completo": ctx.nombre_completo, "cedula": ctx.cedula,
-        "email": ctx.email, "telefono": ctx.telefono, "provincia": ctx.provincia,
-        "organizacion": ctx.organizacion,
-    }
+    """Sustituye `<nombre>` por el primer nombre del destinatario (o "—" si no
+    hay). Los tags retirados se renderizan vacíos. Corre DESPUÉS de
+    `sanitize_comms_html` y una vez por destinatario — el valor se escapa
+    (`html.escape`) antes de insertarse, así que ni el nombre de un firmante
+    puede inyectar HTML en el email."""
 
     def _repl(m: re.Match) -> str:
         key = _MERGE_TAG_ALIASES.get(m.group(1).lower().strip())
-        value = values.get(key or "", "")
-        return _html_mod.escape(value) if value else "—"
+        if key is None:
+            return ""
+        return _html_mod.escape(ctx.nombre) if ctx.nombre else "—"
 
     return _MERGE_TAG_RE.sub(_repl, body_html)
 

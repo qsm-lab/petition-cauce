@@ -117,6 +117,15 @@ previa, expresa y por escrito del Responsable. En caso de autorización, el sube
 quedará sujeto a obligaciones equivalentes a las del presente contrato, y el Encargado
 responderá solidariamente por el incumplimiento del subencargado.
 
+Con la firma del presente contrato, el Responsable autoriza al Encargado a utilizar los
+siguientes subencargados para el envío de correos electrónicos (verificación de la firma,
+confirmaciones y comunicaciones de la campaña):
+{% for s in subencargados_email %}
+  · {{ s.nombre }} — servidores en {{ s.pais }}.{% if s.seguimiento_aperturas %} Puede registrar la apertura de los correos (seguimiento de aperturas).{% endif %}
+
+{% endfor %}
+{{ subencargados_email_datos }}
+
 CLÁUSULA OCTAVA — ASISTENCIA AL RESPONSABLE
 
 El Encargado asistirá al Responsable en:

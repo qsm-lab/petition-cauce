@@ -16,7 +16,7 @@ from app.models.signature import Signature
 from app.models.user import User
 from app.services.comms_service import (
     AudienceFilter, CtaButton, InvalidCommsType, MergeContext, RecipientData, build_comms_email_html,
-    build_merge_context, build_segment_filters, count_recipients, get_recipients, render_merge_tags,
+    build_merge_context, build_segment_filters, find_retired_merge_tags, count_recipients, get_recipients, render_merge_tags,
     sanitize_comms_html, unsubscribe_url_for,
 )
 from app.services.signature_service import unsubscribe_by_token, unsubscribe_token
@@ -131,51 +131,74 @@ def test_no_hay_saludo_fijo_en_el_template():
 def test_render_merge_tags_sustituye_forma_escapada_del_editor_visual():
     """El editor visual (TipTap) serializa texto plano tipeado con entidades
     HTML — <nombre> tipeado como texto normal llega como &lt;nombre&gt;."""
-    ctx = MergeContext(nombre="Ana", nombre_completo="Ana Pérez")
-    out = render_merge_tags("<p>Hola &lt;nombre&gt;, tu nombre completo es &lt;nombre completo&gt;</p>", ctx)
+    out = render_merge_tags("<p>Hola &lt;nombre&gt;,</p>", MergeContext(nombre="Ana"))
     assert "Hola Ana," in out
-    assert "Ana Pérez" in out
     assert "&lt;nombre&gt;" not in out
 
 
 def test_render_merge_tags_sustituye_forma_literal():
-    ctx = MergeContext(nombre="Ana")
-    out = render_merge_tags("<p>Hola <nombre></p>", ctx)
+    out = render_merge_tags("<p>Hola <nombre></p>", MergeContext(nombre="Ana"))
     assert "Hola Ana" in out
 
 
 def test_render_merge_tags_escapa_el_valor_sustituido():
     """El nombre de un firmante podría contener caracteres HTML — se escapa
     antes de insertarse para no poder inyectar markup en el email."""
-    ctx = MergeContext(nombre='<script>alert(1)</script>')
-    out = render_merge_tags("<p>Hola <nombre></p>", ctx)
+    out = render_merge_tags("<p>Hola <nombre></p>", MergeContext(nombre='<script>alert(1)</script>'))
     assert "<script>" not in out
     assert "&lt;script&gt;" in out
 
 
-def test_render_merge_tags_tag_sin_valor_muestra_guion():
-    ctx = MergeContext()
-    out = render_merge_tags("<p>Cédula: <cedula></p>", ctx)
-    assert "Cédula: —" in out
+def test_render_merge_tags_nombre_sin_valor_muestra_guion():
+    out = render_merge_tags("<p>Hola <nombre></p>", MergeContext())
+    assert "Hola —" in out
 
 
-def test_build_merge_context_enmascara_cedula_email_telefono():
-    """Mismo patrón que la descarga normal de firmas (admin_signature_service):
-    2 primeros + 3 últimos de cédula, 3 primeros + dominio de email, últimos
-    4 dígitos de teléfono."""
-    from app.crypto import encrypt_pii
-    r = RecipientData(
-        signature_id=uuid.uuid4(), email="juanperez@ejemplo.com", name="Juan Pérez",
-        cedula_encrypted=encrypt_pii("1712345601"), celular_encrypted=encrypt_pii("0991234321"),
-        provincia="Pichincha", country=None, org_name=None, signer_type="natural",
-    )
+def test_render_merge_tags_retirados_salen_vacios():
+    """Un borrador anterior con <cedula> etc. no puede filtrar el dato ni dejar
+    el tag escrito en el correo."""
+    ctx = MergeContext(nombre="Ana")
+    body = "<p>&lt;nombre completo&gt;|<cedula>|&lt;correo&gt;|<teléfono>|<provincia>|<organización></p>"
+    out = render_merge_tags(body, ctx)
+    assert out == "<p>|||||</p>"
+
+
+def test_find_retired_merge_tags():
+    assert find_retired_merge_tags("<p>Hola <nombre></p>") == []
+    body = "<p>&lt;Cédula&gt; y <nombre completo> y &lt;cedula&gt;</p>"
+    assert find_retired_merge_tags(body) == ["cédula", "nombre completo", "cedula"]
+
+
+def test_build_merge_context_solo_primer_nombre():
+    r = RecipientData(signature_id=uuid.uuid4(), email="juanperez@ejemplo.com", name="JUAN carlos Pérez")
     ctx = build_merge_context(r)
-    assert ctx.nombre == "Juan"
-    assert ctx.nombre_completo == "Juan Pérez"
-    assert ctx.cedula == "17XXXXX601"
-    assert ctx.email == "juaXXXXXX@ejemplo.com"
-    assert ctx.telefono == "XXXXXX4321"
-    assert ctx.provincia == "Pichincha"
+    assert ctx == MergeContext(nombre="Juan")
+    assert not hasattr(ctx, "cedula") and not hasattr(ctx, "provincia")
+
+
+def test_simple_name():
+    from app.services.signer_name import simple_name
+    assert simple_name("María José Pérez") == "María"
+    assert simple_name("  ana-lucía  gómez ") == "Ana-Lucía"
+    assert simple_name("Dr. Pedro Salazar") == "Pedro"
+    assert simple_name("Ing Luis") == "Luis"
+    assert simple_name("Dr.") == "Dr."
+    assert simple_name("") == "" and simple_name(None) == "" and simple_name("   ") == ""
+
+
+async def test_borrador_rechaza_etiquetas_retiradas():
+    """Solo <nombre> se acepta al guardar: el resto de datos del firmante no
+    sale en los correos. Falla antes de tocar la base."""
+    import pytest
+    from app.services.comms_queue_service import _upsert_scheduled_send
+    from app.services.comms_service import RetiredMergeTags
+
+    with pytest.raises(RetiredMergeTags) as exc:
+        await _upsert_scheduled_send(
+            None, org_id=uuid.uuid4(), campaign_id=uuid.uuid4(), draft_id=None, type="general",
+            subject="s", body_html="<p>Hola <nombre>, tu cédula <cedula></p>", audience={}, created_by=None,
+        )
+    assert exc.value.tags == ["cedula"]
 
 
 # ── Segmentación (R8-R11), con datos reales en DB ─────────────────────────

@@ -47,7 +47,24 @@ propio; un ajuste en Brevo no lo quitó del correo transaccional. Decisión
 pendiente del usuario (ver `progress/current.md`). Documentado en el nuevo
 `docs/legal/subencargados_email.md`; el pixel persistía en la 3.ª prueba.
 
-**Pendientes**: ver `progress/current.md` (pixel, programar envío, RAT, AWS).
+**RAT y contrato (2026-10-24, sin spec por decisión del usuario)**: nuevo
+`app/legal/subencargados.py`; el RAT (secciones 6 y 7) y la cláusula séptima del
+contrato listan los proveedores de envío activos con país EE. UU. y el alcance de
+los datos. La premisa "solo viaja el email" se corrigió contra el código: viaja
+el primer nombre en los correos de verificación y, en comunicaciones, los campos
+que el Responsable elija (nombre, provincia; cédula/correo/teléfono enmascarados).
+4 tests nuevos (262 passed). Pendientes para nuevas campañas en
+`docs/legal/subencargados_email.md` §4.
+
+**Minimización de datos (2026-10-24, sin spec por decisión del usuario, urgente)**:
+a los proveedores solo llegan email y primer nombre. `signer_name.simple_name`;
+`MergeContext` y `RecipientData` reducidos; etiquetas retiradas rechazadas con 422
+y vacías al renderizar; editor con solo `<nombre>`; el saludo de los correos
+escapa HTML (antes insertaba el nombre sin escapar). `signatures.name` es un
+solo campo libre; separar nombre y apellido queda para la próxima iteración.
+Suite: 266 passed.
+
+**Pendientes**: ver `progress/current.md` (pixel, programar envío, AWS).
 
 ---
 

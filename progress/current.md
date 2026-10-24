@@ -20,7 +20,7 @@ commitear** (el usuario commitea):
   de la suite enviaban correo real (36 por pasada) con la clave de Resend
   del contenedor dev y agotaron el plan Free (106/100).
 
-Tests: 258 passed, 0 llamadas reales a Resend/Brevo.
+Tests: 262 passed (258 + 4 del RAT/contrato), 0 llamadas reales a Resend/Brevo.
 
 ## Estado del despliegue en el VPS (2026-10-24)
 
@@ -53,7 +53,17 @@ aplica al correo transaccional, o el plan no lo permite. Sin resolver.
    apruebe); requiere usuario IAM `cauce-ses-sender` y access key.
 4. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`
    y que la alarma ComplaintRate sale de "Datos insuficientes".
-5. Actualizar RAT y contratos de encargo: AWS y Brevo son subencargados.
+5. ~~Actualizar RAT y contratos~~ **Hecho** (sin spec, por decisión del usuario):
+   `app/legal/subencargados.py` + plantillas `rat.jinja2` y `contrato_encargo.jinja2`
+   listan los subencargados desde la config (EE. UU.); 4 tests nuevos.
+   **Minimización de datos en correos (mismo día)**: las comunicaciones solo
+   aceptan la etiqueta `<nombre>` (primer nombre); `<nombre completo>`, `<cédula>`,
+   `<correo>`, `<teléfono>`, `<provincia>` y `<organización>` se rechazan (422) y salen
+   vacías si quedaron en un borrador. `signer_name.simple_name` unifica el saludo; el
+   saludo ahora escapa HTML. Suite: 266 passed. Requiere desplegar API **y web**
+   (editor) antes de enviar; no recrear `petition-api` con un envío en curso.
+   **Pendiente para nuevas campañas** (`docs/legal/subencargados_email.md` §4):
+   verificar garantías de cada proveedor, adenda para contratos ya firmados.
 6. Abrir el PR a `main`. Incluye 4 commits previos de documentación
    (sesiones 42 y 43); revisar que se quiere publicar el runbook y los
    documentos legales.

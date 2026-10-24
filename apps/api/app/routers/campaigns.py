@@ -20,7 +20,7 @@ from app.schemas.comms import (
 )
 from app.services.campaign_service import CampaignService
 from app.services.comms_service import (
-    COMMS_TYPES, SAMPLE_MERGE_CONTEXT, AudienceFilter, CtaButton, InvalidCommsType, RecipientData,
+    COMMS_TYPES, SAMPLE_MERGE_CONTEXT, AudienceFilter, CtaButton, InvalidCommsType, RecipientData, RetiredMergeTags, find_retired_merge_tags,
     UploadRejected, build_comms_email_html, build_merge_context, comms_upload_url, count_recipients,
     get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html, save_comms_upload,
     unsubscribe_url_for,
@@ -52,6 +52,20 @@ _COMMS_HEADING = {
     "invitation": "Invitación",
     "closing": "Aviso de cierre",
 }
+
+
+def _retired_tags_detail(tags: list[str]) -> str:
+    usadas = ", ".join(f"<{t}>" for t in tags)
+    return (
+        f"El mensaje usa etiquetas que ya no se envían ({usadas}). "
+        "Solo se permite <nombre> (primer nombre); quítalas del contenido."
+    )
+
+
+def _reject_retired_tags(body_html: str) -> None:
+    retired = find_retired_merge_tags(body_html)
+    if retired:
+        raise HTTPException(status_code=422, detail=_retired_tags_detail(retired))
 
 
 def _audience_filter(a) -> AudienceFilter:
@@ -535,6 +549,7 @@ async def comms_preview(
     if data.type not in _COMMS_HEADING:
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
 
+    _reject_retired_tags(data.body_html)
     sanitized = sanitize_comms_html(data.body_html)
     tagged = render_merge_tags(sanitized, SAMPLE_MERGE_CONTEXT)
     is_anuncios = COMMS_TYPES[data.type] == "anuncios"
@@ -571,6 +586,7 @@ async def comms_send(
     if data.type not in _COMMS_HEADING:
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
 
+    _reject_retired_tags(data.body_html)
     sanitized = sanitize_comms_html(data.body_html)
     ctas = [CtaButton(text=c.text, url=c.url, enabled=c.enabled) for c in data.ctas]
     heading = data.heading.strip() or _COMMS_HEADING[data.type]
@@ -579,10 +595,7 @@ async def comms_send(
         # No hay firma real detrás de una dirección de prueba: los merge tags
         # se muestran con datos de muestra, igual que la vista previa.
         recipients = [
-            RecipientData(
-                signature_id=uuid.uuid4(), email=email, name="", cedula_encrypted=None,
-                celular_encrypted=None, provincia=None, country=None, org_name=None, signer_type="natural",
-            )
+            RecipientData(signature_id=uuid.uuid4(), email=email, name="")
             for email in data.test_emails
         ]
     else:
@@ -649,6 +662,8 @@ async def comms_save_draft(
         )
     except InvalidCommsType:
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+    except RetiredMergeTags as e:
+        raise HTTPException(status_code=422, detail=_retired_tags_detail(e.tags))
     except DraftNotFound:
         raise HTTPException(status_code=404, detail="Borrador no encontrado")
     return DraftOut.from_orm_str_ids(draft)
@@ -709,6 +724,8 @@ async def comms_schedule(
         )
     except InvalidCommsType:
         raise HTTPException(status_code=400, detail="Tipo de comunicación inválido")
+    except RetiredMergeTags as e:
+        raise HTTPException(status_code=422, detail=_retired_tags_detail(e.tags))
     except DraftNotFound:
         raise HTTPException(status_code=404, detail="Borrador no encontrado")
     return ScheduledSendOut.from_orm_str_ids(send)

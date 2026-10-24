@@ -19,18 +19,20 @@ usan el pool; en ese caso el proveedor lo elige la organización Responsable.
 
 ## 2. Particularidades de Brevo (verificadas el 2026-10-24)
 
-Dos correos de prueba enviados por la API transaccional v3, vistos en el
-mensaje original recibido en Gmail:
+Tres correos de prueba enviados por la API transaccional v3, vistos en el
+mensaje original recibido en Gmail (el primero, de referencia; los otros dos,
+tras intentar desactivar el seguimiento en la cuenta de Brevo):
 
 1. **Pixel de seguimiento de aperturas.** El relay de Brevo inyecta en el HTML
    dos etiquetas `<img>` (una en un comentario condicional `[if mso]`, otra con
    `display:none`) que apuntan a `https://r.camp.ecuadornotlc.org/tr/op/...`.
-   Nuestro código no lo genera: se agrega después de la API. Brevo registra por
-   cada apertura la IP, la fecha y el cliente de correo del firmante.
+   Nuestro código no lo genera: se agrega después de la API. Este tipo de pixel permite que
+   Brevo registre cada apertura (normalmente IP, fecha y cliente de correo del
+   firmante); verificar qué conserva Brevo en su política y en el contrato.
    - El dominio del pixel es propio (`camp.ecuadornotlc.org`), pero lo sirve
      Brevo.
-   - Un ajuste cambiado en la cuenta de Brevo **no lo quitó** en tres pruebas
-     (la última, 2026-10-24 17:27 UTC). Puede estar en otra sección del panel,
+   - Un ajuste cambiado en la cuenta de Brevo **no lo quitó** en las dos
+     pruebas posteriores (la última, 2026-10-24 17:27 UTC). Puede estar en otra sección del panel,
      no haberse guardado, o no estar disponible en el plan; no está confirmado.
 2. **Cabecera `List-Unsubscribe` de Brevo** (`List-Unsubscribe-Post:
    List-Unsubscribe=One-Click`), con un enlace de baja de Brevo. Quien la use
@@ -40,37 +42,40 @@ mensaje original recibido en Gmail:
 3. **Autenticación correcta.** SPF, DKIM (`ecuadornotlc.org`, selector `brevo2`)
    y DMARC en `pass` (política `p=NONE`); return-path `camp.ecuadornotlc.org`.
 
-## 3. Impacto LOPDP
+## 3. Decisiones (usuario, 2026-10-24)
 
-- Brevo y AWS son subencargados nuevos respecto del contrato de encargo vigente.
-- El seguimiento de aperturas es tratamiento adicional de datos del firmante
-  (comportamiento de lectura). Debe estar cubierto por la base de legitimación
-  y la finalidad declaradas por la organización Responsable, o desactivarse.
-- Verificar la ubicación del tratamiento y las transferencias internacionales de
-  cada proveedor antes de incluirlo en el RAT. No están documentadas aquí.
+- **RAT y contrato actualizados** (`apps/api/app/legal/`): el RAT lista los
+  proveedores activos (sección 6) y declara la transferencia a Estados Unidos
+  (sección 7); la cláusula séptima del contrato incluye la autorización de
+  subencargados. La lista sale de `EMAIL_PROVIDER` y `EMAIL_POOL`
+  (`app/legal/subencargados.py`), así que se actualiza sola.
+- **País:** se declara Estados Unidos para Resend, Brevo y AWS.
+- **Alcance de los datos** (cambio del 2026-10-24, ya en código): a los
+  proveedores llegan **solo el email del destinatario y su primer nombre**
+  ("nombre simple", `app/services/signer_name.py`: primera palabra del campo
+  `signatures.name`, saltando títulos). Se retiraron las etiquetas de
+  comunicaciones `<nombre completo>`, `<cédula>`, `<correo>`, `<teléfono>`,
+  `<provincia>` y `<organización>`: el servidor las rechaza al guardar,
+  previsualizar o enviar (HTTP 422) y, si quedaran en un borrador anterior, se
+  renderizan vacías. Solo se acepta `<nombre>`. El RAT y el contrato lo declaran
+  así. La separación de nombre y apellido queda para una iteración futura.
+- **Pixel de Brevo:** se declara en el RAT y en el contrato como seguimiento de
+  aperturas. Sigue sin resolverse en la cuenta de Brevo (ver §2); la decisión
+  de desactivarlo o aceptarlo queda abierta.
+- Sin spec para este cambio (decisión del usuario, MVP).
 
-## 4. Decisión pendiente (usuario)
+## 4. Pendientes para nuevas campañas
 
-Elegir una de estas salidas antes de programar el envío masivo por el pool:
-
-1. Encontrar el ajuste en Brevo (configuración transaccional o soporte del plan),
-   desactivar el seguimiento y repetir la prueba hasta que el cuerpo no tenga
-   `/tr/op/`.
-2. Aceptar el pixel como riesgo: registrarlo en el RAT y en el contrato de
-   encargo, y comunicarlo a la organización Responsable.
-3. Enviar solo por Resend (quitar `EMAIL_POOL`, recrear `petition-api` con la
-   cola quieta): 150/día, unos 15 días para ~2.200 correos, sin pixel.
-
-Registrar aquí la decisión tomada y su fecha.
-
-## 5. Pendientes de documentación
-
-- [ ] RAT: agregar Brevo y AWS SES como subencargados.
-- [ ] Contratos de encargo: cláusula de subencargados y, si aplica, de
-      seguimiento de aperturas.
-- [ ] Comunicar a las organizaciones Responsables cuyas campañas envíen por el pool.
+- [ ] Verificar las garantías contractuales de cada proveedor para la
+      transferencia a Estados Unidos (acuerdos de tratamiento de datos,
+      términos de servicio) y la política de retención de eventos de apertura.
+- [ ] Contratos ya firmados: cambiar la plantilla no los modifica; evaluar una
+      adenda de autorización de subencargados con cada organización Responsable.
+- [ ] Decidir sobre el pixel de Brevo (desactivar, o dejarlo declarado).
 - [ ] Spec futura (sin crear): cabeceras en `EmailMessage` para
       `List-Unsubscribe` propio.
+- [ ] Cuando se active SES en producción, el RAT ya lo listará por configuración;
+      revisar que el texto siga siendo correcto.
 
 Ver también: `specs/brevo-pool/design.md`, `specs/ses-transport/design.md`,
 `docs/legal/frontera_boletin_listmonk.md` (Resend compartido con el boletín).

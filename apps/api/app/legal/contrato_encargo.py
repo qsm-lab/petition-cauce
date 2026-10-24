@@ -4,6 +4,7 @@ from pathlib import Path
 import jinja2
 
 from app.legal.retention import retention_label as _retention_label
+from app.legal.subencargados import DATOS_COMUNICADOS, email_subencargados
 
 _env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(Path(__file__).parent / "templates")),
@@ -46,6 +47,9 @@ def build_contrato_context(
         "campaign_scope": campaign_scope,
         "retention_days": retention_days,
         "retention_label": _retention_label(retention_days),
+        # Subencargados de envío de email
+        "subencargados_email": email_subencargados(),
+        "subencargados_email_datos": DATOS_COMUNICADOS,
         # Metadatos
         "validation_token": validation_token,
         "fecha": date.today().isoformat(),
@@ -85,5 +89,7 @@ def get_contrato_dev() -> str:
         "retention_label": _retention_label(365),
         "validation_token": "CONTRATO-DEV-001",
         "fecha": date.today().isoformat(),
+        "subencargados_email": email_subencargados(),
+        "subencargados_email_datos": DATOS_COMUNICADOS,
     }
     return render_contrato_encargo(context)
