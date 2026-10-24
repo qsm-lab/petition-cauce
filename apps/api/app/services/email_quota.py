@@ -17,7 +17,17 @@ from datetime import datetime, timezone
 
 from app.redis_client import get_redis
 
-PLATFORM_QUOTA_KEY = "platform"
+PLATFORM_QUOTA_KEY = "platform"  # Resend (histórico: conserva los contadores existentes)
+
+
+def platform_quota_key(name: str | None = None) -> str:
+    """Clave del contador del default de plataforma, por proveedor (R10):
+    cambiar o combinar Resend/SES/Brevo no mezcla consumos. Sin `name`, el de
+    `EMAIL_PROVIDER`."""
+    from app.config import settings
+    name = name or settings.email_provider
+    return PLATFORM_QUOTA_KEY if name == "resend" else f"{PLATFORM_QUOTA_KEY}-{name}"
+
 
 # TTL con margen sobre el período que miden, para tolerar desfases de huso
 # horario entre el reloj del servidor y el del proveedor.

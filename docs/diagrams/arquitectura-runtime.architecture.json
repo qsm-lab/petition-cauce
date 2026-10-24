@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Petition Cauce — arquitectura de runtime",
+    "output": ".archify/architecture-petition-cauce-20261013-185500/petition-cauce.html",
+    "locale": "es",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github-qsmlab:qsm-lab/petition-cauce.git",
+      "revision": "205cd0ac85ba3c5ee1cdced64eafb1e639e6f901",
+      "link_mode": "local-only"
+    }
+  },
+  "components": [
+    {
+      "id": "visitor",
+      "type": "external",
+      "label": "Firmante / admin",
+      "sublabel": "navegador",
+      "pos": [40, 180],
+      "size": [130, 60]
+    },
+    {
+      "id": "nginx",
+      "type": "cloud",
+      "label": "Nginx",
+      "sublabel": "TLS · conserva Host",
+      "pos": [240, 180],
+      "size": [140, 60],
+      "sources": [
+        { "path": "infra/nginx/cauce.ecuadornotlc.org.conf", "line": 43, "end_line": 56, "label": "location /api/" },
+        { "path": "infra/nginx/cauce.ecuadornotlc.org.conf", "line": 59, "end_line": 71, "label": "location /" }
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Next.js 14",
+      "sublabel": "web :3002 · resuelve campaña",
+      "pos": [480, 60],
+      "size": [170, 60],
+      "sources": [
+        { "path": "apps/web/src/middleware.ts", "line": 4, "end_line": 27, "label": "auth + x-original-host" },
+        { "path": "apps/web/src/app/page.tsx", "line": 35, "end_line": 40, "label": "resolveDomain(host)" },
+        { "path": "docker-compose.yml", "line": 34, "end_line": 52, "label": "petition-web" }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "API :8011 · RLS por request",
+      "pos": [480, 300],
+      "size": [170, 60],
+      "sources": [
+        { "path": "apps/api/app/main.py", "line": 25, "end_line": 33, "label": "lifespan" },
+        { "path": "apps/api/app/dependencies.py", "line": 49, "end_line": 62, "label": "GUC de org/rol" },
+        { "path": "apps/api/app/routers/public_campaign.py", "line": 183, "end_line": 194, "label": "POST firma" }
+      ]
+    },
+    {
+      "id": "turnstile",
+      "type": "external",
+      "label": "Turnstile",
+      "sublabel": "Cloudflare siteverify",
+      "pos": [790, 170],
+      "size": [150, 60],
+      "sources": [
+        { "path": "apps/api/app/services/turnstile_service.py", "line": 9, "end_line": 21, "label": "verify_turnstile" }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "petition-db · RLS",
+      "pos": [790, 300],
+      "size": [150, 60],
+      "sources": [
+        { "path": "docker-compose.yml", "line": 54, "end_line": 72, "label": "petition-db" },
+        { "path": "apps/api/migrations/versions/004_rls.py", "line": 68, "end_line": 80, "label": "políticas RLS" }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 7",
+      "sublabel": "rate limit · locks",
+      "pos": [480, 440],
+      "size": [170, 60],
+      "sources": [
+        { "path": "apps/api/app/limiter.py", "line": 13, "end_line": 17, "label": "slowapi" },
+        { "path": "docker-compose.yml", "line": 74, "end_line": 82, "label": "petition-redis" }
+      ]
+    },
+    {
+      "id": "loop",
+      "type": "backend",
+      "label": "Cola de correo",
+      "sublabel": "loop in-process",
+      "pos": [790, 440],
+      "size": [150, 60],
+      "sources": [
+        { "path": "apps/api/app/comms_scheduler_loop.py", "line": 39, "end_line": 66, "label": "tick con lock" },
+        { "path": "apps/api/app/services/comms_queue_service.py", "line": 360, "end_line": 372, "label": "process_due" }
+      ]
+    },
+    {
+      "id": "resend",
+      "type": "external",
+      "label": "Resend",
+      "sublabel": "API de correo",
+      "pos": [1080, 440],
+      "size": [130, 60],
+      "sources": [
+        { "path": "apps/api/app/services/email_transport.py", "line": 87, "end_line": 96, "label": "POST /emails" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Backend: API y datos",
+      "wraps": ["api", "db", "redis", "loop"]
+    }
+  ],
+  "connections": [
+    { "from": "visitor", "to": "nginx", "label": "HTTPS", "variant": "emphasis" },
+    { "from": "nginx", "to": "web", "label": "/", "variant": "emphasis" },
+    { "from": "nginx", "to": "api", "label": "/api/" },
+    { "from": "web", "to": "api", "label": "SSR + dominio" },
+    { "from": "api", "to": "db", "label": "SQL + RLS", "variant": "security" },
+    { "from": "api", "to": "redis", "label": "límites" },
+    { "from": "api", "to": "turnstile", "label": "verifica", "variant": "security" },
+    { "from": "api", "to": "loop", "label": "lifespan", "variant": "dashed" },
+    { "from": "loop", "to": "redis", "label": "lock", "variant": "dashed" },
+    { "from": "loop", "to": "db", "label": "lotes", "variant": "dashed" },
+    { "from": "loop", "to": "resend", "label": "envío por lotes", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Multi-dominio",
+      "items": [
+        "Nginx conserva el Host original",
+        "El middleware lo copia a x-original-host",
+        "La página resuelve la campaña con resolveDomain(host)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Aislamiento de datos",
+      "items": [
+        "Cada request fija org y rol con set_config",
+        "RLS en PostgreSQL filtra por organización",
+        "Rate limit por IP con HMAC en Redis"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Cola de correo",
+      "items": [
+        "El lock de Redis evita ticks en paralelo",
+        "El loop corre fuera de request como platform_admin",
+        "Cada lote se envía por el transporte configurado (Resend)"
+      ]
+    }
+  ]
+}

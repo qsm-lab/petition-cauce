@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Flujo de firma con doble opt-in",
+    "output": ".archify/sequence-firma-20261013-191500/secuencia-firma.html",
+    "locale": "es",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github-qsmlab:qsm-lab/petition-cauce.git",
+      "revision": "205cd0ac85ba3c5ee1cdced64eafb1e639e6f901",
+      "link_mode": "local-only"
+    }
+  },
+  "participants": [
+    { "id": "signer", "type": "external", "label": "Firmante", "sublabel": "navegador y correo" },
+    {
+      "id": "web", "type": "frontend", "label": "Next.js", "sublabel": "formulario de firma",
+      "sources": [{ "path": "apps/web/src/lib/signatures-api.ts", "line": 42, "end_line": 54, "label": "submitSignature" }]
+    },
+    {
+      "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "public-campaign",
+      "sources": [
+        { "path": "apps/api/app/routers/public_campaign.py", "line": 183, "end_line": 232, "label": "POST firma" },
+        { "path": "apps/api/app/services/signature_service.py", "line": 64, "end_line": 212, "label": "create_signature" },
+        { "path": "apps/api/app/services/signature_service.py", "line": 290, "end_line": 392, "label": "confirm_signature" }
+      ]
+    },
+    {
+      "id": "turnstile", "type": "security", "label": "Turnstile", "sublabel": "Cloudflare",
+      "sources": [{ "path": "apps/api/app/services/turnstile_service.py", "line": 9, "end_line": 21, "label": "verify_turnstile" }]
+    },
+    {
+      "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "signatures y consents",
+      "sources": [{ "path": "apps/api/app/services/signature_service.py", "line": 127, "end_line": 178, "label": "Signature + Consent" }]
+    },
+    {
+      "id": "resend", "type": "external", "label": "Resend", "sublabel": "correo",
+      "sources": [{ "path": "apps/api/app/services/email_transport.py", "line": 87, "end_line": 96, "label": "POST /emails" }]
+    }
+  ],
+  "segments": [
+    { "from": 150, "to": 418, "label": "Registro de la firma" },
+    { "from": 424, "to": 640, "label": "Confirmación por correo" }
+  ],
+  "messages": [
+    { "id": "fill", "from": "signer", "to": "web", "y": 170, "label": "llena el formulario", "variant": "default" },
+    { "id": "post", "from": "web", "to": "api", "y": 200, "label": "POST /signatures", "variant": "emphasis" },
+    { "id": "verify", "from": "api", "to": "turnstile", "y": 232, "label": "siteverify", "variant": "security" },
+    { "id": "verified", "from": "turnstile", "to": "api", "y": 260, "label": "success", "variant": "return" },
+    { "id": "insert", "from": "api", "to": "db", "y": 292, "label": "firma + consentimiento", "variant": "emphasis" },
+    { "id": "stored", "from": "db", "to": "api", "y": 320, "label": "pending_confirmation", "variant": "return" },
+    { "id": "mail-confirm", "from": "api", "to": "resend", "y": 352, "label": "correo de confirmación", "variant": "dashed" },
+    { "id": "created", "from": "api", "to": "web", "y": 382, "label": "201 id + token", "variant": "return" },
+    { "id": "thanks-screen", "from": "web", "to": "signer", "y": 410, "label": "pantalla de gracias", "variant": "return" },
+    { "id": "inbox", "from": "resend", "to": "signer", "y": 450, "label": "enlace de confirmación", "variant": "dashed" },
+    { "id": "click", "from": "signer", "to": "api", "y": 484, "label": "GET /confirm/token", "variant": "emphasis" },
+    { "id": "confirm", "from": "api", "to": "db", "y": 516, "label": "status = confirmed", "variant": "security" },
+    { "id": "count", "from": "db", "to": "api", "y": 544, "label": "conteo", "variant": "return" },
+    { "id": "mail-thanks", "from": "api", "to": "resend", "y": 576, "label": "correo de gracias", "variant": "dashed" },
+    { "id": "redirect", "from": "api", "to": "signer", "y": 606, "label": "302 a la landing", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "web", "from": 195, "to": 388, "type": "frontend" },
+    { "participant": "api", "from": 195, "to": 388, "type": "backend" },
+    { "participant": "api", "from": 479, "to": 612, "type": "backend" },
+    { "participant": "db", "from": 287, "to": 326, "type": "database" },
+    { "participant": "db", "from": 511, "to": 550, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Rechazos antes de guardar",
+      "items": [
+        "Turnstile inválido responde 422",
+        "Cédula inválida responde 422",
+        "Firma duplicada responde 409 (ya_firmaste)"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Doble opt-in",
+      "items": [
+        "La firma nace pending_confirmation",
+        "Solo el enlace del correo la pasa a confirmed",
+        "Con el token vencido responde expired"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Correo no bloquea",
+      "items": [
+        "Si falla el envío, la firma queda guardada",
+        "El correo de gracias solo sale en la primera confirmación",
+        "Un segundo clic al enlace no da error"
+      ]
+    }
+  ]
+}

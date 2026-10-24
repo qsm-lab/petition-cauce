@@ -9,8 +9,8 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import settings
-from app.services.email_quota import PLATFORM_QUOTA_KEY, record_usage
-from app.services.email_transport import EmailMessage, EmailTransport, platform_transport
+from app.services.email_quota import platform_quota_key, record_usage
+from app.services.email_transport import EmailMessage, EmailTransport, default_from_email, email_enabled, platform_transport
 
 logger = logging.getLogger(__name__)
 
@@ -137,14 +137,14 @@ async def _send(
         to=recipients,
         subject=subject,
         html=html,
-        from_=from_ or settings.resend_from_email,
+        from_=from_ or default_from_email(),
         reply_to=reply_to,
     )
     result = await tr.send(msg)
     if result.ok:
         try:
             await record_usage(
-                quota_key or PLATFORM_QUOTA_KEY,
+                quota_key or platform_quota_key(),
                 sent_count=len(recipients),
                 daily_quota_used=result.daily_quota_used,
                 monthly_quota_used=result.monthly_quota_used,
@@ -263,7 +263,7 @@ async def send_confirmation_email(
     """`campaign_title` debe ser el título público (petition_title), no el interno."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info(
             "[dev] confirmation email | to=%s | url=%s",
             to_email,
@@ -318,7 +318,7 @@ async def send_thanks_share_email(
     qr_code_data: str = "",
 ) -> None:
     """Segundo email tras confirmar la firma: agradecimiento + difusión (botones y QR)."""
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] thanks email | to=%s | campaign=%s", to_email, campaign_title)
         return
 
@@ -406,7 +406,7 @@ async def send_visibility_change_email(
     labels = {"publica": "Pública", "anonima": "Anónima", "secreta": "Secreta"}
     label = labels.get(new_visibility, new_visibility)
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] visibility email | to=%s | url=%s | new=%s", to_email, confirm_url, new_visibility)
         return
 
@@ -450,7 +450,7 @@ async def send_arco_verification_email(
     app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
     verify_url = f"{app_url}{_ARCO_VERIFY_PATH}?token={token}"
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] arco verification email | to=%s | url=%s", to_email, verify_url)
         return
 
@@ -481,7 +481,7 @@ async def send_arco_change_notification(
 ) -> None:
     """R18: notifica al propio titular tras cualquier cambio hecho desde el portal ARCO
     (transparencia/seguridad — permite detectar uso no autorizado de la sesión)."""
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] arco change email | to=%s | action=%s | campaign=%s", to_email, action_label, campaign_title)
         return
 
@@ -513,7 +513,7 @@ async def send_arco_org_notification(
         return
     label = _ARCO_RIGHT_LABELS.get(right_type, right_type)
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] arco org notification | to=%s | right=%s | campaign=%s", to_email, right_type, campaign_title)
         return
 
@@ -550,7 +550,7 @@ async def send_arco_deletion_notification(
     org_contact_email: str = "",
 ) -> None:
     """Confirma al titular que sus datos fueron eliminados de inmediato (R7, supresión self-service)."""
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] arco deletion email | to=%s | campaign=%s", to_email, campaign_title)
         return
 
@@ -607,7 +607,7 @@ async def send_archive_notification(
     org_contact_email: str = "",
 ) -> None:
     """Notifica la supresión solicitada por canal no digital (archivado admin, ventana 15 días — R3)."""
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] archive email | to=%s | purge_date=%s", to_email, purge_date)
         return
 
@@ -670,7 +670,7 @@ async def send_name_completion_email(
     app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
     complete_url = f"{app_url}/c/{campaign_slug}?completar={token}"
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] name completion email | to=%s | url=%s", to_email, complete_url)
         return
 
@@ -772,7 +772,7 @@ async def send_confirmation_reminder_email(
     sin tocar el email original que se manda al momento de firmar."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
 
-    if not settings.resend_api_key:
+    if not email_enabled():
         logger.info("[dev] reminder email | to=%s | url=%s", to_email, confirm_url)
         return
 

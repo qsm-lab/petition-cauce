@@ -16,7 +16,7 @@ from app.crypto import encrypt_secret
 from app.models.org_email_config import OrgEmailConfig
 from app.schemas.org_email_config import OrgEmailConfigResponse, OrgEmailConfigUpdate
 from app.services.email_quota import get_usage, record_usage
-from app.services.email_transport import EmailMessage, transport_from_config
+from app.services.email_transport import EmailMessage, default_from_email, transport_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class OrgEmailConfigService:
         if cfg is None:
             return False
         transport = transport_from_config(cfg)
-        from_ = cfg.default_from or settings.resend_from_email
+        from_ = cfg.default_from or default_from_email()
         display = cfg.default_display_name
         header_from = f"{display} <{from_}>" if display else from_
         msg = EmailMessage(

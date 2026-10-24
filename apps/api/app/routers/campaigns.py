@@ -15,7 +15,7 @@ from app.schemas.campaign import (
     LifecycleEventOut, EventInvitationRequest, ClosingNotificationRequest,
 )
 from app.schemas.comms import (
-    CommsPreviewRequest, CommsQuotaResponse, CommsSendRequest, DraftOut, DraftSaveRequest,
+    CommsPreviewRequest, CommsQuotaResponse, PoolQuotaItem, CommsSendRequest, DraftOut, DraftSaveRequest,
     RecipientsCountRequest, ScheduleRequest, ScheduledSendOut, SendLogOut,
 )
 from app.services.campaign_service import CampaignService
@@ -39,8 +39,8 @@ from app.services.email_service import (
     _build_delivery_event_invitation_html,
     _build_campaign_closing_html,
 )
-from app.services.email_quota import PLATFORM_QUOTA_KEY, get_usage
-from app.services.email_transport import platform_transport, resolve_sender, transport_from_config
+from app.services.email_quota import platform_quota_key, get_usage
+from app.services.email_transport import platform_pool, platform_transport, resolve_sender, transport_from_config
 from app.services.org_email_config_service import OrgEmailConfigService
 from app.services.signature_service import get_signature_count
 from app.models.user import User
@@ -71,7 +71,7 @@ async def _resolve_campaign_email_context(db: AsyncSession, campaign: CampaignMo
     active_cfg = cfg if (cfg and cfg.status == "active") else None
     transport = transport_from_config(active_cfg) if active_cfg else platform_transport()
     sender = resolve_sender(campaign.meta, active_cfg, org)
-    quota_key = str(active_cfg.id) if active_cfg else PLATFORM_QUOTA_KEY
+    quota_key = str(active_cfg.id) if active_cfg else platform_quota_key()
     return transport, sender, quota_key
 
 router = APIRouter()
@@ -429,7 +429,7 @@ async def comms_quota(
     active_cfg = cfg if (cfg and cfg.status == "active") else None
     transport = transport_from_config(active_cfg) if active_cfg else platform_transport()
     caps = transport.capabilities()
-    quota_key = str(active_cfg.id) if active_cfg else PLATFORM_QUOTA_KEY
+    quota_key = str(active_cfg.id) if active_cfg else platform_quota_key()
     usage = await get_usage(quota_key)
     sender = resolve_sender(campaign.meta, active_cfg, org)
 
@@ -449,11 +449,28 @@ async def comms_quota(
         else usage["monthly_used"]
     )
 
+    # brevo-pool R11: con pool de plataforma de 2+ proveedores se reporta el
+    # detalle por proveedor y los totales (contador propio, el que usa la cola).
+    pool_items: list[PoolQuotaItem] = []
+    daily_quota_total = active_cfg.daily_quota if active_cfg and active_cfg.daily_quota is not None else caps.daily_quota
+    provider_label = active_cfg.provider if active_cfg else settings.email_provider
+    if active_cfg is None:
+        members = platform_pool()
+        if len(members) > 1:
+            for m in members:
+                m_usage = await get_usage(m.quota_key)
+                pool_items.append(PoolQuotaItem(provider=m.name, daily_used=m_usage["daily_used"], daily_quota=m.daily_quota))
+            daily_used = sum(i.daily_used for i in pool_items)
+            quotas = [i.daily_quota for i in pool_items]
+            daily_quota_total = None if any(q is None for q in quotas) else sum(quotas)
+            provider_label = "+".join(i.provider for i in pool_items)
+
     return CommsQuotaResponse(
-        provider=active_cfg.provider if active_cfg else "resend",
+        provider=provider_label,
         plan=(active_cfg.plan if active_cfg and active_cfg.plan else "free"),
         daily_used=daily_used,
-        daily_quota=(active_cfg.daily_quota if active_cfg and active_cfg.daily_quota is not None else caps.daily_quota),
+        daily_quota=daily_quota_total,
+        pool=pool_items,
         monthly_used=monthly_used,
         monthly_quota=(active_cfg.monthly_quota if active_cfg and active_cfg.monthly_quota is not None else caps.monthly_quota),
         updated_at=(snapshot["updated_at"] if snapshot else None),
