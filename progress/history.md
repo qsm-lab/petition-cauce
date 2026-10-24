@@ -3,6 +3,41 @@
 
 ---
 
+## 2026-10-23 — Sesión 44: Amazon SES, Brevo y pool de envío
+
+**Alcance**: features `ses-transport` y `brevo-pool` (specs aprobadas,
+T1–T6 y T1–T7 implementadas), más fixture anti-envío en tests. Sin commits.
+
+**Contexto**: Resend Free (100/día) insuficiente para ~2.200 correos y
+acceso a producción de SES pendiente en AWS (sandbox).
+
+**Hecho**:
+- Guía de configuración AWS (Ohio): identidad `ecuadornotlc.org` con DKIM,
+  MAIL FROM `ses.ecuadornotlc.org`, supresión de cuenta, SNS
+  `cauce-ses-events`, Configuration Set, alarmas de rebote/queja, política
+  IAM `cauce-ses-send-only`. Solicitud de producción enviada.
+- Abstracción `EmailTransport`; `SesTransport`, `BrevoTransport`;
+  `EMAIL_PROVIDER` (resend|ses|brevo) y `EMAIL_POOL`; `email_enabled()` y
+  `default_from_email()` reemplazan las guardas por `resend_api_key`.
+- Reparto de la cola entre proveedores por cupo diario restante; override
+  `RESEND_DAILY_QUOTA`; `/comms/quota` expone el detalle del pool.
+- Fixture autouse `_no_real_email` (Resend/Brevo).
+
+**Hallazgos**:
+- Los tests enviaban 36 correos reales por pasada (clave real en el
+  contenedor dev): causa del 106/100 en Resend.
+- Resend tolera envíos sobre 100/día (empírico, no documentado); se usa 150.
+- Evaluado y descartado como Plan B inmediato: MTA propio.
+
+**Errores corregidos en el camino**: validador de Brevo no aplicado por un
+reemplazo con `if False`; tests de pool que contaban el lote original;
+tests de validación que heredaban `RESEND_API_KEY` del entorno.
+
+**Resultado**: 258 passed, 0 llamadas reales a proveedores.
+**Pendientes**: ver `progress/current.md` (cuenta Brevo, `.env`, T8, RAT).
+
+---
+
 ## 2026-10-22 — Sesión 43: documento de propuesta de valor de la plataforma
 
 **Alcance**: sesión corta, solo documentación. Sin cambios de código,

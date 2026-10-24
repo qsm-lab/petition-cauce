@@ -1,4 +1,61 @@
-# Estado actual — tras sesión 43 (2026-10-22) — CERRADA (solo documentación, commiteada localmente)
+# Estado actual — tras sesión 44 (2026-10-23) — CERRADA (código sin commitear)
+
+## Resumen de sesión 44
+
+Sesión para tener un segundo canal de email ante el límite de Resend Free y
+la espera de AWS. Dos features implementadas con spec aprobada, **sin
+commitear** (el usuario commitea):
+
+- **`ses-transport`** (T1–T6): abstracción `EmailTransport` con adaptadores
+  Resend / SES (aioboto3, SESv2) / Brevo; switch global `EMAIL_PROVIDER`.
+  La cuenta SES sigue en sandbox (solo envía a direcciones verificadas);
+  se pidió acceso a producción a AWS (volumen 2.000–5.000/mes), sin respuesta.
+- **`brevo-pool`** (T1–T7): `BrevoTransport` (API v3, httpx) y pool
+  `EMAIL_POOL=brevo,resend` que reparte cada lote de la cola de
+  `centro-comunicaciones` según el cupo diario restante de cada proveedor
+  (contador Redis por proveedor). Lo que sobra pasa a un lote `pending`
+  nuevo. Capacidad: Brevo 300 (confirmado por el usuario) + Resend 150
+  (`RESEND_DAILY_QUOTA`) = 450/día, unos 5 días para ~2.200 correos.
+- **Fixture autouse `_no_real_email`** en `tests/conftest.py`: las corridas
+  de la suite enviaban correo real (36 por pasada) con la clave de Resend
+  del contenedor dev y agotaron el plan Free (106/100).
+
+Tests: 258 passed, 0 llamadas reales a Resend/Brevo.
+
+## Pendiente del usuario
+
+1. Cuenta Brevo: autenticar `ecuadornotlc.org` (Cloudflare, nube gris),
+   remitente y API key restringida por IP del VPS.
+2. `.env` (dev y VPS): `BREVO_API_KEY`, `BREVO_FROM_EMAIL`,
+   `BREVO_DAILY_QUOTA=300`, `RESEND_DAILY_QUOTA=150`, `EMAIL_POOL=brevo,resend`.
+3. `up -d --force-recreate petition-api` **antes** de programar el envío y
+   nunca con uno en curso (incidente sesión 42).
+4. T8 de `brevo-pool`: correo de prueba real por Brevo a dirección propia.
+5. T7 de `ses-transport`: prueba real en sandbox (opcional hasta que AWS
+   apruebe); requiere usuario IAM `cauce-ses-sender` y access key.
+6. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`
+   y que la alarma ComplaintRate sale de "Datos insuficientes".
+7. Actualizar RAT y contratos de encargo: AWS y Brevo son subencargados.
+
+## Riesgos / ideas sin spec
+
+- Resend se comparte con el boletín listmonk (el contador de la app no ve
+  su consumo): poner Brevo primero en el pool.
+- Las confirmaciones de firma siguen en `EMAIL_PROVIDER` (Resend Free
+  agotado puede fallarlas); validado Brevo, evaluar `EMAIL_PROVIDER=brevo`.
+- Falta webhook SNS de rebotes (`ses-bounce-handling`), `List-Unsubscribe`
+  en `EmailMessage` y adaptador SMTP genérico. Plan B de MTA propio:
+  no recomendado (entregabilidad, puerto 25, PTR, VPS compartido).
+- El resto de pendientes de sesiones 42 y 43 (abajo) sigue vigente.
+
+## Datos dev (sesión 44)
+
+Alembic dev sin cambios (`041`, no hay migraciones). Suite: 258 passed.
+Contenedor `petition-api-dev` reconstruido con `aioboto3`.
+
+---
+
+## (Previo) Estado tras sesión 43 (2026-10-22) — solo documentación
 
 ## Resumen de sesión 43
 
