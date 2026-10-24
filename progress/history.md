@@ -34,7 +34,20 @@ reemplazo con `if False`; tests de pool que contaban el lote original;
 tests de validación que heredaban `RESEND_API_KEY` del entorno.
 
 **Resultado**: 258 passed, 0 llamadas reales a proveedores.
-**Pendientes**: ver `progress/current.md` (cuenta Brevo, `.env`, T8, RAT).
+
+**Commits (dev)**: `c067b6d` specs, `142c1aa` feat(email), `d40c140` cierre.
+
+**Despliegue en el VPS (2026-10-24)**: sin envíos en curso (consulta a
+`scheduled_send` y `send_batch` vacía); `--force-recreate` con el pool
+configurado; arranque limpio, `alembic` 041. T8 cumplida: SPF, DKIM y DMARC
+en `pass` en dos correos de prueba a Gmail.
+
+**Hallazgo abierto**: Brevo inyecta un pixel de aperturas y `List-Unsubscribe`
+propio; un ajuste en Brevo no lo quitó del correo transaccional. Decisión
+pendiente del usuario (ver `progress/current.md`). Documentado en el nuevo
+`docs/legal/subencargados_email.md`; el pixel persistía en la 3.ª prueba.
+
+**Pendientes**: ver `progress/current.md` (pixel, programar envío, RAT, AWS).
 
 ---
 

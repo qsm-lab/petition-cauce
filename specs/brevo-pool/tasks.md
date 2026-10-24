@@ -16,4 +16,4 @@
 - [x] T5 `/comms/quota` con detalle del pool (R11)
 - [x] T6 Tests: Brevo ok/errores/429, pool 1 miembro = igual que hoy, reparto 2 miembros con cupos, sin duplicados, org con config propia sin pool, validación de arranque (R1–R10)
 - [x] T7 conftest: bloquear Brevo real (R13)
-- [ ] T8 Prueba real: un correo a dirección propia vía Brevo (usuario)
+- [x] T8 Prueba real: un correo a dirección propia vía Brevo (usuario) — 2026-10-23/24: llegó a Gmail con SPF, DKIM y DMARC en pass (dominio `ecuadornotlc.org`, return-path `camp.ecuadornotlc.org`)
