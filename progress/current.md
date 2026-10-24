@@ -1,4 +1,4 @@
-# Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; PR a `main` en preparación)
+# Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; envío masivo en curso)
 
 ## Resumen de sesión 44
 
@@ -81,9 +81,13 @@ que no hay envío en curso.
    configuración transaccional de Brevo y repetir la prueba; (b) aceptarlo como
    riesgo y documentarlo en el RAT, el contrato de encargo y con la organización
    Responsable; o (c) enviar solo por Resend (quitar `EMAIL_POOL`; 150/día).
-2. Programar el envío (~2.200 destinatarios, ~5 días a 450/día; el contador
-   cambia a las 19:00 Ecuador). Sin recrear `petition-api` ni tocar el pool con
-   el envío en curso. Revisar antes `/comms/quota` (Brevo 300, Resend 150).
+2. **Envío masivo EN CURSO** (programado el 2026-10-24; ~1.236 destinatarios en
+   el envío real, lotes de 450/día: Brevo 300 primero, Resend 150 después; el
+   contador cambia a las 19:00 Ecuador). **El primer lote salió bien** entre
+   Resend y Brevo. Mientras dure: no recrear `petition-api`, no cambiar
+   `EMAIL_POOL` ni `.env`, no desplegar sin revisar `scheduled_send`/`send_batch`
+   (lotes `pending`). Revisar `/comms/quota` cada día; si Resend consumió cupo
+   por confirmaciones o boletín, su parte pasa al día siguiente.
 3. T7 de `ses-transport`: prueba real en sandbox (opcional hasta que AWS
    apruebe); requiere usuario IAM `cauce-ses-sender` y access key.
 4. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`

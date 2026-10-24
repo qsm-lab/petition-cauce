@@ -3,6 +3,33 @@
 
 ---
 
+## 2026-10-24 — Sesión 44 (continuación): minimización, cola por cuota y envío real
+
+**Alcance** (specs exentas por decisión del usuario, MVP con mensaje urgente):
+- RAT y contrato de encargo con subencargados de email (Resend, Brevo, AWS; EE. UU.),
+  generados desde la config (`app/legal/subencargados.py`); `docs/legal/subencargados_email.md`
+  documenta el pixel de aperturas y `List-Unsubscribe` de Brevo (decisión abierta).
+- Minimización: a los proveedores solo llegan email y primer nombre (`signer_name.simple_name`);
+  etiquetas de comunicaciones retiradas salvo `<nombre>`; saludo con HTML escapado.
+- Cifrado en reposo verificado en dev (0 PII en claro).
+- `POST /comms/send` real encolado (`schedule_send`), con reparto por lotes diarios del pool.
+- Regla de «Enviar ahora» (desactivado si excede la cuota) y estimación de lotes/fecha de
+  término en el modal de Programar (`lib/comms-delivery.ts`).
+- Deploy: falló con el repo privado (sin deploy key en el VPS); al volverlo público corrió bien.
+- Cuotas de producción: `RESEND_PLATFORM_PLAN=free`, `RESEND_DAILY_QUOTA=150`,
+  `BREVO_DAILY_QUOTA=300`, `EMAIL_POOL=brevo,resend`.
+
+**Resultado**: commits `c067b6d`…`668fd34` en `dev`; suite 269 passed. Mensaje real
+programado y primer lote enviado sin incidentes entre Brevo y Resend.
+
+**Nueva tarea anotada**: `popup-campana-cerrada` (popup en la landing de campañas
+cerradas: suscripción al boletín listmonk con doble opt-in y redes sociales).
+
+**Pendiente**: decisión sobre el pixel de Brevo; T7 de `ses-transport` y respuesta de AWS;
+separación nombre/apellido; adenda a contratos firmados; `List-Unsubscribe` propio.
+
+---
+
 ## 2026-10-23 — Sesión 44: Amazon SES, Brevo y pool de envío
 
 **Alcance**: features `ses-transport` y `brevo-pool` (specs aprobadas,
