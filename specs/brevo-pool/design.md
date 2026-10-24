@@ -48,3 +48,9 @@ Un destinatario cae en un solo `take`; no hay reintento entre proveedores.
   revisión de la cuenta pueden demorar: es la ruta crítica.
 - Sin `List-Unsubscribe` (EmailMessage no tiene headers): igual que Resend/SES.
 - Cambiar el pool con un envío masivo en curso: prohibido (incidente sesión 42).
+- **Pixel de seguimiento de Brevo** (verificado 2026-10-24): el relay inyecta un
+  pixel de aperturas (`r.camp.ecuadornotlc.org/tr/op/...`) y `List-Unsubscribe`
+  propio en los correos transaccionales; desactivar un ajuste en la cuenta no lo
+  quitó. Implica registro de IP/fecha/cliente por Brevo (subencargado). Documentar
+  en RAT y contrato de encargo, o enviar solo por Resend. Pendiente de decisión.
+  Detalle y decisión pendiente en `docs/legal/subencargados_email.md`.

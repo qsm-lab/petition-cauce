@@ -24,8 +24,8 @@ from app.models.scheduled_send import ScheduledSend
 from app.models.send_batch import SendBatch
 from app.models.send_log import SendLog
 from app.services.comms_service import (
-    COMMS_TYPES, AudienceFilter, CtaButton, InvalidCommsType, build_comms_email_html, build_merge_context,
-    count_recipients, get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html,
+    COMMS_TYPES, AudienceFilter, CtaButton, InvalidCommsType, RetiredMergeTags, build_comms_email_html, build_merge_context,
+    count_recipients, find_retired_merge_tags, get_recipient_data_by_ids, get_recipient_ids, render_merge_tags, sanitize_comms_html,
     unsubscribe_url_for,
 )
 from app.services.email_quota import platform_quota_key, get_usage
@@ -108,6 +108,9 @@ async def _upsert_scheduled_send(
     draft.comms_class = COMMS_TYPES[type]
     draft.subject = subject
     draft.heading = heading
+    retired = find_retired_merge_tags(body_html)
+    if retired:
+        raise RetiredMergeTags(retired)
     draft.body_html = sanitize_comms_html(body_html)
     draft.ctas = ctas if ctas is not None else []
     draft.include_social = include_social

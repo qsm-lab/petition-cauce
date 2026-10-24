@@ -47,12 +47,6 @@ const HEADING_DEFAULTS: Record<CommsType, string> = {
 
 const MERGE_TAGS: { tag: string; label: string }[] = [
   { tag: "nombre", label: "primer nombre" },
-  { tag: "nombre completo", label: "nombre completo" },
-  { tag: "cedula", label: "cédula (enmascarada)" },
-  { tag: "email", label: "email (enmascarado)" },
-  { tag: "telefono", label: "teléfono (enmascarado)" },
-  { tag: "provincia", label: "provincia/país" },
-  { tag: "organizacion", label: "organización (si firmó como org)" },
 ];
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -313,6 +307,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
   // Fase 3: borrador server-side, programación, cola, historial.
   const [serverDraftId, setServerDraftId] = useState<string | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  const [autosaveDetail, setAutosaveDetail] = useState<string | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveSkipNextRef = useRef(true);
 
@@ -506,6 +501,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
       autosaveTimerRef.current = null;
     }
     setAutosaveStatus("saving");
+    setAutosaveDetail(null);
     try {
       const res = await saveCommsDraft(campaign.id, {
         ...buildContentPayload(), audience: audienceIn, draft_id: serverDraftId,
@@ -513,7 +509,8 @@ export default function ComunicacionesClient({ campaign }: Props) {
       setServerDraftId(res.id);
       setAutosaveStatus("saved");
       refreshPanel();
-    } catch {
+    } catch (e) {
+      setAutosaveDetail(e instanceof Error ? e.message : null);
       setAutosaveStatus("error");
     }
   }
@@ -678,6 +675,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
             {autosaveStatus !== "idle" && (
               <span className="text-[11px] font-bold" style={{ color: AUTOSAVE_LABEL[autosaveStatus].color }}>
                 {AUTOSAVE_LABEL[autosaveStatus].text}
+                {autosaveStatus === "error" && autosaveDetail ? ` ${autosaveDetail}` : ""}
               </span>
             )}
           </div>
@@ -781,7 +779,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
           </p>
           <div className="rounded-[10px] px-3 py-2.5 mt-2" style={{ background: "var(--bbg)" }}>
             <p className="text-[11px] font-bold mb-1.5" style={{ color: "var(--bink)" }}>
-              Personalizá el mensaje escribiendo estos tags dentro del contenido — se reemplazan por el dato de cada destinatario al enviar:
+              Personalizá el mensaje escribiendo este tag dentro del contenido — se reemplaza por el primer nombre de cada destinatario al enviar. Es el único dato del firmante que se incluye en los correos:
             </p>
             <div className="flex flex-wrap gap-1.5">
               {MERGE_TAGS.map((m) => (
@@ -987,7 +985,7 @@ export default function ComunicacionesClient({ campaign }: Props) {
               💾 {autosaveStatus === "saving" ? "Guardando…" : "Guardar como borrador"}
             </button>
             {autosaveStatus !== "idle" && (
-              <p className="text-[11px] text-center" style={{ color: AUTOSAVE_LABEL[autosaveStatus].color }}>{AUTOSAVE_LABEL[autosaveStatus].text}</p>
+              <p className="text-[11px] text-center" style={{ color: AUTOSAVE_LABEL[autosaveStatus].color }}>{AUTOSAVE_LABEL[autosaveStatus].text}{autosaveStatus === "error" && autosaveDetail ? ` ${autosaveDetail}` : ""}</p>
             )}
             <p className="text-[11px] text-center" style={{ color: "var(--bmut)", lineHeight: 1.5 }}>
               ✓ Guardado automático en este navegador y en el servidor · podés cambiar de frame o seguir editando después de programar sin perder el progreso

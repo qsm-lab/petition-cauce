@@ -90,11 +90,23 @@ Acceso operativo:
 
 No hay destinatarios comerciales ni terceros no autorizados.
 
+Proveedores de envío de correo electrónico (subencargados del Encargado):
+{% for s in subencargados_email %}
+  · {{ s.nombre }} — servidores en {{ s.pais }}. Finalidad: entrega de los correos de verificación,
+    confirmación y comunicaciones de la campaña.{% if s.seguimiento_aperturas %} Este proveedor puede registrar la apertura de los correos (seguimiento de aperturas).{% endif %}
+
+{% endfor %}
+Detalle de los datos comunicados a estos proveedores: apartado 7.
+
 7. TRANSFERENCIAS INTERNACIONALES
 
-No se realizan transferencias de datos personales a terceros países ni a organizaciones
-internacionales. Todos los datos se almacenan en infraestructura ubicada en territorio
-cubierto por la normativa aplicable.
+Los datos del expediente de firmas (cédula, nombre completo, provincia y demás categorías del
+apartado 5) se almacenan en infraestructura ubicada en territorio cubierto por la normativa
+aplicable y no se transfieren a terceros países.
+
+La única transferencia internacional corresponde al envío de correos electrónicos a través de
+los proveedores indicados en el apartado 6, cuyos servidores están en Estados Unidos.
+{{ subencargados_email_datos }}
 
 8. PLAZOS DE CONSERVACIÓN
 

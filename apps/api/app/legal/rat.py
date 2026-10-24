@@ -4,6 +4,7 @@ from pathlib import Path
 import jinja2
 
 from app.legal.retention import retention_label as _retention_label
+from app.legal.subencargados import DATOS_COMUNICADOS, email_subencargados
 
 _env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(Path(__file__).parent / "templates")),
@@ -56,6 +57,9 @@ def build_rat_context(
         "retention_label": _retention_label(privacy_cfg.retention_days if privacy_cfg else 365),
         # Versiones del aviso
         "aviso_versiones": aviso_versiones,
+        # Subencargados de envío de email
+        "subencargados_email": email_subencargados(),
+        "subencargados_email_datos": DATOS_COMUNICADOS,
         # Metadatos
         "fecha_generacion": date.today().isoformat(),
     }

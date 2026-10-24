@@ -1,4 +1,4 @@
-# Estado actual — tras sesión 44 (2026-10-23) — CERRADA (código sin commitear)
+# Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; PR a `main` en preparación)
 
 ## Resumen de sesión 44
 
@@ -20,22 +20,53 @@ commitear** (el usuario commitea):
   de la suite enviaban correo real (36 por pasada) con la clave de Resend
   del contenedor dev y agotaron el plan Free (106/100).
 
-Tests: 258 passed, 0 llamadas reales a Resend/Brevo.
+Tests: 262 passed (258 + 4 del RAT/contrato), 0 llamadas reales a Resend/Brevo.
+
+## Estado del despliegue en el VPS (2026-10-24)
+
+Desplegado en el VPS: antes de recrear no había envíos ni lotes en curso;
+`petition-api` recreado con `EMAIL_POOL=brevo,resend`, `BREVO_DAILY_QUOTA=300`,
+`RESEND_DAILY_QUOTA=150`. Arranque sin errores, `/health` 200, `alembic current`
+= `041 (head)`. `EMAIL_PROVIDER` sin definir (= `resend`).
+
+**T8 cumplida**: dos correos de prueba por Brevo llegaron a Gmail con SPF, DKIM
+(`ecuadornotlc.org`, selector `brevo2`) y DMARC en `pass`; return-path
+`camp.ecuadornotlc.org`.
+
+**Hallazgo abierto — pixel de seguimiento**: el relay de Brevo inyecta un pixel
+de aperturas (`r.camp.ecuadornotlc.org/tr/op/...`) y una cabecera
+`List-Unsubscribe` propia (baja en un clic hacia Brevo). Una segunda prueba
+tras cambiar un ajuste en Brevo **siguió mostrando el pixel**: el ajuste no
+aplica al correo transaccional, o el plan no lo permite. Sin resolver.
 
 ## Pendiente del usuario
 
-1. Cuenta Brevo: autenticar `ecuadornotlc.org` (Cloudflare, nube gris),
-   remitente y API key restringida por IP del VPS.
-2. `.env` (dev y VPS): `BREVO_API_KEY`, `BREVO_FROM_EMAIL`,
-   `BREVO_DAILY_QUOTA=300`, `RESEND_DAILY_QUOTA=150`, `EMAIL_POOL=brevo,resend`.
-3. `up -d --force-recreate petition-api` **antes** de programar el envío y
-   nunca con uno en curso (incidente sesión 42).
-4. T8 de `brevo-pool`: correo de prueba real por Brevo a dirección propia.
-5. T7 de `ses-transport`: prueba real en sandbox (opcional hasta que AWS
+1. **Decidir sobre el pixel** (detalle en `docs/legal/subencargados_email.md`;
+   sigue presente en la 3.ª prueba, 2026-10-24 17:27 UTC): (a) buscar el ajuste de seguimiento en la
+   configuración transaccional de Brevo y repetir la prueba; (b) aceptarlo como
+   riesgo y documentarlo en el RAT, el contrato de encargo y con la organización
+   Responsable; o (c) enviar solo por Resend (quitar `EMAIL_POOL`; 150/día).
+2. Programar el envío (~2.200 destinatarios, ~5 días a 450/día; el contador
+   cambia a las 19:00 Ecuador). Sin recrear `petition-api` ni tocar el pool con
+   el envío en curso. Revisar antes `/comms/quota` (Brevo 300, Resend 150).
+3. T7 de `ses-transport`: prueba real en sandbox (opcional hasta que AWS
    apruebe); requiere usuario IAM `cauce-ses-sender` y access key.
-6. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`
+4. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`
    y que la alarma ComplaintRate sale de "Datos insuficientes".
-7. Actualizar RAT y contratos de encargo: AWS y Brevo son subencargados.
+5. ~~Actualizar RAT y contratos~~ **Hecho** (sin spec, por decisión del usuario):
+   `app/legal/subencargados.py` + plantillas `rat.jinja2` y `contrato_encargo.jinja2`
+   listan los subencargados desde la config (EE. UU.); 4 tests nuevos.
+   **Minimización de datos en correos (mismo día)**: las comunicaciones solo
+   aceptan la etiqueta `<nombre>` (primer nombre); `<nombre completo>`, `<cédula>`,
+   `<correo>`, `<teléfono>`, `<provincia>` y `<organización>` se rechazan (422) y salen
+   vacías si quedaron en un borrador. `signer_name.simple_name` unifica el saludo; el
+   saludo ahora escapa HTML. Suite: 266 passed. Requiere desplegar API **y web**
+   (editor) antes de enviar; no recrear `petition-api` con un envío en curso.
+   **Pendiente para nuevas campañas** (`docs/legal/subencargados_email.md` §4):
+   verificar garantías de cada proveedor, adenda para contratos ya firmados.
+6. Abrir el PR a `main`. Incluye 4 commits previos de documentación
+   (sesiones 42 y 43); revisar que se quiere publicar el runbook y los
+   documentos legales.
 
 ## Riesgos / ideas sin spec
 

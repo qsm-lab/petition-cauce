@@ -10,6 +10,7 @@ import httpx
 
 from app.config import settings
 from app.services.email_quota import platform_quota_key, record_usage
+from app.services.signer_name import simple_name
 from app.services.email_transport import EmailMessage, EmailTransport, default_from_email, email_enabled, platform_transport
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ def _signer_action_html(
     org_logo_url: str = "",
 ) -> str:
     """Plantilla base de emails al firmante: logo de la organización, saludo por nombre y CTA."""
-    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    first_name = _html.escape(simple_name(signer_name))
     greeting = f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>Hola {first_name},</p>" if first_name else ""
     logo_block = (
         f"<img src=\"{org_logo_url}\" alt=\"{org_name or 'Organización'}\" width=\"48\" height=\"48\" "
@@ -322,7 +323,7 @@ async def send_thanks_share_email(
         logger.info("[dev] thanks email | to=%s | campaign=%s", to_email, campaign_title)
         return
 
-    first_name = signer_name.strip().split(" ")[0] if signer_name and signer_name.strip() else ""
+    first_name = _html.escape(simple_name(signer_name))
     greeting = (
         f"<p style='margin:0 0 8px;font-size:16px;font-weight:700;color:#1a2516;'>"
         f"{first_name}, tu firma ya cuenta.</p>"
