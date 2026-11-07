@@ -471,6 +471,16 @@
       "depends_on": [
         "hardening-campana"
       ]
+    },
+    {
+      "id": "verificacion-confirmacion-privacidad",
+      "title": "Verificación mínima de confirmación y privacidad (T5.7 de hardening-campana)",
+      "description": "Spec en specs/verificacion-confirmacion-privacidad/. Escáneres de enlaces que confirman por GET, prueba en buzones reales, aviso de privacidad vs proveedores, seguimiento de Brevo/Resend, ARCO y retención de no confirmadas.",
+      "status": "spec_ready",
+      "sdd": true,
+      "depends_on": [
+        "hardening-campana"
+      ]
     }
   ]
 }

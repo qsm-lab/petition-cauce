@@ -11,7 +11,7 @@
   tres visibilidades + `is_test` + org con config propia, tope→`gave_up`, `not_required`, migración sin envío
   masivo, aislamiento RLS (R4, R5, R9, R14) · 3 h
 - [x] **C9 · Alertas en `business_signals.sh` y logs `confirm_email_*`** (R12) · 1 h
-- [ ] **C10 · Prueba de carga:** k6 `race` y `simultaneous` con proveedor simulado con latencia y errores
+- [x] **C10 · Prueba de carga:** k6 `race` y `simultaneous` con proveedor simulado con latencia y errores
   (300–800 ms, 5 % de fallos, timeouts de 10 s); verificar que la alta no espera al proveedor (R1, R10) · 2 h
 
 Despliegue: **sí** (cambia runtime y trae migración). Orden: revisar → `alembic upgrade head` (lo hace el
@@ -32,3 +32,8 @@ simulado, requiere un modo de proveedor falso en el entorno aislado `lt-api`).
 - `send_confirmation_email` descarta dominios reservados (`.test`, `.local`, `.invalid`, `example.*`): no salen
   rebotes y los tests/dev no mandan correo real aunque el contenedor tenga clave.
 - El reenvío manual re-encola (estado `pending`, intentos 0) y deja que el servicio renueve el token.
+
+## Resultado C10 (entorno aislado, proveedor simulado)
+`nominal` corto (≈1 660 firmas): alta p95 32 ms, 0 errores 5xx; las 1 662 quedaron en `sent`, 0 `gave_up`, máximo 3 intentos.
+`simultaneous` (100 a la vez): p95 607 ms, 100 firmas, 0 errores. `abuse`: 429 sostenido, 0 errores 5xx.
+La ráfaga de 10/s supera el límite de 2/s por proceso y la cola se vacía sola (≈ 1,6 correos/s).
