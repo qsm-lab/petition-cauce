@@ -21,6 +21,7 @@ from app.routers import arco
 from app.routers import media
 from app.scheduler import start_scheduler, shutdown_scheduler
 from app.comms_scheduler_loop import start_comms_queue_loop, stop_comms_queue_loop
+from app.confirmation_email_loop import start_confirmation_email_loop, stop_confirmation_email_loop
 
 
 @asynccontextmanager
@@ -28,7 +29,9 @@ async def lifespan(app: FastAPI):
     await init_redis()
     start_scheduler()
     start_comms_queue_loop()
+    start_confirmation_email_loop()
     yield
+    await stop_confirmation_email_loop()
     await stop_comms_queue_loop()
     shutdown_scheduler()
     await close_redis()
