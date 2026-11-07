@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import delete, select, text
 
 from app.crypto import compute_hmac, encrypt_pii
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.dependencies import get_db, get_current_user
 from app.main import app
 from app.redis_client import close_redis, init_redis
@@ -23,7 +23,7 @@ from app.services.retention_service import compute_expiry, get_campaign_anchor, 
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 
@@ -244,7 +244,7 @@ async def test_endpoint_manual_403_sin_rol_admin(client):
 async def test_endpoint_manual_200_con_rol_admin(client):
     async def _fake_db():
         async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+            await set_rls_context(session, platform_admin=True)
             yield session
 
     app.dependency_overrides[get_current_user] = lambda: _FakeAdminUser()

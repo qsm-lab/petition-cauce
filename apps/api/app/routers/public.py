@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.client_ip import get_client_ip
 from app.dependencies import get_db
 from app.limiter import limiter
 from app.schemas.response import RespondRequest, TrackRequest
@@ -42,7 +43,7 @@ async def respond(slug: str, request: Request, data: RespondRequest, db: AsyncSe
     if not turnstile_ok:
         raise HTTPException(status_code=400, detail="Verificación anti-bot fallida")
 
-    ip = request.headers.get("X-Forwarded-For", request.client.host)
+    ip = get_client_ip(request)
 
     # En modo "online" se aplica anti-duplicado; en "active" (pruebas) se omite
     if campaign.status == "online":

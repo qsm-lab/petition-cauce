@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import delete, select, text
 
 from app.crypto import compute_hmac, encrypt_pii
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.organization import Organization
@@ -48,7 +48,7 @@ class _FakeTransport:
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 
@@ -104,7 +104,7 @@ async def _make_signature(db, campaign: Campaign, org: Organization, *, notify_u
 
 
 async def _cleanup(db, org, user, campaign):
-    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+    await set_rls_context(db, platform_admin=True)
     send_ids = [row[0] for row in (await db.execute(
         text("SELECT id FROM scheduled_send WHERE campaign_id = :cid"), {"cid": str(campaign.id)}
     )).all()]

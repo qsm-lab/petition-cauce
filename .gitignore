@@ -46,3 +46,9 @@ apps/api/data/uploads/
 *.swp
 *.swo
 memory/
+
+# Documentos de seguridad confidenciales (describen debilidades; repo público)
+docs/auditoria-ciberseguridad-plataforma-firmas.pdf
+docs/diagrams/resumen-arquitectura-y-flujo-firmas.md
+docs/diagrams/resumen-arquitectura-y-seguridad.docx
+docs/diagrams/resumen-arquitectura-y-seguridad.pdf

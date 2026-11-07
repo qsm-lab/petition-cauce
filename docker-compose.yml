@@ -11,6 +11,9 @@ services:
       dockerfile: Dockerfile.api
     container_name: petition-api
     restart: unless-stopped
+    # hardening-campana R8: valores iniciales, se afinan con las pruebas de carga (T4.2).
+    mem_limit: 1536m
+    cpus: 2.0
     ports:
       - "127.0.0.1:8011:8000"
     networks:
@@ -41,6 +44,8 @@ services:
         - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
     container_name: petition-web
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.5
     ports:
       - "127.0.0.1:3002:3000"
     networks:
@@ -55,6 +60,8 @@ services:
     image: postgres:16-alpine
     container_name: petition-db
     restart: unless-stopped
+    mem_limit: 2g
+    cpus: 2.0
     networks:
       - petition_cause_network
     environment:
@@ -75,11 +82,13 @@ services:
     image: redis:7-alpine
     container_name: petition-redis
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
     networks:
       - petition_cause_network
     volumes:
       - petition_redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 384mb --maxmemory-policy volatile-lru
 
 volumes:
   petition_db_data:

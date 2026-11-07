@@ -443,6 +443,24 @@
       "sdd": false,
       "area": "harness",
       "phase": 0
+    },
+    {
+      "id": "popup-campana-cerrada",
+      "title": "Popup de cierre en la landing pública de la campaña",
+      "description": "Cuando la campaña está cerrada o finalizada, la landing pública sigue recibiendo visitas. Mostrar un popup (modal) a esos visitantes con dos acciones: (1) suscribirse al mailing de novedades y (2) seguir las redes sociales de la campaña (social_links de la org, solo las que tengan URL cargada). Restricciones a resolver en la spec: la suscripción va al boletín de listmonk con su propio doble opt-in, sin importar firmantes ni cruzar consentimientos (ver docs/legal/frontera_boletin_listmonk.md); es un formulario con email, o sea PII, así que requiere privacy_config aprobada en design.md y revisar RAT y aviso de privacidad; frontend: requiere diseño aprobado en Claude Design antes de implementar (design-export.html). Definir también: frecuencia del popup (no insistir: recordar el cierre por visitante, sin cookies de seguimiento), accesibilidad (foco, Esc, aria-modal), Turnstile y rate limiting en el alta, y qué hace cuando la campaña está abierta (no se muestra). Relacionada con novedades-campana y comunicaciones-cierre-campana. Anotada en sesión 44 para una próxima sesión y campaña.",
+      "status": "pending",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 5
+    },
+    {
+      "id": "hardening-campana",
+      "title": "Endurecimiento, monitoreo y pruebas de carga para la campaña (10–20 mil firmas)",
+      "description": "Sesión 45, spec en specs/hardening-campana/. Deriva de la propuesta de auditoría (docs/, local no versionada; H-01..H-16) contrastada con el código. Fase 1 (antes del lanzamiento, ~5 días): Turnstile fail-closed, IP/origen confiable, RLS verificado/forzado, backups con restore probado, capacidad de correo transaccional, Sentry con scrubbing de PII + alertas, pruebas k6 de saturación, límites de recursos, CSV injection. Fase 2 (durante/después): gestión de claves, aislamiento de infra, WORM/SIEM, CI/CD y SBOM, FIDO2, exportación gobernada, EIPD, auditoría externa. Pendiente de aprobación.",
+      "status": "in_progress",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
     }
   ]
 }

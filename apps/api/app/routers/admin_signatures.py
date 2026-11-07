@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.client_ip import get_client_ip
 from app.crypto import PIIDecryptError, compute_hmac, decrypt_pii
 from app.dependencies import get_db_with_org, get_current_user, require_admin
 from app.limiter import limiter
@@ -140,7 +141,7 @@ async def export_signatures_absoluto(
 
     campaign = await _get_campaign(campaign_id, _org_scope(current_user), db)
     org_id = campaign.org_id
-    ip = request.headers.get("X-Real-IP") or (request.client.host if request.client else "")
+    ip = get_client_ip(request)
 
     response, row_count, secret_excluded_count, pending_included_count = await AdminSignatureService.export_absoluto(
         db,

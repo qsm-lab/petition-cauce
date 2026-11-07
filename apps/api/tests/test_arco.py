@@ -3,12 +3,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from jose import jwt
+import jwt
 from sqlalchemy import delete, select, text
 
 from app.config import settings
 from app.crypto import compute_hmac, decrypt_pii, encrypt_pii
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.arco_request import ArcoRequest
 from app.models.campaign import Campaign
 from app.models.consent import Consent
@@ -23,7 +23,7 @@ from app.services.campaign_service import CampaignService
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 

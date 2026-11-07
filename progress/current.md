@@ -1,4 +1,25 @@
-# Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; PR a `main` en preparación)
+# Estado actual — sesión 45 (2026-11-06, EN CURSO) — hardening para la campaña de 10–20 mil firmas
+
+**Feature `hardening-campana`** (`specs/hardening-campana/`, `in_progress`, spec aprobada). Fase 1: ~46 %
+(6 completadas, 11 con ajustes, 8 pendientes de 25); Fase 2: 0 %. Detalle y hallazgos en `tasks.md`.
+**Nada de esto está commiteado ni desplegado.** Decisiones: Sentry a Fase 2 (monitor open source y
+alertas por correo), monitor externo en GreenGeeks compartido (script con cron), Resend Pro, Next.js A (migrar a 15.5.x).
+
+Hecho en código (todo con tests; suite 305 passed): Turnstile fail-closed + guarda de arranque; `client_ip.py`
+(IP única, confía en `CF-Connecting-IP` solo desde Cloudflare); neutralización de CSV injection;
+pruebas de aislamiento RLS; límites de recursos y pool de BD; Next 14→15.5.29 + React 19 (críticas 3→0);
+FastAPI 0.162/Starlette 1.10/PyJWT en lugar de python-jose (`pip-audit` limpio); `.dockerignore`.
+Material para el VPS: `docs/engineering/runbook_hardening_vps.md`, `infra/backup/`, `infra/monitoring/`,
+`loadtest/` (k6). **Las acciones en el VPS las aplica el usuario a mano** (la clave SSH de `ssdn` fue rechazada).
+
+Antes de desplegar: confirmar con `vps_readonly_audit.sh` que `ENVIRONMENT=production` y
+`TURNSTILE_SECRET_KEY` real existen (si no, la API no arranca); no hay envío masivo en curso; revisión
+visual de la web con React 19; el build Docker de la web no se pudo validar aquí (sin acceso a Google Fonts).
+**No apuntar k6 a la API dev actual (`RESEND_API_KEY` real): usar staging con correo stub.**
+
+---
+
+# Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; envío masivo en curso)
 
 ## Resumen de sesión 44
 
@@ -81,9 +102,13 @@ que no hay envío en curso.
    configuración transaccional de Brevo y repetir la prueba; (b) aceptarlo como
    riesgo y documentarlo en el RAT, el contrato de encargo y con la organización
    Responsable; o (c) enviar solo por Resend (quitar `EMAIL_POOL`; 150/día).
-2. Programar el envío (~2.200 destinatarios, ~5 días a 450/día; el contador
-   cambia a las 19:00 Ecuador). Sin recrear `petition-api` ni tocar el pool con
-   el envío en curso. Revisar antes `/comms/quota` (Brevo 300, Resend 150).
+2. **Envío masivo EN CURSO** (programado el 2026-10-24; ~1.236 destinatarios en
+   el envío real, lotes de 450/día: Brevo 300 primero, Resend 150 después; el
+   contador cambia a las 19:00 Ecuador). **El primer lote salió bien** entre
+   Resend y Brevo. Mientras dure: no recrear `petition-api`, no cambiar
+   `EMAIL_POOL` ni `.env`, no desplegar sin revisar `scheduled_send`/`send_batch`
+   (lotes `pending`). Revisar `/comms/quota` cada día; si Resend consumió cupo
+   por confirmaciones o boletín, su parte pasa al día siguiente.
 3. T7 de `ses-transport`: prueba real en sandbox (opcional hasta que AWS
    apruebe); requiere usuario IAM `cauce-ses-sender` y access key.
 4. Esperar a AWS; confirmar que el Configuration Set se llama `cauce-events`
@@ -102,6 +127,14 @@ que no hay envío en curso.
 6. Abrir el PR a `main`. Incluye 4 commits previos de documentación
    (sesiones 42 y 43); revisar que se quiere publicar el runbook y los
    documentos legales.
+
+7. **Próxima sesión / campaña — popup de cierre en la landing pública**
+   (`popup-campana-cerrada` en `feature_list.json`, `pending`, sin spec aún).
+   La campaña cerrada sigue recibiendo visitas: mostrarles un popup para
+   suscribirse al mailing de novedades y seguir las redes de la campaña. Ojo:
+   el alta va al boletín de listmonk con su propio doble opt-in, sin importar
+   firmantes (`docs/legal/frontera_boletin_listmonk.md`); lleva PII (privacy_config)
+   y diseño en Claude Design antes de implementar.
 
 ## Riesgos / ideas sin spec
 

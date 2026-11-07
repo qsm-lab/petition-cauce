@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import delete, text
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.comms_upload import CommsUpload
 from app.models.organization import Organization
@@ -64,7 +64,7 @@ def test_sniff_image_rechaza_extension_disfrazada():
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 
@@ -97,7 +97,7 @@ async def _cleanup(db, org, user, campaign):
     # abajo), el pool de conexiones puede devolverle a `db` una conexión
     # distinta a la que tenía is_platform_admin seteado — no asumir que
     # persiste, igual que hace get_db_with_org por request en producción.
-    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+    await set_rls_context(db, platform_admin=True)
     await db.execute(delete(CommsUpload).where(CommsUpload.campaign_id == campaign.id))
     await db.execute(delete(Campaign).where(Campaign.id == campaign.id))
     await db.execute(delete(User).where(User.id == user.id))

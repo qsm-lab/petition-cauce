@@ -4,10 +4,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.user import User
 from app.config import settings
-from jose import jwt, JWTError
+import jwt
+from jwt import PyJWTError as JWTError
 
 security = HTTPBearer(auto_error=False)
 
@@ -50,14 +51,12 @@ async def get_db_with_org(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AsyncSession:
-    await db.execute(
-        text("SELECT set_config('app.current_org_id', :org_id, false)"),
-        {"org_id": str(current_user.org_id)},
-    )
     # Rol 'admin' = operador de la plataforma (Encargado): las políticas RLS
     # *_platform_admin (migración 016) le dan visibilidad multi-org.
-    await db.execute(
-        text("SELECT set_config('app.is_platform_admin', :flag, false)"),
-        {"flag": "true" if current_user.role == "admin" else "false"},
+    # El contexto vive en la sesión y se re-aplica en cada transacción (ver set_rls_context).
+    await set_rls_context(
+        db,
+        org_id=current_user.org_id,
+        platform_admin=(current_user.role == "admin"),
     )
     return db

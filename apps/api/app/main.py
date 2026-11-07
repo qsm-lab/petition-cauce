@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.limiter import limiter
+from app.observability import AccessLogMiddleware, setup_access_logging
 from app.redis_client import init_redis, close_redis
 from app.routers import auth, forms, campaigns, public, dashboard, exports, domains
 from app.routers import public_campaign
@@ -41,6 +42,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+setup_access_logging()
+app.add_middleware(AccessLogMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
