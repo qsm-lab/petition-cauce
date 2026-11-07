@@ -6,7 +6,7 @@ import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import bcrypt
-from jose import jwt
+import jwt
 
 from app.models.user import User
 from app.models.login_audit import LoginAudit
