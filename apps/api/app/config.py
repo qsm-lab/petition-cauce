@@ -96,6 +96,12 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _validate_no_fake_email_in_production(self):
+        if self.environment == "production" and self.email_fake_enabled:
+            raise ValueError("EMAIL_FAKE_ENABLED no puede activarse en producción (el correo no se enviaría)")
+        return self
+
+    @model_validator(mode="after")
     def _validate_ses(self):
         # R3: con SES activo, las credenciales van completas o ausentes (dev).
         if self.email_provider == "ses":
@@ -192,6 +198,15 @@ class Settings(BaseSettings):
     # Volumen del VPS: /data/uploads/<org_id>/<campaign_id>/<uuid>.<ext> (D2).
     uploads_dir: str = "/data/uploads"
     comms_upload_max_bytes: int = 25 * 1024 * 1024
+
+    # ── Proveedor de correo SIMULADO (solo pruebas de carga; prohibido en producción) ──
+    # Reproduce latencia y fallos del proveedor real sin enviar nada (loadtest/README.md).
+    email_fake_enabled: bool = False
+    email_fake_latency_ms_min: int = 300
+    email_fake_latency_ms_max: int = 800
+    email_fake_failure_rate: float = 0.05
+    email_fake_timeout_rate: float = 0.02
+    email_fake_timeout_seconds: float = 10.0
 
     # ── Correo de confirmación (correo-recuperacion) ───────────────────────
     # Por PROCESO (la API corre con 2 workers: el total es el doble). Confirmar el límite

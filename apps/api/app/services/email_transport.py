@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import random
 import time
 from dataclasses import dataclass, replace
 from email.utils import parseaddr
@@ -284,6 +285,26 @@ def resolve_sender(campaign_meta: dict | None, org_cfg, org) -> dict:
     return {"from_": header_from, "reply_to": reply_to}
 
 
+class FakeTransport:
+    """Proveedor simulado para pruebas de carga (`EMAIL_FAKE_ENABLED`, nunca en producción): espera una latencia
+    aleatoria y falla con la tasa configurada; una parte de los fallos son timeouts largos. No envía nada."""
+
+    async def send(self, msg: EmailMessage) -> SendResult:
+        roll = random.random()
+        if roll < settings.email_fake_timeout_rate:
+            await asyncio.sleep(settings.email_fake_timeout_seconds)
+            return SendResult(ok=False, error="fake: timeout")
+        await asyncio.sleep(
+            random.uniform(settings.email_fake_latency_ms_min, settings.email_fake_latency_ms_max) / 1000
+        )
+        if roll < settings.email_fake_timeout_rate + settings.email_fake_failure_rate:
+            return SendResult(ok=False, error="fake: error 5xx")
+        return SendResult(ok=True, provider_id="fake")
+
+    def capabilities(self) -> TransportCaps:
+        return TransportCaps()
+
+
 def default_from_email() -> str:
     """Remitente por defecto según el proveedor de plataforma activo (R5)."""
     if settings.email_provider == "ses":
@@ -297,13 +318,15 @@ def email_enabled() -> bool:
     """¿Hay un proveedor de plataforma configurado para enviar? Sustituye a las
     guardas `if not settings.resend_api_key` (R4); sin él, los flujos hacen
     log `[dev]` y no envían."""
-    return settings.provider_configured(settings.email_provider)
+    return settings.email_fake_enabled or settings.provider_configured(settings.email_provider)
 
 
 def platform_transport_for(name: str) -> EmailTransport:
     """Transporte de plataforma de un proveedor concreto (fábrica por nombre,
     brevo-pool). Para el plan Resend se usa el de la cuenta de PLATAFORMA
     (`settings.resend_platform_plan`), con override opcional del cupo diario."""
+    if settings.email_fake_enabled:
+        return FakeTransport()
     if name == "ses":
         return SesTransport(
             region=settings.aws_region,
