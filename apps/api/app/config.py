@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     database_url_sync: str
     redis_url: str
 
+    # Pool de conexiones por worker (hardening-campana R8). Con 2 workers de uvicorn:
+    # 2 × (pool_size + max_overflow) = 40 conexiones, bajo el max_connections=100 de PostgreSQL.
+    db_pool_size: int = 10
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 10
+
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 120
@@ -75,6 +81,19 @@ class Settings(BaseSettings):
         if name == "brevo":
             return bool(self.brevo_api_key)
         return False
+
+    @model_validator(mode="after")
+    def _validate_turnstile_production(self):
+        # hardening-campana R1: en producción el anti-bot no puede quedar abierto
+        # (secreto vacío o clave de prueba de Cloudflare = verify_turnstile devolvería True).
+        if self.environment == "production":
+            secret = self.turnstile_secret_key.strip()
+            if not secret or secret.startswith("1x0000000000000000000000000000000"):
+                raise ValueError(
+                    "TURNSTILE_SECRET_KEY debe ser una clave real en producción "
+                    "(vacía o de prueba deja el anti-bot abierto)"
+                )
+        return self
 
     @model_validator(mode="after")
     def _validate_ses(self):

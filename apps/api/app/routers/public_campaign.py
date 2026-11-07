@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.client_ip import get_client_ip
 from app.crypto import compute_hmac
 from app.dependencies import get_db
 from app.limiter import limiter
@@ -193,11 +194,7 @@ async def submit_signature(
     if not await verify_turnstile(data.cf_turnstile_token):
         raise HTTPException(status_code=422, detail={"error": "turnstile_failed"})
 
-    ip = (
-        request.headers.get("CF-Connecting-IP")
-        or request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    ip = get_client_ip(request)
     ip_hmac = compute_hmac(ip)
 
     await db.execute(

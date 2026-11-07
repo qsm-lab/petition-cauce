@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.crypto import PIIDecryptError, decrypt_pii
+from app.csv_safe import csv_safe
 from app.models.arco_request import ArcoRequest
 from app.models.signature import Signature
 from app.models.pii_export_audit import PiiExportAudit
@@ -184,11 +185,11 @@ class AdminSignatureService:
                 pass
             writer.writerow([
                 str(sig.id),
-                _visible_name(sig, role) or "",
-                sig.org_name or "",
-                cedula_parcial,
-                email_parcial,
-                sig.provincia or "",
+                csv_safe(_visible_name(sig, role) or ""),
+                csv_safe(sig.org_name or ""),
+                csv_safe(cedula_parcial),
+                csv_safe(email_parcial),
+                csv_safe(sig.provincia or ""),
                 sig.visibility,
                 sig.status,
                 sig.confirmed_at.isoformat() if sig.confirmed_at else "",
@@ -259,12 +260,12 @@ class AdminSignatureService:
                 pass
             writer.writerow([
                 str(sig.id),
-                sig.name or "",
-                sig.org_name or "",
-                cedula,
-                email,
-                sig.provincia or "",
-                sig.country or "",
+                csv_safe(sig.name or ""),
+                csv_safe(sig.org_name or ""),
+                csv_safe(cedula),
+                csv_safe(email),
+                csv_safe(sig.provincia or ""),
+                csv_safe(sig.country or ""),
                 sig.visibility,
                 sig.status,
                 sig.confirmed_at.isoformat() if sig.confirmed_at else "",
@@ -274,7 +275,7 @@ class AdminSignatureService:
 
         now = datetime.now(timezone.utc)
         writer.writerow([
-            "SELLO_DESCARGA", f"Realizada por: {admin_email}", "", "", "",
+            "SELLO_DESCARGA", csv_safe(f"Realizada por: {admin_email}"), "", "", "",
             "", "", "", "", now.isoformat(), "", str(export_id),
         ])
 

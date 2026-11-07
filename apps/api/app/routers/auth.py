@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.client_ip import get_client_ip
 from app.dependencies import get_db, get_current_user
 from app.limiter import limiter
 from app.redis_client import get_redis
@@ -23,7 +24,7 @@ router = APIRouter()
 @router.post("/login")
 @limiter.limit("10/minute")
 async def login(request: Request, data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    ip = request.headers.get("X-Real-IP") or request.client.host
+    ip = get_client_ip(request)
     user_agent = (request.headers.get("User-Agent") or "")[:512]
     hmac_email = compute_hmac(data.email)
     hmac_ip = compute_hmac(ip)

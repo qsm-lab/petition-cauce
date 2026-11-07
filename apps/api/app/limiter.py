@@ -1,13 +1,13 @@
 from slowapi import Limiter
 from fastapi import Request
 
+from app.client_ip import get_client_ip
 from app.config import settings
 from app.crypto import compute_hmac
 
 
 def _get_real_ip(request: Request) -> str:
-    ip = request.headers.get("X-Real-IP") or request.client.host
-    return compute_hmac(ip)
+    return compute_hmac(get_client_ip(request))
 
 
 limiter = Limiter(
