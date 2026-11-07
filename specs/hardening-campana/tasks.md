@@ -76,8 +76,8 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 - [~] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
   *Decidido. Falta activar el plan y `RESEND_PLATFORM_PLAN=pro` (Paso 2 del runbook).*
 
-- [ ] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST, aprobada; falta su spec*
-  *Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
+- [~] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST*
+  *Código y tests hechos (spec `specs/correo-recuperacion/`, 342 passed). Falta C10 (k6 con proveedor simulado) y desplegar. Corrige además un defecto previo: no salía ningún correo de confirmación al firmar (ver spec). Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
 
 ## Día 2 — Datos y borde · *1,5/3*
 
@@ -147,6 +147,22 @@ petición siguiente los heredaba. Arreglo: `database.set_rls_context()` guarda e
 re-aplica con `is_local=true` en cada transacción (`after_begin`); además un listener `checkin` hace `RESET`
 al devolver la conexión al pool. Usado en `get_db_with_org`, retención, cola de comunicaciones y el script de
 nombres. `tests/test_pool_context_leak.py` (5 tests, pool de 1 conexión). Suite: 310 passed. Sin desplegar.
+
+## Despliegue en producción (verificado 2026-11-07, PR #27 → `a3623c8`)
+
+Desplegado y comprobado en el VPS: Turnstile fail-closed (T1.2), IP única (T3.1), PyJWT/FastAPI (T1.3c), contexto RLS
+en el pool (T2.4), CSV injection (T5.2), logs estructurados (T3.3, 3 eventos en 10 min, 0 errores) y límites de
+recursos (T4.3: api 1,5 GiB/2 CPU, web 1 GiB, db 2 GiB, redis 512 MiB, `volatile-lru`). Los cuatro contenedores se
+recrearon (≈1 h de actividad) y `/health` responde `ok`. El repo del VPS está en la rama `dev` (el workflow hace
+`git pull origin main` sobre ella; funciona, pero conviene dejarlo en `main`).
+
+## Hallazgo crítico: el correo de confirmación no salía al firmar (CORREGIDO en código)
+
+Desde `af10af8` (2026-07-12) `create_signature` pasaba `entered_*` y `arco_review_url` a `send_confirmation_email`,
+que no los aceptaba: `TypeError` capturado por `except Exception` → warning y **ningún correo**. Solo el reenvío
+manual (que no pasaba esos argumentos) funcionaba. Corregido dentro de T1.5. **El código desplegado hoy en
+producción (main) tiene el defecto**: priorizar el despliegue de T1.5 antes del lanzamiento, y comprobar con una
+firma real de prueba que llega el correo con el resumen de datos.
 
 ## Hallazgos nuevos de esta sesión (para decidir)
 

@@ -461,6 +461,16 @@
       "sdd": true,
       "area": "fullstack",
       "phase": 2
+    },
+    {
+      "id": "correo-recuperacion",
+      "title": "Recuperación y envío fuera de la petición del correo de confirmación (T1.5 de hardening-campana)",
+      "description": "Spec en specs/correo-recuperacion/. Estado de envío por firma, reclamo atómico, reintentos con backoff, token renovado, límite de velocidad, alertas.",
+      "status": "in_progress",
+      "sdd": true,
+      "depends_on": [
+        "hardening-campana"
+      ]
     }
   ]
 }
