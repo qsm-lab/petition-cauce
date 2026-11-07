@@ -193,6 +193,15 @@ class Settings(BaseSettings):
     uploads_dir: str = "/data/uploads"
     comms_upload_max_bytes: int = 25 * 1024 * 1024
 
+    # ── Correo de confirmación (correo-recuperacion) ───────────────────────
+    # Por PROCESO (la API corre con 2 workers: el total es el doble). Confirmar el límite
+    # real de peticiones por segundo del proveedor antes de subirlo.
+    confirm_email_max_per_second: float = 2.0
+    confirm_email_max_concurrent: int = 5
+    confirm_email_loop_seconds: int = 10
+    confirm_email_max_attempts: int = 6
+    confirm_email_batch_size: int = 50
+
     # ── Cola del centro de comunicaciones (centro-comunicaciones, Fase 3) ──
     comms_queue_poll_seconds: int = 30
 

@@ -1,12 +1,13 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select, text
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client_ip import get_client_ip
 from app.crypto import compute_hmac
+from app.database import set_rls_context
 from app.dependencies import get_db
 from app.limiter import limiter
 from app.models.campaign import Campaign
@@ -20,7 +21,7 @@ from app.schemas.signature import (
     ResendConfirmationRequest,
     SignatureCreate,
 )
-from app.services.email_service import send_confirmation_email
+from app.services.confirmation_email_service import attempt_send
 from app.services.signature_service import (
     complete_signature_name,
     confirm_signature,
@@ -181,12 +182,17 @@ async def recent_signatures(
     return await get_recent_signatures(db, campaign.id, min(limit, 20))
 
 
+# Espera máxima (s) del turno de velocidad para el intento inmediato; más allá, lo toma el loop.
+_IMMEDIATE_SEND_MAX_WAIT = 0.5
+
+
 @router.post("/{campaign_id}/signatures", status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def submit_signature(
     campaign_id: str,
     request: Request,
     data: SignatureCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     campaign = await _get_signable_campaign(db, campaign_id)
@@ -220,6 +226,9 @@ async def submit_signature(
             )
         raise HTTPException(status_code=422, detail={"error": code})
 
+    # El correo de confirmación sale fuera de la petición. Si no hay turno de velocidad, el loop lo recupera.
+    background_tasks.add_task(attempt_send, sig.id, max_wait=_IMMEDIATE_SEND_MAX_WAIT)
+
     return {
         "id": str(sig.id),
         "status": sig.status,
@@ -235,6 +244,7 @@ async def resend_confirmation_email(
     campaign_id: str,
     request: Request,
     data: ResendConfirmationRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     campaign = await _get_signable_campaign(db, campaign_id)
@@ -242,36 +252,31 @@ async def resend_confirmation_email(
     email_hash = compute_hmac(email_normalized)
 
     result = await db.execute(
-        select(Signature).where(
+        select(Signature.id).where(
             Signature.campaign_id == campaign.id,
             Signature.email_hash == email_hash,
             Signature.status == "pending_confirmation",
         )
     )
-    sig = result.scalar_one_or_none()
+    sig_id = result.scalar_one_or_none()
 
     # Always 204 — never reveal whether the email exists
-    if sig and sig.confirmation_token:
-        try:
-            org_result = await db.execute(
-                select(Organization).where(Organization.id == campaign.org_id)
+    if sig_id:
+        # Se re-encola el envío: el servicio renueva el token si caducó y respeta velocidad y reclamo.
+        # Un envío ya en curso (`sending`) no se pisa.
+        await set_rls_context(db, platform_admin=True)
+        await db.execute(
+            update(Signature)
+            .where(Signature.id == sig_id, Signature.confirmation_email_status != "sending")
+            .values(
+                confirmation_email_status="pending",
+                confirmation_email_attempts=0,
+                confirmation_email_next_at=func.now(),
             )
-            org = org_result.scalar_one_or_none()
-            from app.services.signature_service import build_privacy_url
-
-            await send_confirmation_email(
-                to_email=email_normalized,
-                token=sig.confirmation_token,
-                campaign_title=campaign.petition_title or campaign.title,
-                signer_name=sig.name or "",
-                org_name=org.name if org else "",
-                org_logo_url=(org.logo_url or "") if org else "",
-                visibility=sig.visibility,
-                privacy_url=build_privacy_url(campaign.slug),
-                org_contact_email=(org.contact_email or "") if org else "",
-            )
-        except Exception:
-            pass
+            .execution_options(synchronize_session=False)
+        )
+        await db.commit()
+        background_tasks.add_task(attempt_send, sig_id, max_wait=_IMMEDIATE_SEND_MAX_WAIT)
 
     return Response(status_code=204)
 

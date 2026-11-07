@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, DateTime, ForeignKey, SmallInteger, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
@@ -53,6 +53,13 @@ class Signature(Base):
     # Verificación de identidad para el portal de derechos ARCO (hash del token, no el token en claro)
     arco_verification_token: Mapped[str | None] = mapped_column(String(128), unique=True)
     arco_verification_expires_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    # Envío del correo de confirmación (correo-recuperacion): pending|sending|sent|failed|gave_up|not_required.
+    # Solo create_signature marca `pending`; el default `not_required` evita envíos a filas históricas.
+    confirmation_email_status: Mapped[str] = mapped_column(String(12), nullable=False, default="not_required", server_default="not_required")
+    confirmation_email_attempts: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0, server_default="0")
+    confirmation_email_next_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    confirmation_email_claimed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+    confirmation_email_sent_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
