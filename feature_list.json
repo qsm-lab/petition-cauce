@@ -452,6 +452,15 @@
       "sdd": true,
       "area": "fullstack",
       "phase": 5
+    },
+    {
+      "id": "hardening-campana",
+      "title": "Endurecimiento, monitoreo y pruebas de carga para la campaña (10–20 mil firmas)",
+      "description": "Sesión 45, spec en specs/hardening-campana/. Deriva de la propuesta de auditoría (docs/, local no versionada; H-01..H-16) contrastada con el código. Fase 1 (antes del lanzamiento, ~5 días): Turnstile fail-closed, IP/origen confiable, RLS verificado/forzado, backups con restore probado, capacidad de correo transaccional, Sentry con scrubbing de PII + alertas, pruebas k6 de saturación, límites de recursos, CSV injection. Fase 2 (durante/después): gestión de claves, aislamiento de infra, WORM/SIEM, CI/CD y SBOM, FIDO2, exportación gobernada, EIPD, auditoría externa. Pendiente de aprobación.",
+      "status": "in_progress",
+      "sdd": true,
+      "area": "fullstack",
+      "phase": 2
     }
   ]
 }

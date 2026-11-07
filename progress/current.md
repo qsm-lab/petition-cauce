@@ -1,3 +1,24 @@
+# Estado actual — sesión 45 (2026-11-06, EN CURSO) — hardening para la campaña de 10–20 mil firmas
+
+**Feature `hardening-campana`** (`specs/hardening-campana/`, `in_progress`, spec aprobada). Fase 1: ~46 %
+(6 completadas, 11 con ajustes, 8 pendientes de 25); Fase 2: 0 %. Detalle y hallazgos en `tasks.md`.
+**Nada de esto está commiteado ni desplegado.** Decisiones: Sentry a Fase 2 (monitor open source y
+alertas por correo), monitor externo en GreenGeeks compartido (script con cron), Resend Pro, Next.js A (migrar a 15.5.x).
+
+Hecho en código (todo con tests; suite 305 passed): Turnstile fail-closed + guarda de arranque; `client_ip.py`
+(IP única, confía en `CF-Connecting-IP` solo desde Cloudflare); neutralización de CSV injection;
+pruebas de aislamiento RLS; límites de recursos y pool de BD; Next 14→15.5.29 + React 19 (críticas 3→0);
+FastAPI 0.162/Starlette 1.10/PyJWT en lugar de python-jose (`pip-audit` limpio); `.dockerignore`.
+Material para el VPS: `docs/engineering/runbook_hardening_vps.md`, `infra/backup/`, `infra/monitoring/`,
+`loadtest/` (k6). **Las acciones en el VPS las aplica el usuario a mano** (la clave SSH de `ssdn` fue rechazada).
+
+Antes de desplegar: confirmar con `vps_readonly_audit.sh` que `ENVIRONMENT=production` y
+`TURNSTILE_SECRET_KEY` real existen (si no, la API no arranca); no hay envío masivo en curso; revisión
+visual de la web con React 19; el build Docker de la web no se pudo validar aquí (sin acceso a Google Fonts).
+**No apuntar k6 a la API dev actual (`RESEND_API_KEY` real): usar staging con correo stub.**
+
+---
+
 # Estado actual — tras sesión 44 (2026-10-23/24) — CERRADA (commiteada; envío masivo en curso)
 
 ## Resumen de sesión 44
