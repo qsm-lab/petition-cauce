@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import set_rls_context
 from app.models.campaign import Campaign
 from app.models.organization import Organization
 from app.models.scheduled_send import ScheduledSend
@@ -416,7 +417,7 @@ async def process_due_scheduled_sends(db: AsyncSession) -> dict:
     (mismo patrón que `retention_service`) para poder leer/escribir de
     cualquier organización."""
     from sqlalchemy import text
-    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+    await set_rls_context(db, platform_admin=True)
 
     now = datetime.now(timezone.utc)
     result = await db.execute(

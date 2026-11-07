@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import delete, select, text
 
 from app.crypto import compute_hmac, encrypt_pii
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.dependencies import get_current_user, get_db_with_org
 from app.main import app
 from app.models.arco_request import ArcoRequest
@@ -24,7 +24,7 @@ from app.services.signature_service import get_recent_signatures
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 

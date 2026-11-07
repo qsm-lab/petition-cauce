@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import delete, text
 
 from app.crypto import compute_hmac
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.organization import Organization
@@ -27,7 +27,7 @@ IP_HMAC = compute_hmac("127.0.0.1")
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 

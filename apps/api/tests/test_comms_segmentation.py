@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import delete, text
 
 from app.crypto import compute_hmac, encrypt_pii
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.organization import Organization
@@ -206,7 +206,7 @@ async def test_borrador_rechaza_etiquetas_retiradas():
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 

@@ -28,7 +28,7 @@ def _token_still_valid(sig) -> bool:
 
 async def run(slug: str, dry_run: bool, force: bool) -> None:
     from sqlalchemy import select, text as sa_text
-    from app.database import AsyncSessionLocal
+    from app.database import AsyncSessionLocal, set_rls_context
     from app.models.campaign import Campaign
     from app.models.organization import Organization
     from app.models.signature import Signature
@@ -43,13 +43,8 @@ async def run(slug: str, dry_run: bool, force: bool) -> None:
             print(f"Campaña '{slug}' no encontrada.")
             return
 
-        # Session-scoped (no LOCAL): este proceso es de un solo uso, no hay
-        # pool compartido con otras requests — a diferencia del bypass usado
-        # en la API, aquí es seguro fijarlo para toda la sesión del script.
-        await db.execute(
-            sa_text("SELECT set_config('app.current_org_id', :oid, false)"),
-            {"oid": str(campaign.org_id)},
-        )
+        # Contexto de la sesión (se re-aplica en cada transacción, ver set_rls_context).
+        await set_rls_context(db, org_id=campaign.org_id)
 
         org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
         org = org_result.scalar_one_or_none()

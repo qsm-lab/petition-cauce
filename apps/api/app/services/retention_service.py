@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import set_rls_context
 from app.models.campaign import Campaign
 from app.models.consent import Consent
 from app.models.lifecycle_event import LifecycleEvent
@@ -108,7 +109,7 @@ async def _purge_archived_signatures(db: AsyncSession, now: datetime) -> int:
 
 async def run_retention(db: AsyncSession, trigger: str) -> RetentionRun:
     """Evalúa todas las campañas con firmas no anonimizadas y purga las que expiraron (R1, R5, R6, R7)."""
-    await db.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+    await set_rls_context(db, platform_admin=True)
 
     now = datetime.now(timezone.utc)
     started_at = now

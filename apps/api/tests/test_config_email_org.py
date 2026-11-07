@@ -126,7 +126,7 @@ import uuid  # noqa: E402
 
 from sqlalchemy import delete as sa_delete, select, text  # noqa: E402
 
-from app.database import AsyncSessionLocal  # noqa: E402
+from app.database import AsyncSessionLocal, set_rls_context  # noqa: E402
 from app.models.org_email_config import OrgEmailConfig  # noqa: E402
 from app.models.organization import Organization  # noqa: E402
 from app.schemas.org_email_config import OrgEmailConfigUpdate  # noqa: E402
@@ -138,7 +138,7 @@ from app.services.organization_service import OrganizationService  # noqa: E402
 @pytest.fixture
 async def db():
     async with AsyncSessionLocal() as session:
-        await session.execute(text("SELECT set_config('app.is_platform_admin', 'true', false)"))
+        await set_rls_context(session, platform_admin=True)
         yield session
 
 
