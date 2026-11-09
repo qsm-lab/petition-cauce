@@ -30,8 +30,16 @@ headers)
   for i in 1 2 3; do hdr "$API/by-slug/$SLUG"; sleep 1; done
   echo "-- 2. Landing /c/<slug>: 3 peticiones (cf=HIT esperado a partir de la 2.ª; cc=public, s-maxage=10)"
   for i in 1 2 3; do hdr "$BASE/c/$SLUG"; sleep 1; done
-  echo "-- 3. Landing con query: NUNCA HIT (cc=private, no-store)"
+  echo "-- 3a. Landing con parámetros de seguimiento (fbclid/utm): comparte la copia (cf=HIT a partir de la 2.ª; cc=public)"
+  for i in 1 2 3; do hdr "$BASE/c/$SLUG?fbclid=IwAR$RANDOM&utm_source=prueba"; sleep 1; done
+  echo "-- 3b. Landing con query personal (?confirmada, ?nombre, ?completar, o con %): NUNCA HIT (cf=DYNAMIC, cc=private, no-store)"
   for i in 1 2; do hdr "$BASE/c/$SLUG?confirmada=1&nombre=Prueba"; sleep 1; done
+  hdr "$BASE/c/$SLUG?completar=token-inventado"
+  hdr "$BASE/c/$SLUG?%63onfirmada=1&%6eombre=Prueba"
+  echo "-- 3c. El HTML con query personal NO debe ser el de la copia compartida (popup presente solo con confirmada)"
+  A=$(curl -s "$BASE/c/$SLUG" | grep -c 'Firma confirmada\|Gracias, Prueba')
+  B=$(curl -s "$BASE/c/$SLUG?confirmada=1&nombre=Prueba" | grep -c 'Firma confirmada\|Gracias, Prueba')
+  echo "   sin query: $A coincidencias (esperado 0) · con ?confirmada=1: $B (esperado > 0 con el popup; 0 también es válido si el popup se pinta en el navegador)"
   echo "-- 4. Slug inexistente (404): NUNCA HIT, dos veces cada uno"
   for i in 1 2; do hdr "$API/by-slug/no-existe-$(date +%s)-xyz"; done
   for i in 1 2; do hdr "$BASE/c/no-existe-xyz"; done
@@ -44,9 +52,10 @@ variants)
   echo "== 40 variantes ?x=N de la ficha: si la regla ignora el query, todas salen HIT tras la primera =="
   for i in $(seq 1 40); do hdr "$API/by-slug/$SLUG?x=$i"; done | awk '{print $2, $3}' | sort | uniq -c
   echo "(MISS repetido = cada variante va al origen: activar «ignorar query string» en la clave de caché)"
-  echo "== Lo mismo con la landing =="
-  for i in $(seq 1 20); do hdr "$BASE/c/$SLUG?x=$i"; done | awk '{print $2, $3}' | sort | uniq -c
-  echo "(aquí DYNAMIC es lo correcto: una landing con query lleva no-store)"
+  echo "== Landing: 20 variantes ?fbclid=N (esperado: HIT tras la primera; comparten copia) =="
+  for i in $(seq 1 20); do hdr "$BASE/c/$SLUG?fbclid=$i"; done | awk '{print $2}' | sort | uniq -c
+  echo "== Landing: 10 variantes con parámetro desconocido ?x=N (la regla ignora la query: HIT mientras la copia limpia esté fresca; nunca se guarda una copia propia) =="
+  for i in $(seq 1 10); do hdr "$BASE/c/$SLUG?x=$i"; done | awk '{print $2}' | sort | uniq -c
   ;;
 fresh)
   # URL limpia: es lo que ve un visitante normal (sin parámetros que esquiven la caché).
