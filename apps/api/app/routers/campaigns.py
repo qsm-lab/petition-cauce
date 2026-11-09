@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from app.services.public_cache import invalidate_campaign
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -89,7 +90,17 @@ async def _resolve_campaign_email_context(db: AsyncSession, campaign: CampaignMo
     quota_key = str(active_cfg.id) if active_cfg else platform_quota_key()
     return transport, sender, quota_key
 
-router = APIRouter()
+async def _invalidate_public_cache(request: Request):
+    """cache-lecturas-publicas R7: tras editar, publicar, cerrar o archivar una campaña se borra su copia pública.
+
+    Corre después del manejador (si este falló, no hubo cambio). Las rutas de comunicaciones no modifican la landing.
+    """
+    yield
+    if request.method != "GET" and "/comms/" not in request.url.path:
+        await invalidate_campaign(request.path_params.get("campaign_id"))
+
+
+router = APIRouter(dependencies=[Depends(_invalidate_public_cache)])
 
 
 def _org_scope(user: User):
