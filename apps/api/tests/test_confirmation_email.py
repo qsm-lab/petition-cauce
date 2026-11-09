@@ -337,3 +337,57 @@ async def test_el_recuperador_no_deja_contexto_rls_en_la_conexion(mundo, provide
     async with AsyncSessionLocal() as db:
         v = (await db.execute(text("select current_setting('app.is_platform_admin', true)"))).scalar()
     assert v in (None, "")
+
+
+# ── Proveedor simulado para pruebas de carga ────────────────────────────────────────────────────────────────
+
+async def test_proveedor_simulado_reproduce_exito_fallo_y_timeout(monkeypatch):
+    from app.services.email_transport import EmailMessage, FakeTransport
+
+    s = svc.settings
+    monkeypatch.setattr(s, "email_fake_latency_ms_min", 1)
+    monkeypatch.setattr(s, "email_fake_latency_ms_max", 2)
+    msg = EmailMessage(to=["a@loadtest.invalid"], subject="s", html="h", from_="f@x.test")
+
+    monkeypatch.setattr(s, "email_fake_timeout_rate", 0.0)
+    monkeypatch.setattr(s, "email_fake_failure_rate", 0.0)
+    assert (await FakeTransport().send(msg)).ok is True
+
+    monkeypatch.setattr(s, "email_fake_failure_rate", 1.0)
+    assert (await FakeTransport().send(msg)).ok is False
+
+    monkeypatch.setattr(s, "email_fake_failure_rate", 0.0)
+    monkeypatch.setattr(s, "email_fake_timeout_rate", 1.0)
+    monkeypatch.setattr(s, "email_fake_timeout_seconds", 0.05)
+    assert (await FakeTransport().send(msg)).ok is False
+
+
+def test_el_proveedor_simulado_esta_prohibido_en_produccion():
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from app.config import Settings
+
+    base = dict(
+        database_url="postgresql+asyncpg://x", database_url_sync="postgresql://x", redis_url="redis://x",
+        jwt_secret_key="j", hmac_secret_key="h", pii_encryption_key="a" * 64,
+        turnstile_secret_key="0x4AAAAAAAreal",
+    )
+    Settings(environment="production", email_fake_enabled=False, **base)
+    with _pytest.raises(ValidationError):
+        Settings(environment="production", email_fake_enabled=True, **base)
+    assert Settings(environment="development", email_fake_enabled=True, **base).email_fake_enabled
+
+
+async def test_con_proveedor_simulado_el_envio_pasa_por_el_transporte_falso(monkeypatch):
+    from app.services import email_service as es
+    from app.services.email_transport import FakeTransport, platform_transport
+
+    monkeypatch.setattr(es.settings, "email_fake_enabled", True)
+    monkeypatch.setattr(es.settings, "email_fake_latency_ms_min", 1)
+    monkeypatch.setattr(es.settings, "email_fake_latency_ms_max", 2)
+    monkeypatch.setattr(es.settings, "email_fake_failure_rate", 0.0)
+    monkeypatch.setattr(es.settings, "email_fake_timeout_rate", 0.0)
+    assert isinstance(platform_transport(), FakeTransport)
+    # incluso un dominio reservado (loadtest.invalid) atraviesa el transporte simulado
+    assert await es.send_confirmation_email(to_email="lt@loadtest.invalid", token="t", campaign_title="c") is True

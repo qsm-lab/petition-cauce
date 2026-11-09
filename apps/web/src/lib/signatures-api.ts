@@ -78,21 +78,6 @@ export async function submitSignature(
   }
 }
 
-export async function confirmSignature(
-  campaignId: string,
-  token: string
-): Promise<ConfirmResult | null> {
-  try {
-    const res = await fetch(
-      `${PUBLIC_API}/v1/public-campaign/confirm/${token}`
-    );
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
 export async function resendConfirmation(
   campaignId: string,
   email: string,
@@ -149,5 +134,34 @@ export async function getCampaignCount(
     return { count: data.total_count ?? data.signature_count ?? 0, goal: data.goal_count ?? null };
   } catch {
     return null;
+  }
+}
+
+/** Respuesta de `POST /confirm/<token>` (verificacion-confirmacion-privacidad). `name` solo llega si la firma es pública. */
+export type ConfirmOutcome =
+  | { kind: "confirmed"; slug: string; name?: string }
+  | { kind: "expired"; slug: string }
+  | { kind: "invalid" }
+  | { kind: "error"; rateLimited: boolean };
+
+/** Confirma la firma del enlace del correo. El token nunca se registra ni se devuelve. */
+export async function confirmSignature(token: string): Promise<ConfirmOutcome> {
+  try {
+    const res = await fetch(`${PUBLIC_API}/v1/public-campaign/confirm/${encodeURIComponent(token)}`, {
+      method: "POST",
+      cache: "no-store",
+    });
+    if (res.status === 429) return { kind: "error", rateLimited: true };
+    if (!res.ok) return { kind: "error", rateLimited: false };
+    const body = await res.json();
+    if (body?.status === "confirmed" && typeof body.slug === "string" && body.slug) {
+      return { kind: "confirmed", slug: body.slug, name: typeof body.name === "string" ? body.name : undefined };
+    }
+    if (body?.status === "expired" && typeof body.slug === "string" && body.slug) {
+      return { kind: "expired", slug: body.slug };
+    }
+    return { kind: "invalid" };
+  } catch {
+    return { kind: "error", rateLimited: false };
   }
 }

@@ -282,7 +282,7 @@ async def send_confirmation_email(
     Devuelve True si el proveedor aceptó el mensaje (en desarrollo, sin proveedor, True)."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
 
-    if is_undeliverable_domain(to_email):
+    if is_undeliverable_domain(to_email) and not settings.email_fake_enabled:
         logger.info("[skip] confirmation email a dominio reservado: no se envía")
         return True
 
