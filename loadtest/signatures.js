@@ -5,7 +5,9 @@
 //
 //   k6 run -e BASE_URL=http://staging:8011 -e CAMPAIGN_ID=<uuid> -e SCENARIO=ramp loadtest/signatures.js
 //
-// SCENARIO: smoke | nominal | ramp | spike | simultaneous | race | soak | read | abuse
+// SCENARIO: smoke | nominal | ramp | spike | simultaneous | race | soak | read | read_cold | read_random_slugs | ssr | abuse
+//   read_cold = como `read` pero para lanzarlo con Redis recién vaciado (RK9); read_random_slugs = 100 lectores reales + 100 que piden
+//   slugs/ids inventados (RK10). Ambos de cache-lecturas-publicas; ver loadtest/README.md.
 //   nominal   = carga esperada (OBLIGATORIA): 1 firma/s sostenida + ráfaga de 10/s (≈ 3 000 firmas/hora)
 //   simultaneous = pico: 100 envíos a la vez (R7)   |   ramp, spike, soak = estrés exploratorio (sin pasa/falla de capacidad)
 import http from 'k6/http';
@@ -23,6 +25,21 @@ const RANDOM_IP = (__ENV.RANDOM_IP || '1') === '1';
 
 function randomIntBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ALLOW_503=1 (RK6, Redis caído): un 503 con Retry-After es la degradación esperada y se cuenta aparte; 500 y 0 siguen siendo fallo.
+const ALLOW_503 = (__ENV.ALLOW_503 || '0') === '1';
+export const degraded503 = new Counter('degraded_503');
+// status 0 = fallo de red del cliente (k6 y Docker comparten el Mac): se cuenta aparte de los 5xx del servidor y se muestran los primeros.
+export const netErrors = new Counter('net_errors');
+let netShown = 0;
+function is5xx(r) {
+  if (r.status === 0) {
+    netErrors.add(1);
+    if (netShown++ < 5) console.warn(`status 0: error_code=${r.error_code} ${r.error}`);
+    return false;
+  }
+  return r.status >= 500 && !(ALLOW_503 && r.status === 503);
 }
 
 export const created201 = new Counter('signatures_created');
@@ -62,15 +79,28 @@ const PROFILES = {
     preAllocatedVUs: 30, maxVUs: 120, exec: 'signFlow',
   },
   read: { executor: 'constant-vus', vus: 300, duration: '3m', exec: 'readFlow' },
+  // RK13: la landing renderizada por Next (WEB_URL), no la API. SSR_VUS permite subir la carga por escalones.
+  ssr: { executor: 'constant-vus', vus: Number(__ENV.SSR_VUS || 300), duration: __ENV.SSR_DURATION || '2m', exec: 'ssrFlow' },
+  read_cold: { executor: 'constant-vus', vus: 300, duration: '1m', exec: 'readFlow' },
   abuse: { executor: 'constant-vus', vus: 3, duration: '1m', exec: 'abuseFlow' },
 };
 
+// RK10: dos grupos a la vez (no cabe en un solo perfil). Los lectores reales deben salir sin 5xx aunque otros pidan slugs inventados.
+const MULTI = {
+  read_random_slugs: {
+    readers: { executor: 'constant-vus', vus: 100, duration: '2m', exec: 'readFlow' },
+    junk: { executor: 'constant-vus', vus: 100, duration: '2m', exec: 'junkFlow' },
+  },
+};
+
 export const options = {
-  scenarios: { [SCENARIO]: PROFILES[SCENARIO] },
+  scenarios: MULTI[SCENARIO] || { [SCENARIO]: PROFILES[SCENARIO] },
   thresholds: {
     'http_req_duration{name:signature}': ['p(95)<1500'],
     'http_req_duration{name:read}': ['p(95)<800'],
+    'http_req_duration{name:ssr}': ['p(95)<1500'],
     server_errors: ['count==0'],
+    net_errors: ['count==0'],
     ...(SCENARIO === 'race' ? { signatures_created: ['count==1'] } : {}),
     ...(SCENARIO === 'abuse' ? { rate_limited: ['count>0'] } : {}),
   },
@@ -134,7 +164,29 @@ export function readFlow() {
   const calls = [`${API}/${CAMPAIGN}`, `${API}/${CAMPAIGN}/signatures/recent`];
   if (SLUG) calls.push(`${API}/by-slug/${SLUG}`);
   const res = http.batch(calls.map((u) => ['GET', u, null, { headers: headers(), tags: { name: 'read' } }]));
-  res.forEach((r) => { if (r.status >= 500 || r.status === 0) server5xx.add(1); });
+  res.forEach((r) => { if (is5xx(r)) server5xx.add(1); else if (r.status === 503) degraded503.add(1); });
+}
+
+// RK13: HTML de la landing (SSR de Next); depende de la API por detrás, así que un 5xx aquí puede venir de cualquiera de las dos.
+const WEB = (__ENV.WEB_URL || '').replace(/\/$/, '');
+export function ssrFlow() {
+  const r = http.get(`${WEB}/c/${SLUG}`, { headers: headers(), tags: { name: 'ssr' } });
+  if (is5xx(r)) server5xx.add(1);
+  check(r, { 'landing 200': (x) => x.status === 200 });
+}
+
+// Slugs e ids que no existen: deben responder 404 desde el índice en Redis, sin consultar campañas ni agotar el pool.
+export function junkFlow() {
+  const rnd = `${Date.now()}-${__VU}-${__ITER}-${Math.random().toString(36).slice(2)}`;
+  const fakeId = '00000000-0000-4000-8000-' + String(randomIntBetween(0, 999999999999)).padStart(12, '0');
+  const res = http.batch([
+    ['GET', `${API}/by-slug/inventado-${rnd}`, null, { headers: headers(), tags: { name: 'junk' } }],
+    ['GET', `${API}/${fakeId}`, null, { headers: headers(), tags: { name: 'junk' } }],
+  ]);
+  res.forEach((r) => {
+    if (is5xx(r)) server5xx.add(1);
+    check(r, { 'inventado → 404': (x) => x.status === 404 });
+  });
 }
 
 // Una sola IP insistiendo: tiene que aparecer 429.
