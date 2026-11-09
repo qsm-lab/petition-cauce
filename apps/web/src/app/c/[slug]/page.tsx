@@ -26,12 +26,13 @@ function buildCampaignUrl(slug: string, host: string): string {
   return `${APP_URL}/c/${slug}`;
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const headersList = headers();
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
+  const headersList = await headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
 
   const campaign = await getCampaignBySlug(params.slug);
@@ -40,14 +41,15 @@ export async function generateMetadata({
   return campaignMetadata(campaign, buildCampaignUrl(campaign.slug, host));
 }
 
-export default async function CampaignBySlugPage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string };
-  searchParams: { confirmada?: string; nombre?: string; completar?: string };
-}) {
-  const headersList = headers();
+export default async function CampaignBySlugPage(
+  props: {
+    params: Promise<{ slug: string }>;
+    searchParams: Promise<{ confirmada?: string; nombre?: string; completar?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const headersList = await headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
 
   const campaign = await getCampaignBySlug(params.slug);

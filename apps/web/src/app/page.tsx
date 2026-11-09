@@ -22,12 +22,13 @@ function buildCampaignUrl(slug: string, host: string): string {
   return `${APP_URL}/?slug=${slug}`;
 }
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: { slug?: string };
-}): Promise<Metadata> {
-  const headersList = headers();
+export async function generateMetadata(
+  props: {
+    searchParams: Promise<{ slug?: string }>;
+  }
+): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const headersList = await headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
   const isLocal =
     host.includes("localhost") || host.includes("127.0.0.1") || !host.includes(".");
@@ -44,12 +45,13 @@ export async function generateMetadata({
   return campaignMetadata(campaign, buildCampaignUrl(campaign.slug, host));
 }
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: { slug?: string };
-}) {
-  const headersList = headers();
+export default async function Home(
+  props: {
+    searchParams: Promise<{ slug?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const headersList = await headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
   const isLocal =
     host.includes("localhost") || host.includes("127.0.0.1") || !host.includes(".");

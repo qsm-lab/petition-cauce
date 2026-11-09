@@ -5,10 +5,11 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function PortalPage({
-  searchParams,
-}: {
-  searchParams: { token?: string; campaign?: string };
-}) {
+export default async function PortalPage(
+  props: {
+    searchParams: Promise<{ token?: string; campaign?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   return <PortalClient token={searchParams.token || null} originCampaignId={searchParams.campaign || null} />;
 }
