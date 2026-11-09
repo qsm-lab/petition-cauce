@@ -136,3 +136,42 @@ SPDP Ecuador: spdp.gob.ec
 - Actualización de medidas de seguridad si corresponde.
 - Actualización del RAT si el incidente revela un riesgo no contemplado.
 - Revisión del presente runbook si el protocolo falló en algún punto.
+
+---
+
+## 8. Playbooks mínimos (hardening-campana R11)
+
+Complementan el cronograma de la sección 3. Primer paso común: anotar la hora, limitar la conversación a conteos y estados
+(sin PII) y seguir `docs/engineering/runbook_incidentes.md` para la parte técnica.
+
+### Playbook A — Fuga de datos personales
+1. **Contener (T+0 a T+1h):** identificar el vector (exportación, respaldo, log, base expuesta, correo mal enviado). Cortarlo:
+   revocar el enlace o la clave, cerrar el puerto, retirar el archivo. No borrar evidencia: copiar los logs de acceso al lugar seguro.
+2. **Dimensionar:** campos afectados (¿cédula/correo cifrados o en claro?), campañas y número de titulares. Los datos cifrados con
+   `PII_ENCRYPTION_KEY` intacta tienen riesgo menor; si la clave también salió, es riesgo ALTO (sección 2).
+3. **Rotar** lo que haya podido filtrarse: claves de proveedor de correo, `JWT_SECRET_KEY` (cierra sesiones), contraseñas de base.
+   Rotar `PII_ENCRYPTION_KEY` o `HMAC_SECRET_KEY` solo con plan de re-cifrado: cambiarlas sin migrar rompe los datos existentes.
+4. **Decidir la notificación** con el árbol de la sección 2 y seguir los plazos de la sección 3 (organización a T+24 h, SPDP a T+72 h).
+5. Registrar en la sección 5 y hacer el análisis de causa raíz (sección 7).
+
+### Playbook B — Toma de una cuenta de administrador
+1. **Contener (de inmediato):** desactivar al usuario en la base y revocar sus sesiones (cambiar su contraseña y, si hace falta,
+   rotar `JWT_SECRET_KEY`, lo que cierra todas las sesiones).
+2. **Revisar el rastro:** auditoría de ese usuario desde la hora sospechosa: exportaciones de firmas, cambios de campaña,
+   comunicaciones enviadas, altas de otros usuarios. La alerta `exportaciones_pii` ayuda a fijar la hora de inicio.
+3. **Alcance:** si hubo exportaciones o lectura de firmas, es una fuga: pasar al Playbook A. Si solo hubo acceso sin lectura de PII,
+   registrar en el log interno (riesgo medio, sección 2).
+4. **Restablecer:** nueva contraseña por canal distinto al correo comprometido; revisar usuarios creados o con rol cambiado.
+5. Mientras no exista TOTP (T5.3), exigir contraseña nueva y única y limitar a 2 los administradores activos durante la campaña.
+
+### Playbook C — Caída de DNS o de Cloudflare
+1. Confirmar el alcance: estado de Cloudflare, `dig +short <dominio>` y la alerta `[Cauce] CAIDA:` del chequeo externo.
+2. No hay brecha de datos por una caída, solo indisponibilidad: **no** abrir el origen al mundo ni desactivar Turnstile.
+3. Si el DNS está mal configurado, restaurar los registros desde la copia guardada fuera de Cloudflare. Si es una caída del
+   proveedor, esperar y comunicar en las redes de la campaña que las firmas no se pierden.
+4. Al recuperarse, revisar que `real_ip` siga mostrando IPs reales y que los respaldos y alertas sigan corriendo.
+5. Si la indisponibilidad supera 2 h (RTO), avisar a la organización responsable.
+
+### Contactos (completar antes del lanzamiento)
+Ver la tabla de guardia al final de `docs/engineering/runbook_incidentes.md`. Añadir aquí: responsable LOPDP, delegado de protección
+de datos (si existe), un contacto por organización y el canal oficial de la SPDP.
