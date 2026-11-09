@@ -1,7 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 logging.getLogger("app").setLevel(logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +53,25 @@ setup_access_logging()
 app.add_middleware(AccessLogMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+_last_pool_log = 0.0
+
+
+async def _pool_exhausted(request: Request, exc: PoolTimeoutError) -> JSONResponse:
+    """cache-lecturas-publicas R5: pool de conexiones agotado → 503 corto (no 500 tras 10 s). Un aviso por segundo, sin datos de la petición."""
+    global _last_pool_log
+    now = time.monotonic()
+    if now - _last_pool_log > 1:
+        _last_pool_log = now
+        logging.getLogger("app").warning("pool_saturado: sin conexiones libres en %ss", settings.db_pool_timeout)
+    return JSONResponse(
+        {"detail": "Servicio saturado, reintenta en unos segundos"},
+        status_code=503,
+        headers={"Retry-After": "5", "Cache-Control": "no-store"},
+    )
+
+
+app.add_exception_handler(PoolTimeoutError, _pool_exhausted)
 
 app.add_middleware(
     CORSMiddleware,

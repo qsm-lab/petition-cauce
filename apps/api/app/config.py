@@ -217,6 +217,11 @@ class Settings(BaseSettings):
     confirm_email_max_attempts: int = 6
     confirm_email_batch_size: int = 50
 
+    # ── Caché de lecturas públicas (cache-lecturas-publicas) ───────────────
+    # `false` apaga la caché y los Cache-Control públicos (reversión sin redeploy: cambiar y --force-recreate).
+    public_cache_enabled: bool = True
+    public_cache_ttl_seconds: int = 10
+
     # ── Cola del centro de comunicaciones (centro-comunicaciones, Fase 3) ──
     comms_queue_poll_seconds: int = 30
 

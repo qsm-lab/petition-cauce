@@ -79,6 +79,10 @@
 @keyframes pc-spin {
   to { transform: rotate(360deg); }
 }
+@keyframes pc-bar {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
 @keyframes pc-rise {
   from { transform: translateY(8px); opacity: 0; }
   to   { transform: translateY(0); opacity: 1; }

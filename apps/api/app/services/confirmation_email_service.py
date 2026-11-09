@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import case, func, or_, select, update
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from app.config import settings
 from app.crypto import compute_hmac, decrypt_pii
@@ -161,6 +162,16 @@ async def attempt_send(sig_id: uuid.UUID, *, max_wait: float | None = None) -> s
     `max_wait` acota la espera del turno de velocidad: el intento inmediato pasa un valor pequeño y, si no
     hay turno, deja la firma `pending` para el loop. El loop espera sin límite.
     """
+    try:
+        return await _attempt_send(sig_id, max_wait)
+    except PoolTimeoutError:
+        # Sin conexión libre (pico de altas): la firma sigue `pending` y el loop la recoge. Tarea en segundo plano:
+        # dejar subir la excepción la registraría como error de la aplicación con la respuesta ya enviada.
+        logger.warning("confirm_email_pool_saturado sig=%s; lo reintenta el loop", sig_id)
+        return "skipped"
+
+
+async def _attempt_send(sig_id: uuid.UUID, max_wait: float | None) -> str:
     limits = _get_limits()
     if not await limits.reserve(max_wait):
         return "skipped"

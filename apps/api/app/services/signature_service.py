@@ -358,6 +358,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
         "count": count,
         "goal": campaign.goal_count if campaign else None,
         "name": signer_name,
+        "visibility": sig.visibility,
         "newly_confirmed": newly_confirmed,
     }
 

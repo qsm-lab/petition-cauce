@@ -2,10 +2,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client_ip import get_client_ip
+from app.config import settings
 from app.crypto import compute_hmac
 from app.database import set_rls_context
 from app.dependencies import get_db
@@ -33,6 +35,7 @@ from app.services.signature_service import (
     set_newsletter_consent,
     unsubscribe_by_token,
 )
+from app.services.public_cache import CacheBusy, get_or_build
 from app.services.turnstile_service import verify_turnstile
 
 router = APIRouter()
@@ -119,17 +122,61 @@ def _serialize(campaign: Campaign, org: Organization | None, count: int, total_c
     }
 
 
-@router.get("/by-slug/{slug}")
-async def get_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Campaign).where(Campaign.slug == slug))
-    campaign = result.scalar_one_or_none()
-    if not campaign or campaign.archived_at is not None:
-        raise HTTPException(status_code=404, detail="Campaña no encontrada")
+# cache-lecturas-publicas: las tres lecturas de la landing salen de una copia corta en Redis (public_cache.py).
+_PUBLIC_CACHE_CONTROL = "public, s-maxage=10, stale-while-revalidate=30"
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
+def _not_found() -> HTTPException:
+    # Los errores nunca se cachean en el borde (RK5)
+    return HTTPException(status_code=404, detail="Campaña no encontrada", headers=_NO_STORE)
+
+
+async def _cached(response: Response, key: str, builder):
+    try:
+        value, state = await get_or_build(key, builder)
+    except CacheBusy:
+        raise HTTPException(status_code=503, detail="Servicio saturado, reintenta", headers={"Retry-After": "1", **_NO_STORE})
+    response.headers["Cache-Control"] = _PUBLIC_CACHE_CONTROL if settings.public_cache_enabled else "no-store"
+    response.headers["X-Cache"] = state
+    return value
+
+
+async def _visible_index(db: AsyncSession) -> dict:
+    """Slugs e ids de las campañas visibles. Responde los 404 sin consultar la base (slugs/ids inventados no agotan el pool)."""
+    rows = (await db.execute(select(Campaign.slug, Campaign.id).where(Campaign.archived_at.is_(None)))).all()
+    return {"slugs": {slug: str(cid) for slug, cid in rows}, "ids": sorted(str(cid) for _, cid in rows)}
+
+
+async def _campaign_payload(db: AsyncSession, campaign_id: str) -> dict:
+    campaign = await _get_active_campaign(db, campaign_id)
     org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
     org = org_result.scalar_one_or_none()
     count = await get_signature_count(db, campaign.id)
     total = await get_total_signature_count(db, campaign.id)
-    return _serialize(campaign, org, count, total)
+    return jsonable_encoder(_serialize(campaign, org, count, total))
+
+
+async def _resolve_id(response: Response, db: AsyncSession, *, slug: str | None = None, campaign_id: str | None = None) -> str:
+    index = await _cached(response, "index", lambda: _visible_index(db))
+    if slug is not None:
+        cid = index["slugs"].get(slug)
+    else:
+        try:
+            cid = str(uuid.UUID(campaign_id))
+        except ValueError:
+            cid = None
+        if cid not in index["ids"]:
+            cid = None
+    if not cid:
+        raise _not_found()
+    return cid
+
+
+@router.get("/by-slug/{slug}")
+async def get_by_slug(slug: str, response: Response, db: AsyncSession = Depends(get_db)):
+    cid = await _resolve_id(response, db, slug=slug)
+    return await _cached(response, f"campaign:{cid}", lambda: _campaign_payload(db, cid))
 
 
 @router.get("/{campaign_id}/privacy")
@@ -175,11 +222,13 @@ async def get_privacy(campaign_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/{campaign_id}/signatures/recent")
 async def recent_signatures(
     campaign_id: str,
+    response: Response,
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
 ):
-    campaign = await _get_active_campaign(db, campaign_id)
-    return await get_recent_signatures(db, campaign.id, min(limit, 20))
+    cid = await _resolve_id(response, db, campaign_id=campaign_id)
+    limit = max(1, min(limit, 20))
+    return await _cached(response, f"recent:{cid}:{limit}", lambda: get_recent_signatures(db, uuid.UUID(cid), limit))
 
 
 # Espera máxima (s) del turno de velocidad para el intento inmediato; más allá, lo toma el loop.
@@ -282,26 +331,36 @@ async def resend_confirmation_email(
 
 
 @router.get("/confirm/{token}")
-async def confirm_sig(token: str, db: AsyncSession = Depends(get_db)):
-    """Confirma la firma y redirige a la landing (el enlace se abre desde el email)."""
+async def confirm_sig(token: str):
+    """Redirige a la página de confirmación SIN confirmar (verificacion-confirmacion-privacidad, D1=A).
+
+    Los escáneres de enlaces del correo hacen GET sobre cada URL; confirmar aquí daría por verificado un
+    consentimiento que ninguna persona dio. La confirmación real es el POST de la página. Se conserva la
+    ruta para que los correos ya enviados sigan funcionando.
+    """
     from fastapi.responses import RedirectResponse
     from app.config import settings
+    from urllib.parse import quote
 
     app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
+    return RedirectResponse(f"{app_url}/confirmar/{quote(token, safe='')}", status_code=302)
+
+
+@router.post("/confirm/{token}")
+@limiter.limit("20/minute")
+async def confirm_sig_post(token: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Confirma la firma cuando la persona pulsa el botón de la página. Idempotente.
+
+    Respuesta genérica: un token desconocido devuelve `invalid` con 200 (no revela si existe).
+    """
     result = await confirm_signature(db, token)
-
     if not result or not result.get("slug"):
-        return RedirectResponse(f"{app_url}/", status_code=302)
-
-    slug = result["slug"]
-    estado = "1" if result["status"] == "confirmed" else "expirada"
-    dest = f"{app_url}/c/{slug}?confirmada={estado}"
-    # El nombre (si la firma es pública) alimenta el popup de compartir en la landing
-    if estado == "1" and result.get("name"):
-        from urllib.parse import quote
-
-        dest += f"&nombre={quote(result['name'])}"
-    return RedirectResponse(dest, status_code=302)
+        return {"status": "invalid"}
+    out = {"status": result["status"], "slug": result["slug"]}
+    # El nombre acaba en la URL de la landing (?nombre=): solo si la persona eligió firmar de forma pública.
+    if result["status"] == "confirmed" and result.get("name") and result.get("visibility") == "publica":
+        out["name"] = result["name"]
+    return out
 
 
 @router.get("/complete/{token}")
@@ -450,10 +509,6 @@ async def event_calendar_ics(title: str, start: datetime, location: str = "", de
 
 
 @router.get("/{campaign_id}")
-async def get_campaign_public(campaign_id: str, db: AsyncSession = Depends(get_db)):
-    campaign = await _get_active_campaign(db, campaign_id)
-    org_result = await db.execute(select(Organization).where(Organization.id == campaign.org_id))
-    org = org_result.scalar_one_or_none()
-    count = await get_signature_count(db, campaign.id)
-    total = await get_total_signature_count(db, campaign.id)
-    return _serialize(campaign, org, count, total)
+async def get_campaign_public(campaign_id: str, response: Response, db: AsyncSession = Depends(get_db)):
+    cid = await _resolve_id(response, db, campaign_id=campaign_id)
+    return await _cached(response, f"campaign:{cid}", lambda: _campaign_payload(db, cid))
