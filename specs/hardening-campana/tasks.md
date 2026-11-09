@@ -101,7 +101,7 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/client_ip.py` (solo confía en `CF-Connecting-IP` si la conexión viene de Cloudflare),
   usado por rate limit, `ip_hmac`, login, exportación y endpoint legado; 8 tests. Ya no depende del
   `real_ip` del conf de forms-qsm. Opcional: Paso 6 del runbook para logs de nginx con IP real.*
-- [~] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
+- [x] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
   *Solo runbook (Pasos 6 y 7): servidor por defecto `444` y reglas ufw con rangos de Cloudflare.
   Acción manual en el VPS, con segunda sesión SSH y confirmando que forms-qsm también está tras Cloudflare.*
 - [x] **T3.3 · Logs estructurados sin PII + alerta por 5xx** (R6a, D5) · 2 h
@@ -132,11 +132,13 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/csv_safe.py` aplicado a las dos exportaciones de firmas (incluido el sello); 12 tests;
   alerta de >3 exportaciones/hora en `business_signals.sh`. No se aplicó al CSV de portabilidad ARCO (datos del propio
   titular) ni a la exportación legada de formularios.*
-- [ ] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *spec lista para tu aprobación: `specs/verificacion-confirmacion-privacidad/`; decide D1*
+- [ ] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *spec aprobada; D1 = A; V1–V4 hechas (API POST + página `/confirmar`, sin desplegar); faltan V5–V10: `specs/verificacion-confirmacion-privacidad/`*
   *Prueba con escáneres de enlaces (Outlook, Gmail, corporativo) y métrica de confirmaciones <5 s; contrastar aviso de privacidad con proveedores reales y pixel de Brevo; definir quién atiende ARCO y en qué plazo.*
 - [ ] **T5.3 · TOTP admin** (R9, D8) · 6 h — *si se decide en Fase 1*; si no, medidas
       mínimas + riesgo aceptado con fecha de revisión · 1 h
-- [ ] **T5.4 · Runbook de incidentes + playbooks mínimos** (R11) · 2 h
+- [x] **T5.4 · Runbook de incidentes + playbooks mínimos** (R11) · 2 h
+      `docs/engineering/runbook_incidentes.md` (alertas → acción, reversión) y playbooks A/B/C en `docs/legal/runbook_brechas.md` §8.
+      Pendiente tuyo: nombres y canales de guardia (tablas «por definir»).
 - [ ] **T5.5 · Congelamiento de cambios, lista de verificación y plan de reversión** (R12, R13) · 1 h
 - [ ] **T5.6 · Actualizar `progress/current.md` y `history.md`.**
 
@@ -179,6 +181,19 @@ Incidente: la contraseña SMTP se imprimió en pantalla por un error de `source`
 Chequeo externo `healthcheck_remote.sh` en GreenGeeks (cron cada 5 min, acceso por clave `host-cqsmorg-mac1`): prueba de caída
 con URL inexistente → contador 2 y correo `CAIDA` recibido. Corregidas las cabeceras MIME/UTF-8 de ambos scripts (el asunto con tilde llegaba roto).
 No probado: el correo `RECUPERADO` ni Netdata (opcional).
+
+## T3.2 cerrada (2026-11-07)
+
+Firewall ya aplicado (`ufw`: 80/443 solo Cloudflare). `real_ip_header CF-Connecting-IP` ya era global (forms-qsm): el log de `cauce` muestra IPs
+reales (no de Cloudflare). Servidor por defecto en 443 con `ssl_reject_handshake` (`/etc/nginx/conf.d/00-default-reject.conf`):
+`Host` desconocido → `000`; los sitios del VPS siguen respondiendo. HTTP/2 del origen verificado (`http=2`).
+
+## T4.2 — resultados de estrés (entorno aislado, 2026-11-07)
+
+`nominal`, `simultaneous`, `race`, `abuse`, `smoke`: pasan. `ramp` (hasta 30 altas/s): 11 180 firmas, p95 22 ms, 1 error 5xx. `spike` (100 altas/s): 15 352
+firmas, p95 105 ms, 0 errores. **`read` (300 lectores): 21 % de 5xx, p95 11 s** — agotamiento del pool en `by-slug`, `/{id}` y `signatures/recent`
+(sin caché; `by-slug` hace 4 consultas). Escritura OK; lectura es el cuello. Spec: `specs/cache-lecturas-publicas/` (pendiente de aprobación).
+Nota: el entorno corre en un Mac con Docker (≈ 28 000 firmas sintéticas); la capacidad real del VPS se mide en staging.
 
 ## Despliegue en producción (verificado 2026-11-07, PR #27 → `a3623c8`)
 

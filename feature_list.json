@@ -475,8 +475,18 @@
     {
       "id": "verificacion-confirmacion-privacidad",
       "title": "Verificación mínima de confirmación y privacidad (T5.7 de hardening-campana)",
-      "description": "Spec en specs/verificacion-confirmacion-privacidad/. Escáneres de enlaces que confirman por GET, prueba en buzones reales, aviso de privacidad vs proveedores, seguimiento de Brevo/Resend, ARCO y retención de no confirmadas.",
-      "status": "spec_ready",
+      "description": "Spec en specs/verificacion-confirmacion-privacidad/. D1 = A: el GET del correo solo redirige y el botón de /confirmar/<token> hace POST (V1–V4 hechas y verificadas, sin desplegar). Falta V5–V10: prueba en buzones reales, aviso de privacidad vs proveedores, seguimiento de Brevo/Resend, ARCO y retención de no confirmadas.",
+      "status": "in_progress",
+      "sdd": true,
+      "depends_on": [
+        "hardening-campana"
+      ]
+    },
+    {
+      "id": "cache-lecturas-publicas",
+      "title": "Caché corta y degradación elegante de las lecturas públicas (hallazgo de T4.2)",
+      "description": "Spec en specs/cache-lecturas-publicas/. El escenario read (300 lectores) dio 21 % de 5xx por agotamiento del pool; caché en Redis (K1–K7 hechos), Cache-Control, 503 con Retry-After y landing cacheable en el borde vía nginx (K10, aplicado en el VPS). Falta K8 de la API pública y K9 (cerrar riesgos).",
+      "status": "in_progress",
       "sdd": true,
       "depends_on": [
         "hardening-campana"
