@@ -1,21 +1,50 @@
-# Estado actual — sesión 45 (2026-11-06, EN CURSO) — hardening para la campaña de 10–20 mil firmas
+# Estado actual — sesión 46 (2026-11-08) — CERRADA con cambios sin commitear: caché de lecturas públicas, borde de Cloudflare y página de confirmación
 
-**Feature `hardening-campana`** (`specs/hardening-campana/`, `in_progress`, spec aprobada). Fase 1: ~46 %
-(6 completadas, 11 con ajustes, 8 pendientes de 25); Fase 2: 0 %. Detalle y hallazgos en `tasks.md`.
-**Nada de esto está commiteado ni desplegado.** Decisiones: Sentry a Fase 2 (monitor open source y
-alertas por correo), monitor externo en GreenGeeks compartido (script con cron), Resend Pro, Next.js A (migrar a 15.5.x).
+**Fase 1 de `hardening-campana`: 60 %** (`bash infra/progress.sh`: 11 completadas, 8 con ajustes, 6 pendientes de 25). Features `cache-lecturas-publicas` y `verificacion-confirmacion-privacidad`: `in_progress` (no `done`).
 
-Hecho en código (todo con tests; suite 305 passed): Turnstile fail-closed + guarda de arranque; `client_ip.py`
-(IP única, confía en `CF-Connecting-IP` solo desde Cloudflare); neutralización de CSV injection;
-pruebas de aislamiento RLS; límites de recursos y pool de BD; Next 14→15.5.29 + React 19 (críticas 3→0);
-FastAPI 0.162/Starlette 1.10/PyJWT en lugar de python-jose (`pip-audit` limpio); `.dockerignore`.
-Material para el VPS: `docs/engineering/runbook_hardening_vps.md`, `infra/backup/`, `infra/monitoring/`,
-`loadtest/` (k6). **Las acciones en el VPS las aplica el usuario a mano** (la clave SSH de `ssdn` fue rechazada).
+**Hecho (todo sin commitear; drafts de commits redactados y entregados al usuario):**
+- `verificacion-confirmacion-privacidad`: D1 = A. **V1–V4 hechas.** `GET /confirm/{token}` solo redirige a `/confirmar/<token>`; `POST` confirma (idempotente; devuelve `name` solo si la firma es `publica`).
+  Página `apps/web/src/app/(campaign)/confirmar/[token]/` (diseño aprobado el 2026-11-08, `specs/…/design-export.html`, paquete en `docs/diseno-confirmar-firma/`): 6 estados + sin JavaScript.
+  Verificada en navegador (Brave sin interfaz) sobre Next 14 **y** Next 15, build de producción, medidas idénticas al diseño. **V3 y V4 deben desplegarse juntas.** Falta V5–V10.
+- `cache-lecturas-publicas`: K1–K7 hechos (`app/services/public_cache.py`; `read` de 92 req/s con 21 % de 5xx a ≈ 2 100 req/s con 0 errores). Redis caído (3 corridas): 0 errores 500, p95 0,6 s.
+  **RK13 (SSR de Next ≈ 50–65 páginas/s) → K10:** nginx pone `Cache-Control: public, s-maxage=10` solo a `/c/<slug>` con 200 y sin query. **Aplicado a mano en el VPS** y con dos Cache Rules activas en Cloudflare
+  (API pública y landing); medido: landing MISS → HIT, con query/404/admin nunca HIT. La API pública sale `BYPASS` porque producción aún no lleva la caché (la ruta real es `/api/v1/public-campaign/`).
+- A3: `attempt_send` ya no deja subir el timeout del pool (test). `spike`: el límite es la CPU de los 2 workers (≈ 100 altas/s), no la base; 10 veces por encima de la ráfaga prevista.
+- T5.4: `docs/engineering/runbook_incidentes.md` y playbooks A/B/C en `docs/legal/runbook_brechas.md` §8 (faltan nombres de guardia). `loadtest/edge_check.sh` (headers, variants, fresh).
+- Suite de la API: 376 pasan (el test inestable de `test_confirmation_email.py` no falló en esta pasada; sigue siendo deuda).
 
-Antes de desplegar: confirmar con `vps_readonly_audit.sh` que `ENVIRONMENT=production` y
-`TURNSTILE_SECRET_KEY` real existen (si no, la API no arranca); no hay envío masivo en curso; revisión
-visual de la web con React 19; el build Docker de la web no se pudo validar aquí (sin acceso a Google Fonts).
-**No apuntar k6 a la API dev actual (`RESEND_API_KEY` real): usar staging con correo stub.**
+**Plan de commits (el usuario commitea):**
+1. `chore/next-15-react-19`: migración a Next 15.5 / React 19 (`apps/web`: package.json, lockfile, tsconfig, next-env, páginas con params asíncronos). **Retenida: no fusionar en `dev` antes del lanzamiento** (falta la revisión visual del sitio entero).
+2. En `chore/hardening-carga-monitoreo`: k6, runbooks, specs/diseño/progreso (no cambian el comportamiento).
+3. `feat/confirmacion-y-cache` (**lo que se despliega**): API (confirmación POST + caché), fix de `attempt_send`, página `/confirmar`, y el archivo nginx (ya aplicado en el VPS).
+El deploy se dispara con un push a `main` (`deploy.yml`), es decir al fusionar `dev` en `main`.
+
+**Pendiente, por orden:** desplegar (3) → repetir `edge_check.sh headers|variants|fresh` (cierra K8 y K9: RK1, RK4, RK5, RK8, RK11) y hacer una firma real de prueba hasta confirmar desde el correo (V5) ·
+decidir si se añade R8 (`GET /confirm-visibility/{token}` también cambia estado por GET) · T5.1 soak, T5.3 TOTP o riesgo aceptado, T5.5 congelamiento y reversión, T5.6 · V6–V10 (buzones reales, seguimiento Brevo/Resend, aviso y RAT, ARCO, retención de `pending_confirmation`) ·
+revisión visual de Next 15 y su despliegue posterior · reglas de ciclo de vida del bucket R2, R2 UE como subencargado, 9 de 25 tablas sin RLS, `PROVIDER_SECRET_KEY`, repo del VPS en `main`, contactos de guardia en el runbook, A3 (revisar `pool_size` si se quiere más margen de altas).
+**Trampas de esta sesión:** medir k6 dentro de la red de Docker (el proxy de puertos del Mac resetea conexiones a ≈ 2 000 req/s); `next build` en Docker falla a veces por tiempo de espera al bajar Google Fonts (repetir); en producción la CSP solo permite conectar al mismo origen (API bajo `/api`);
+nunca guardar copias de nginx dentro de `sites-enabled` (nginx las carga; mover `*.bak-*` a `/root/nginx-backups/`).
+
+---
+
+# Estado actual — sesión 45 (2026-11-06/07, CERRADA PARCIALMENTE; se retoma en unas horas) — hardening para la campaña de 10–20 mil firmas
+
+**Feature `hardening-campana`** (`specs/hardening-campana/`, `in_progress`). **Fase 1: 56 %** (10 completadas, 8 con ajustes, 7 pendientes de 25); Fase 2: 0 %.
+`bash infra/progress.sh` da el % al instante. Detalle y hallazgos en `tasks.md`.
+
+**En producción (PR #27, #28, #29):** contexto RLS limpio por conexión (T2.4), hotfix del correo y **T1.5 `correo-recuperacion`** (`alembic=042`, 0 `pending`). Falta la prueba real: una firma de prueba con tu correo.
+**Hecho en el VPS por el usuario:** SSH por clave, T2.2 respaldos a R2 UE con restauración probada (RTO 20 s), T2.3 copia de claves, T3.4 alertas SMTP + chequeo externo GreenGeeks, T3.2 servidor por defecto en 443.
+
+**Sin commitear (el usuario commitea):** rama sugerida `chore/hardening-carga-monitoreo` con 5 commits ya redactados (proveedor de correo simulado, k6 + `verify_email_recovery.sh`, `infra/`, runbooks, specs).
+**Next 15/React 19** (19 archivos de `apps/web`) va aparte en `feat/web-next15`: falta build Docker real y revisión visual. Ramas: no usar `feat/correo-recuperacion` (obsoleta, ya fusionada); PR a `main` (el deploy corre con cualquier push a `main`).
+
+**Specs nuevas en `spec_ready` (esperan tu aprobación):** `cache-lecturas-publicas` (el escenario `read` dio 21 % de 5xx por agotamiento del pool; caché Redis 10 s + `Cache-Control` + 503 con `Retry-After`)
+y `verificacion-confirmacion-privacidad` (T5.7; `GET /confirm` confirma por escáner; **decide D1**, recomendada A: botón con `POST`, requiere Claude Design).
+
+**Pendiente de otros, por orden:** aprobar las dos specs → implementar `cache-lecturas-publicas` y repetir `read` · decidir TOTP (T5.3) · T5.1 soak, T5.4 runbook de incidentes, T5.5 congelamiento y reversión ·
+reglas de ciclo de vida del bucket R2 y R2 UE como subencargado (RAT y contrato) · purga de 1 137 `pending_confirmation` · repo del VPS en `main` · `PROVIDER_SECRET_KEY` dedicada (Fase 2).
+Entorno de carga: `LT_API_PORT=8031 docker compose -f docker-compose.loadtest.yml up -d` (el 8021 de tu Mac está ocupado); escenarios en `loadtest/README.md`.
+**Reglas vigentes:** ningún comando al VPS imprime secretos; `source` de archivos de config solo con comillas simples; los `sudo` por `ssh` requieren sesión interactiva.
 
 ---
 

@@ -76,8 +76,8 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 - [~] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
   *Decidido. Falta activar el plan y `RESEND_PLATFORM_PLAN=pro` (Paso 2 del runbook).*
 
-- [ ] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST, aprobada; falta su spec*
-  *Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
+- [~] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST*
+  *Código y tests hechos (spec `specs/correo-recuperacion/`, 342 passed). Falta C10 (k6 con proveedor simulado) y desplegar. Corrige además un defecto previo: no salía ningún correo de confirmación al firmar (ver spec). Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
 
 ## Día 2 — Datos y borde · *1,5/3*
 
@@ -86,10 +86,10 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   escritura, borrado ni inserción cruzada entre organizaciones, y sin firmas secretas/anuladas sin
   contexto. En dev `petition_admin` es dueño y `petition_app` no, así que `FORCE` no es necesario;
   falta confirmar lo mismo en producción (T1.1). **Hallazgos:** ver "Hallazgos" abajo.*
-- [~] **T2.2 · Backups cifrados offsite + restore probado** (R4, D4) · 4 h
+- [x] **T2.2 · Backups cifrados offsite + restore probado** (R4, D4) · 4 h
   *Scripts `infra/backup/pg_backup.sh` y `restore_test.sh` probados en dev (41 firmas = 41 restauradas,
   RTO 1 s). Falta instalarlos en el VPS, elegir el destino offsite y probar el restore real (Paso 4).*
-- [~] **T2.3 · Copia de claves críticas** (R4) · 1 h
+- [x] **T2.3 · Copia de claves críticas** (R4) · 1 h
   *Script `infra/backup/backup_keys.sh` probado (cifra sin imprimir). Falta ejecutarlo en el VPS (Paso 5).*
 
 - [x] **T2.4 · Contexto RLS aislado del pool** (R3) · 2 h
@@ -101,14 +101,14 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/client_ip.py` (solo confía en `CF-Connecting-IP` si la conexión viene de Cloudflare),
   usado por rate limit, `ip_hmac`, login, exportación y endpoint legado; 8 tests. Ya no depende del
   `real_ip` del conf de forms-qsm. Opcional: Paso 6 del runbook para logs de nginx con IP real.*
-- [~] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
+- [x] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
   *Solo runbook (Pasos 6 y 7): servidor por defecto `444` y reglas ufw con rangos de Cloudflare.
   Acción manual en el VPS, con segunda sesión SSH y confirmando que forms-qsm también está tras Cloudflare.*
 - [x] **T3.3 · Logs estructurados sin PII + alerta por 5xx** (R6a, D5) · 2 h
   *Hecho: `app/observability.py` (una línea JSON por petición: ruta-plantilla, estado, ms, `X-Request-ID`;
   sin query, cabeceras, cuerpo ni IP; ante excepción solo la clase), 3 tests; `business_signals.sh` alerta
   por 5xx (≥1 % aviso, ≥5 % crítico). La suite total es 305 passed. Sin desplegar.*
-- [~] **T3.4 · Monitor externo, Netdata, señales de negocio y alertas por correo** (R6b–d) · 6 h
+- [x] **T3.4 · Monitor externo, Netdata, señales de negocio y alertas por correo** (R6b–d) · 6 h
   *Hecho: `infra/monitoring/healthcheck_remote.sh` (GreenGeeks) y `business_signals.sh` (VPS: firmas
   sin confirmar, cola atascada, backup, disco, memoria, contenedores); SQL validado en dev. Falta
   instalarlos y la prueba real de correo (Pasos 8–10).*
@@ -132,11 +132,13 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/csv_safe.py` aplicado a las dos exportaciones de firmas (incluido el sello); 12 tests;
   alerta de >3 exportaciones/hora en `business_signals.sh`. No se aplicó al CSV de portabilidad ARCO (datos del propio
   titular) ni a la exportación legada de formularios.*
-- [ ] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *aprobada; falta su spec*
+- [ ] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *spec aprobada; D1 = A; V1–V4 hechas (API POST + página `/confirmar`, sin desplegar); faltan V5–V10: `specs/verificacion-confirmacion-privacidad/`*
   *Prueba con escáneres de enlaces (Outlook, Gmail, corporativo) y métrica de confirmaciones <5 s; contrastar aviso de privacidad con proveedores reales y pixel de Brevo; definir quién atiende ARCO y en qué plazo.*
 - [ ] **T5.3 · TOTP admin** (R9, D8) · 6 h — *si se decide en Fase 1*; si no, medidas
       mínimas + riesgo aceptado con fecha de revisión · 1 h
-- [ ] **T5.4 · Runbook de incidentes + playbooks mínimos** (R11) · 2 h
+- [x] **T5.4 · Runbook de incidentes + playbooks mínimos** (R11) · 2 h
+      `docs/engineering/runbook_incidentes.md` (alertas → acción, reversión) y playbooks A/B/C en `docs/legal/runbook_brechas.md` §8.
+      Pendiente tuyo: nombres y canales de guardia (tablas «por definir»).
 - [ ] **T5.5 · Congelamiento de cambios, lista de verificación y plan de reversión** (R12, R13) · 1 h
 - [ ] **T5.6 · Actualizar `progress/current.md` y `history.md`.**
 
@@ -147,6 +149,78 @@ petición siguiente los heredaba. Arreglo: `database.set_rls_context()` guarda e
 re-aplica con `is_local=true` en cada transacción (`after_begin`); además un listener `checkin` hace `RESET`
 al devolver la conexión al pool. Usado en `get_db_with_org`, retención, cola de comunicaciones y el script de
 nombres. `tests/test_pool_context_leak.py` (5 tests, pool de 1 conexión). Suite: 310 passed. Sin desplegar.
+
+## Respaldo fuera del VPS en R2 (capa gratuita) — estimación
+
+Base real: dump cifrado de **1,23 MB** con 2 373 firmas (producción, 2026-11-07). Con +20 000 firmas y márgenes:
+≈ 12 MB al final de la campaña (peor caso 25 MB). Plan: horario en `hourly/` (3 días) + diario en `daily/` (30 días).
+Almacenamiento: 72 + 30 objetos × 12 MB ≈ **1,2 GB** (peor caso ≈ 2,6 GB) frente a 10 GB gratis. Operaciones de clase A:
+≈ 4–6 por respaldo × 744 al mes ≈ **4 500** frente a 1 M gratis; clase B despreciable (10 M gratis); salida gratuita.
+Sin ciclo de vida el almacenamiento crecería sin límite (el script solo borra lo local): las dos reglas son obligatorias.
+Holgura: aun con retención de 30 días horaria (≈ 9–18 GB) el exceso costaría centavos (0,015 USD/GB·mes).
+
+## T2.2 cerrada (2026-11-07)
+
+Restauración probada en producción: 2 373 firmas restauradas = 2 373 originales, `consents` y `alembic=042` correctos, RTO 20 s
+(objetivo 2 h). Cron horario con subida a R2 (UE) y copia diaria; ver `docs/engineering/runbook_backup_restore.md`.
+Pendiente de comprobar: el primer respaldo horario automático (tras las 05:00) y las reglas de ciclo de vida del bucket.
+
+## T2.3 (copia de claves) — hecha en el VPS, falta custodiar
+
+`backup_keys.sh` corregido (contaba `PROVIDER_SECRET_KEY=` vacía como presente): estado real en producción
+`PII_ENCRYPTION_KEY`, `HMAC_SECRET_KEY` y `JWT_SECRET_KEY` con valor (64 caracteres); `PROVIDER_SECRET_KEY` **vacía**
+(el sistema usa `PII_ENCRYPTION_KEY` de respaldo; definir una propia exige re-cifrar credenciales por organización,
+Fase 2). Pendiente del usuario: traer `claves-cauce.age` al Mac, comprobar que descifra a 4 líneas y guardarlo
+separado de la identidad privada de `age`; luego `shred -u` en el VPS.
+
+## T3.4 — alertas por correo probadas (2026-11-07)
+
+`business_signals.sh` instalado en el VPS con cron cada 5 min; SMTP propio (`smtps://`) probado: llegó el correo de prueba y una
+alerta forzada `[Cauce][AVISO] memoria` (umbral bajado con `MEM_WARN`/`MEM_CRIT`). El script rechaza un `SMTP_URL` sin esquema.
+Incidente: la contraseña SMTP se imprimió en pantalla por un error de `source` (comillas); contraseña **rotada** por el usuario (2026-11-07).
+Chequeo externo `healthcheck_remote.sh` en GreenGeeks (cron cada 5 min, acceso por clave `host-cqsmorg-mac1`): prueba de caída
+con URL inexistente → contador 2 y correo `CAIDA` recibido. Corregidas las cabeceras MIME/UTF-8 de ambos scripts (el asunto con tilde llegaba roto).
+No probado: el correo `RECUPERADO` ni Netdata (opcional).
+
+## T3.2 cerrada (2026-11-07)
+
+Firewall ya aplicado (`ufw`: 80/443 solo Cloudflare). `real_ip_header CF-Connecting-IP` ya era global (forms-qsm): el log de `cauce` muestra IPs
+reales (no de Cloudflare). Servidor por defecto en 443 con `ssl_reject_handshake` (`/etc/nginx/conf.d/00-default-reject.conf`):
+`Host` desconocido → `000`; los sitios del VPS siguen respondiendo. HTTP/2 del origen verificado (`http=2`).
+
+## T4.2 — resultados de estrés (entorno aislado, 2026-11-07)
+
+`nominal`, `simultaneous`, `race`, `abuse`, `smoke`: pasan. `ramp` (hasta 30 altas/s): 11 180 firmas, p95 22 ms, 1 error 5xx. `spike` (100 altas/s): 15 352
+firmas, p95 105 ms, 0 errores. **`read` (300 lectores): 21 % de 5xx, p95 11 s** — agotamiento del pool en `by-slug`, `/{id}` y `signatures/recent`
+(sin caché; `by-slug` hace 4 consultas). Escritura OK; lectura es el cuello. Spec: `specs/cache-lecturas-publicas/` (pendiente de aprobación).
+Nota: el entorno corre en un Mac con Docker (≈ 28 000 firmas sintéticas); la capacidad real del VPS se mide en staging.
+
+## Despliegue en producción (verificado 2026-11-07, PR #27 → `a3623c8`)
+
+Desplegado y comprobado en el VPS: Turnstile fail-closed (T1.2), IP única (T3.1), PyJWT/FastAPI (T1.3c), contexto RLS
+en el pool (T2.4), CSV injection (T5.2), logs estructurados (T3.3, 3 eventos en 10 min, 0 errores) y límites de
+recursos (T4.3: api 1,5 GiB/2 CPU, web 1 GiB, db 2 GiB, redis 512 MiB, `volatile-lru`). Los cuatro contenedores se
+recrearon (≈1 h de actividad) y `/health` responde `ok`. El repo del VPS está en la rama `dev` (el workflow hace
+`git pull origin main` sobre ella; funciona, pero conviene dejarlo en `main`).
+
+## Datos reales de la campaña anterior (consulta de solo lectura, 2026-11-07)
+
+2 373 firmas reales (6–26 jul 2026, campaña `soberania-tlc-ecu-usa`, cerrada): **1 236 confirmadas (52 %) y 1 137
+pendientes (48 %)**, estable semana a semana (54/51/52 %). Todas las pendientes tienen más de 7 días y el enlace
+vencido. Consecuencias: (1) el defecto del correo **no afectó a esa campaña** (no hay caída en la serie; el código
+con el defecto se desplegó después), pero sí afectaría a la nueva; (2) la línea base de no confirmación es ~48 %, así
+que la alerta de tasa se recalibró a 75 %/90 % (antes 10 %/25 % habría sido crítica permanente); (3) con 10–20 mil
+firmas esperadas, cabe esperar ~5–10 mil confirmadas: T5.7 (escáneres, bandeja de spam) importa; (4) **retención:**
+1 137 registros no confirmados con datos personales llevan > 7 días en una campaña cerrada y `retention_service`
+no parece purgar `pending_confirmation`; revisar con el plazo de la política y decidir su borrado (minimización LOPDP).
+
+## Hallazgo crítico: el correo de confirmación no salía al firmar (CORREGIDO en código)
+
+Desde `af10af8` (2026-07-12) `create_signature` pasaba `entered_*` y `arco_review_url` a `send_confirmation_email`,
+que no los aceptaba: `TypeError` capturado por `except Exception` → warning y **ningún correo**. Solo el reenvío
+manual (que no pasaba esos argumentos) funcionaba. Corregido dentro de T1.5. **El código desplegado hoy en
+producción (main) tiene el defecto**: priorizar el despliegue de T1.5 antes del lanzamiento, y comprobar con una
+firma real de prueba que llega el correo con el resumen de datos.
 
 ## Hallazgos nuevos de esta sesión (para decidir)
 

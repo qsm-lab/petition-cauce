@@ -3,6 +3,59 @@
 
 ---
 
+## 2026-11-08 — Sesión 46: caché de lecturas públicas, borde de Cloudflare y página de confirmación
+
+**Foco:** `hardening-campana` → `cache-lecturas-publicas` (K1–K7, K10, A3) y `verificacion-confirmacion-privacidad` (D1 = A, V1–V4).
+
+**Entregado en código (sin commitear):** caché Redis de lecturas públicas con un solo reconstructor, copia obsoleta, índice de campañas visibles para 404 sin tocar la base, interruptor
+`PUBLIC_CACHE_ENABLED`, 503 con `Retry-After` ante pool agotado; `attempt_send` absorbe el timeout del pool; nginx pone `Cache-Control` a la landing; escenarios k6 `read_cold`,
+`read_random_slugs`, `ssr`; `loadtest/edge_check.sh`; `runbook_incidentes.md` y playbooks A/B/C; `GET /confirm/{token}` solo redirige y `POST` confirma; página `/confirmar/<token>` (diseño aprobado).
+
+**Mediciones:** `read` de 92 req/s con 21 % de 5xx a ≈ 2 100 req/s con 0 errores (p95 0,5–0,7 s). Redis caído (3 corridas): 0 errores 500, p95 0,6 s. SSR de Next ≈ 50–65 páginas/s con 1,5 CPU
+(RK13 crítico) → landing cacheable en el borde: MISS→HIT medido en producción. `spike` (100 altas/s): el límite es la CPU de la API, no la base.
+
+**Edge y despliegue manual (hecho por el usuario):** nginx con `Cache-Control` de la landing en el VPS y dos Cache Rules en Cloudflare (Edge TTL «usar cache-control si está, omitir si no»: con la opción por defecto de Cloudflare habría cacheado redirecciones sin cabecera). Medido: landing MISS→HIT; API pública `BYPASS` hasta que se despliegue la caché. Se movió una copia `.bak` fuera de `sites-enabled`.
+**Verificación de V4:** Brave sin interfaz con respuestas simuladas (éxito con/sin nombre, vencido, no válido, 500, 429 con enfriamiento, triple clic = un POST) y caso real contra la API de desarrollo; igual resultado sobre Next 14 (producción) y Next 15. Se ensayó el `docker build` de Next 15: correcto (con repeticiones por tiempos de espera de Google Fonts).
+**Commits:** tres bloques redactados (Next 15 en rama aparte y retenida; docs/herramientas; lo que se despliega: API, fix de correo, página y nginx).
+
+**Pendiente:** desplegar V3+V4 y la caché de la API juntas; K8 de la API pública (HIT, `variants`, `fresh`) y K9; firma real de prueba (V5); decisión sobre `confirm-visibility` por GET; V6–V10; T5.1/T5.3/T5.5/T5.6; revisión visual de Next 15.
+
+---
+
+## 2026-11-06/07 — Sesión 45: hardening para la campaña de 10–20 mil firmas (Fase 1 al 56 %)
+
+**Foco:** `hardening-campana` (spec aprobada, `in_progress`). Decisión A: Next.js 14→15.5. Las acciones en el VPS las ejecuta el usuario a mano.
+
+**Entregado en código (PR #27, #28, #29 fusionados y desplegados):** T2.4 contexto RLS limpio al devolver la conexión al pool (`checkin` + re-aplicación por transacción); hotfix del
+correo de confirmación (resumen de datos y enlace «Corregir mis datos»); **T1.5 / `correo-recuperacion`**: el correo sale fuera de la petición, con estado por firma (migración 042),
+reclamo atómico, backoff 1/5/15/60/180 min, tope de 6 intentos, token renovado y alertas `correo_gave_up`/`correo_atascado`. Producción en `alembic=042`, sin firmas `pending`.
+
+**Sin commitear al cierre (rama sugerida `chore/hardening-carga-monitoreo`):** proveedor de correo simulado (`EMAIL_FAKE_ENABLED`, prohibido en producción), escenarios k6
+(`nominal` obligatorio, `simultaneous` a 100, `smoke` ligero), `verify_email_recovery.sh`, `LT_API_PORT`, scripts de `infra/backup` y `infra/monitoring`, runbooks, specs nuevas.
+**Next 15/React 19 sigue sin commitear** (19 archivos de `apps/web`; falta build Docker real y revisión visual) → rama aparte `feat/web-next15`.
+
+**Hecho en el VPS (por el usuario):** SSH por clave + fail2ban; **T2.2** respaldo cifrado (`age`) con subida a R2 jurisdicción UE y cron horario+diario, **restauración probada** (2 373 firmas, RTO 20 s);
+**T2.3** copia cifrada de claves (`PROVIDER_SECRET_KEY` sigue vacía: usa `PII_ENCRYPTION_KEY`); **T3.4** alertas por SMTP propio probadas + chequeo externo en GreenGeeks (cron, clave `host-cqsmorg-mac1`);
+**T3.2** servidor por defecto en 443 (`ssl_reject_handshake`, `Host` desconocido → `000`), `real_ip` ya era global, HTTP/2 verificado.
+
+**Pruebas de carga (Mac, entorno aislado, proveedor de correo simulado):** `nominal`, `simultaneous`, `race`, `abuse`, `smoke` pasan; `ramp` 11 180 firmas p95 22 ms (1 error 5xx); `spike` 100 altas/s 0 errores;
+las 1 662 firmas del `nominal` quedaron en `sent` (máx. 3 intentos). **`read` (300 lectores): 21 % de 5xx, p95 11 s** por agotamiento del pool en `by-slug`, `/{id}` y `signatures/recent` (sin caché;
+`by-slug` = 4 consultas) → spec `cache-lecturas-publicas`.
+
+**Hallazgos:** (1) `GET /confirm/{token}` confirma la firma: un escáner de enlaces la confirma sin humano → spec `verificacion-confirmacion-privacidad` (T5.7, decisión D1);
+(2) `backup_keys.sh` contaba `PROVIDER_SECRET_KEY=` vacía como presente (corregido); (3) `business_signals.sh` no leía `MEM_WARN` y aceptaba `SMTP_URL` sin esquema (corregido); asuntos con tilde llegaban rotos (MIME/UTF-8);
+(4) alerta de tasa de confirmación recalibrada (línea base real ≈ 48 % pendientes); (5) puerto 8021 del Mac ocupado por otro proceso.
+
+**Incidentes:** la contraseña SMTP se imprimió por un error de `source` (comillas) y se pegó en el chat → **rotada**; un token de R2 de solo lectura se mostró en una captura → revocado.
+
+**Pendiente del usuario:** aprobar `cache-lecturas-publicas` y `verificacion-confirmacion-privacidad` (D1); decidir TOTP (T5.3); reglas de ciclo de vida del bucket R2 y registrar R2 UE como subencargado (RAT y contrato);
+purga de 1 137 firmas `pending_confirmation` de la campaña cerrada; dejar el repo del VPS en `main`; ejecutar los commits.
+
+**Lección técnica:** un `default_server` en 443 no existe por omisión: nginx entrega el primer servidor del puerto. `ssl_reject_handshake on` lo resuelve sin certificado. Y un `source` de un archivo de config con
+contraseñas imprime la línea que falla: comillas simples siempre y validar con `bash -n` + `sed 's/=.*/=…/'`.
+
+---
+
 ## 2026-10-24 — Sesión 44 (continuación): minimización, cola por cuota y envío real
 
 **Alcance** (specs exentas por decisión del usuario, MVP con mensaje urgente):

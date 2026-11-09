@@ -14,8 +14,6 @@ from app.models.privacy_policy import PrivacyPolicy
 from app.models.signature import Signature
 from app.crypto import compute_hmac, encrypt_pii, verify_cedula
 from app.schemas.signature import SignatureCreate
-from app.services.admin_signature_service import _mask_cedula, _mask_phone
-from app.services.email_service import send_confirmation_email
 
 # TTL del enlace de acceso directo al portal ARCO incluido en el email de
 # confirmación ("Corregir mis datos") — mismo mecanismo que R15, coincide con
@@ -145,6 +143,9 @@ async def create_signature(
         org_name_hash=org_name_hash,
         visibility=data.visibility,
         status="pending_confirmation",
+        # El correo de confirmación sale fuera de la petición (correo-recuperacion): ver confirmation_email_service.
+        confirmation_email_status="pending",
+        confirmation_email_next_at=datetime.now(timezone.utc),
         confirmation_token=token,
         confirmation_token_expires_at=expires_at,
         arco_verification_token=compute_hmac(arco_review_token),
@@ -177,37 +178,6 @@ async def create_signature(
 
     await db.commit()
     await db.refresh(sig)
-
-    try:
-        org_result = await db.execute(
-            select(Organization).where(Organization.id == campaign.org_id)
-        )
-        org = org_result.scalar_one_or_none()
-        from app.config import settings as _settings
-
-        app_url = (_settings.next_public_app_url or "http://localhost:3002").rstrip("/")
-        arco_review_url = f"{app_url}/mis-datos/portal?token={arco_review_token}&campaign={campaign.id}"
-        await send_confirmation_email(
-            to_email=email_normalized,
-            token=sig.confirmation_token,
-            campaign_title=campaign.petition_title or campaign.title,
-            signer_name=data.name or "",
-            org_name=org.name if org else "",
-            org_logo_url=(org.logo_url or "") if org else "",
-            visibility=data.visibility,
-            privacy_url=build_privacy_url(campaign.slug),
-            org_contact_email=(org.contact_email or "") if org else "",
-            entered_name=data.name or "",
-            entered_cedula_masked=_mask_cedula(data.cedula) if data.cedula else "",
-            entered_org_name=data.org_name.strip() if data.signer_type == "org" and data.org_name else "",
-            entered_location=(
-                (data.provincia or "") if data.location_mode == "nacional" else (data.country or "")
-            ),
-            entered_celular_masked=_mask_phone(data.celular.strip()) if data.celular and data.celular.strip() else "",
-            arco_review_url=arco_review_url,
-        )
-    except Exception:
-        logger.warning("[email] failed to send confirmation for sig %s", sig.id)
 
     return sig
 

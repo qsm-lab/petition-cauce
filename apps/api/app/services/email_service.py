@@ -250,6 +250,16 @@ async def send_lifecycle_signer_notification(
     return sent
 
 
+# RFC 2606 / 6761: dominios que nunca reciben correo. Enviarles solo produce rebotes (reputación del remitente).
+_RESERVED_SUFFIXES = (".test", ".invalid", ".local", ".localhost", ".example")
+_RESERVED_DOMAINS = ("example.com", "example.org", "example.net")
+
+
+def is_undeliverable_domain(address: str) -> bool:
+    domain = address.rsplit("@", 1)[-1].strip().lower().rstrip(".")
+    return domain in _RESERVED_DOMAINS or domain.endswith(_RESERVED_SUFFIXES)
+
+
 async def send_confirmation_email(
     to_email: str,
     token: str,
@@ -260,17 +270,26 @@ async def send_confirmation_email(
     visibility: str = "",
     privacy_url: str = "",
     org_contact_email: str = "",
-) -> None:
-    """`campaign_title` debe ser el título público (petition_title), no el interno."""
+    entered_name: str = "",
+    entered_cedula_masked: str = "",
+    entered_org_name: str = "",
+    entered_location: str = "",
+    entered_celular_masked: str = "",
+    arco_review_url: str = "",
+) -> bool:
+    """`campaign_title` debe ser el título público (petition_title), no el interno.
+
+    Devuelve True si el proveedor aceptó el mensaje (en desarrollo, sin proveedor, True)."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
 
+    if is_undeliverable_domain(to_email) and not settings.email_fake_enabled:
+        logger.info("[skip] confirmation email a dominio reservado: no se envía")
+        return True
+
     if not email_enabled():
-        logger.info(
-            "[dev] confirmation email | to=%s | url=%s",
-            to_email,
-            confirm_url,
-        )
-        return
+        # Sin proveedor (dev): el enlace se registra para poder confirmar a mano; el correo no (PII).
+        logger.info("[dev] confirmation email | url=%s", confirm_url)
+        return True
 
     # La nota corresponde SOLO a la visibilidad elegida por el firmante
     # (la de secreta únicamente si así la eligió originalmente)
@@ -291,21 +310,42 @@ async def send_confirmation_email(
             "style='color:#3d6b35;font-weight:600;'>aviso de privacidad</a> de la campaña."
         )
 
+    # derechos-arco R19: resumen de lo ingresado (nunca el correo) para corregir antes de confirmar.
+    review_rows = [
+        ("Nombre completo", entered_name),
+        ("Organización", entered_org_name),
+        ("Cédula", entered_cedula_masked),
+        ("Celular", entered_celular_masked),
+        ("Ubicación", entered_location),
+    ]
+    review_block = "".join(
+        f"<br>{label}: <strong>{_html.escape(value)}</strong>" for label, value in review_rows if value
+    )
+    if review_block:
+        review_block = f"<br><br>Revisa que tus datos hayan quedado bien escritos:{review_block}"
+    correct_link = ""
+    if arco_review_url:
+        correct_link = (
+            f"¿Algo está mal? <a href=\"{arco_review_url}\" style='color:#3d6b35;font-weight:600;'>"
+            "Corregir mis datos</a><br>"
+        )
+
     html = _signer_action_html(
         heading="Confirma tu firma",
         body_html=(
             f"Gracias por apoyar <strong>{campaign_title}</strong>.<br>"
             "Haz clic en el botón para activar tu firma. El enlace es válido por 24 horas."
-            f"{vis_block}{privacy_block}"
+            f"{review_block}{vis_block}{privacy_block}"
         ),
         cta_label="Confirmar mi firma →",
         cta_url=confirm_url,
-        footer="Si no solicitaste esta acción, ignora este mensaje. Tu firma no quedará registrada.",
+        footer=correct_link
+        + "Si no solicitaste esta acción, ignora este mensaje. Tu firma no quedará registrada.",
         signer_name=signer_name,
         org_name=org_name,
         org_logo_url=org_logo_url,
     )
-    await _send(to_email, f"Confirma tu firma: {campaign_title}", html)
+    return await _send(to_email, f"Confirma tu firma: {campaign_title}", html)
 
 
 async def send_thanks_share_email(
