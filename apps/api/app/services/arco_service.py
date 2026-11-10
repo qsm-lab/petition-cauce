@@ -133,7 +133,7 @@ async def _notify_titular(db: AsyncSession, sig: Signature, action_label: str, *
             to_email=email,
             action_label=action_label,
             campaign_title=campaign_title,
-            signer_name=sig.name or "",
+            signer_name=sig.greeting_name,
         )
     except Exception:
         logger.warning("[arco] failed to send change notification for sig %s", sig.id)
@@ -188,7 +188,7 @@ async def request_access(db: AsyncSession, email: str, cedula: str, origin_campa
         await send_arco_verification_email(
             to_email=email_normalized,
             token=token,
-            signer_name=anchor.name or "",
+            signer_name=anchor.greeting_name,
             campaign_count=len(matches),
         )
     except Exception:
@@ -482,6 +482,9 @@ async def rectify_personal_data(db: AsyncSession, session: dict, data: ArcoPerso
             else:
                 # invariante heredada de formulario-firma: nombre solo se conserva en visibilidad pública
                 sig.name = (data.name.strip() or None) if sig.visibility == "publica" else None
+                # revision-datos-al-firmar R17: el portal edita un solo campo; el correo vuelve a saludar con la primera palabra de `name`.
+                sig.first_name = None
+                sig.last_name = None
                 sig_fields.append("name")
 
         if data.celular is not None:
@@ -508,7 +511,7 @@ async def rectify_personal_data(db: AsyncSession, session: dict, data: ArcoPerso
                 to_email=new_email_normalized,
                 token=sig.confirmation_token,
                 campaign_title=campaign.petition_title or campaign.title,
-                signer_name=sig.name or "",
+                signer_name=sig.greeting_name,
                 org_name=org.name if org else "",
                 org_logo_url=(org.logo_url or "") if org else "",
                 visibility=sig.visibility,
@@ -535,6 +538,8 @@ async def set_visibility(db: AsyncSession, session: dict, signature_id: uuid.UUI
     sig.visibility = visibility
     if visibility != "publica":
         sig.name = None
+        sig.first_name = None
+        sig.last_name = None
 
     now = datetime.now(timezone.utc)
     db.add(_record_audit(sig.campaign_id, sig.email_hash, "rectificacion", "completed", {"stage": "visibility"}))
@@ -697,7 +702,7 @@ async def delete_subject(db: AsyncSession, session: dict, signature_id: uuid.UUI
     campaign = await _resolve_campaign(db, sig.campaign_id)
 
     original_email_hash = sig.email_hash
-    signer_name = sig.name or ""
+    signer_name = sig.greeting_name
     email: str | None = None
     if sig.email_encrypted:
         try:
