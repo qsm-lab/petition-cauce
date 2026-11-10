@@ -9,7 +9,10 @@
       (se retiró el helper antiguo por GET, sin uso). Verificado en navegador (Brave headless): 0 peticiones antes del clic, un solo POST aunque se haga clic 3 veces, éxito con/sin
       nombre → `/c/<slug>?confirmada=1[&nombre=Ana]`, vencido, no válido (también contra la API real), error 500 y 429 con enfriamiento de 5 s; medidas idénticas al diseño a 390 y 1160 px;
       sin desbordamiento a 360 px; `tsc` limpio y `next build` de producción correcto. API: `name` solo si la firma es `publica` (test). **V3 y V4 ya pueden desplegarse juntas.** _R1_
-- [ ] **V5 · Medición:** confirmación < 5 s p95 con k6 y con una firma de prueba en producción. _R2_
+- [x] **V5 · Medición:** confirmación < 5 s p95 con k6 y con una firma de prueba en producción. _R2_
+      **k6 (9 nov, entorno `lt-*` en Docker, escenario `confirm`):** 300 `POST /confirm/<token>` con tokens reales, 30 en paralelo → 300/300 `confirmed`, 0 errores 5xx, mediana 113 ms, p90 0,8 s, **p95 3,4 s** (< 5 s, cumple; la cola es el arranque simultáneo de 30 sobre 1 CPU de la API de carga; en producción el límite de 20/min por IP lo evita).
+      **Firma real en producción (9 nov, campaña `test-fresh`):** correo y confirmación «inmediatos» según el usuario (sin cronómetro; la medición del contador en `fresh` fue de 10 s hasta verse en el borde). Recorrido completo: firma → correo → `/confirmar/<token>` → confirmación OK.
+> V6–V10: material preparado el 9 nov en `preparacion-v6-v10.md` (tabla de buzones, comprobaciones de seguimiento, inventario de proveedores frente al RAT, guion ARCO y hechos/opciones de retención). Lo que requiere decisión está marcado ⏸ allí.
 - [ ] **V6 · Buzones reales:** Gmail, Outlook/Hotmail, iCloud y corporativo; tabla de resultados. _R3_
 - [ ] **V7 · Seguimiento:** revisar HTML y panel de Brevo/Resend (aperturas y clics desactivados). _R5_
 - [ ] **V8 · Aviso de privacidad y RAT:** proveedores y finalidades reales; Cloudflare R2 (UE) como subencargado. _R4_

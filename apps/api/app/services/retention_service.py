@@ -37,6 +37,8 @@ def compute_expiry(anchor: datetime, retention_days: int) -> datetime:
 def anonymize_signature(sig: Signature, now: datetime) -> None:
     """Anonimiza los campos identificantes de una firma, preservando los agregables (R3, R4)."""
     sig.name = None
+    sig.first_name = None
+    sig.last_name = None
     sig.org_name = None
     sig.org_name_hash = None
     sig.cedula_encrypted = None

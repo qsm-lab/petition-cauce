@@ -4,7 +4,9 @@ const PUBLIC_API =
 export interface SignaturePayload {
   signer_type: "natural" | "org";
   org_name?: string;
-  name: string;
+  // revision-datos-al-firmar: la API compone `name` (nombre completo) con estos dos campos.
+  first_name: string;
+  last_name: string;
   email: string;
   cedula?: string;
   celular?: string;
@@ -78,10 +80,13 @@ export async function submitSignature(
   }
 }
 
+export type ResendResult = "ok" | "rate_limited" | "error";
+
+/** El límite del servidor es 3 por minuto (429): la interfaz debe mostrar el resultado real, no «reenviado» siempre. */
 export async function resendConfirmation(
   campaignId: string,
   email: string,
-): Promise<boolean> {
+): Promise<ResendResult> {
   try {
     const res = await fetch(
       `${PUBLIC_API}/v1/public-campaign/${campaignId}/signatures/resend-confirmation`,
@@ -91,9 +96,10 @@ export async function resendConfirmation(
         body: JSON.stringify({ email }),
       }
     );
-    return res.status === 204;
+    if (res.status === 204) return "ok";
+    return res.status === 429 ? "rate_limited" : "error";
   } catch {
-    return false;
+    return "error";
   }
 }
 

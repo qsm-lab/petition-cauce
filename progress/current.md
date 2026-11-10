@@ -1,5 +1,21 @@
 # Estado actual — sesión 46 (2026-11-08) — CERRADA con cambios sin commitear: caché de lecturas públicas, borde de Cloudflare y página de confirmación
 
+## Continuación (2026-11-10): revision-datos-al-firmar implementada (sin commitear)
+
+- API: correo solo con el primer nombre; migración 043 (`first_name`/`last_name`); `greeting_name`; anulación en retención y ARCO; 16 tests nuevos.
+- Web: `StepForm` con dos campos, `StepReview` (resumen + Firmar/Editar datos), `StepSuccess` (Abrir <servicio> / Reenviar, aviso azul, cuenta atrás 10 s), `StepThanks` sin contador, `ConfirmedSharePopup` con contador. Módulos puros con tests `node --test` en `apps/web/src/lib/*.test.ts` (18).
+- Prueba en navegador contra dev con POST simulado: correcta; detectó y corrigió una carrera de doble clic.
+- Pendiente: probar con firma real en producción (S8), revisión de 360 px y teclado (S5), commit del usuario y despliegue conjunto (la migración 043 corre con el deploy).
+
+## Continuación (2026-11-09): despliegue y cierres
+- Despliegue a `main` hecho (el primer intento falló por `ETIMEDOUT` de Google Fonts; el reintento pasó). Producción: API con caché y `/confirmar/<token>` activos.
+- **K8/K9 cerradas** (`cache-lecturas-publicas`): borde verificado en producción, RK1/RK8 con `fresh` (11 s y 10 s), RK11 (CORS), RK14 (landing con `?fbclid`/`?utm` comparte copia; en plan Free se resolvió con «ignorar query» + exclusiones en la expresión de la regla). nginx y Cloudflare ya aplicados a mano.
+- **V5 cerrada** (k6 `confirm`: 300/300, p95 3,4 s; firma real inmediata). V6–V10 preparadas en `specs/verificacion-confirmacion-privacidad/preparacion-v6-v10.md`.
+- **Sin decidir:** R8 (`GET /confirm-visibility`), pixel de Brevo (V7), Cloudflare/VPS en el RAT (V8), responsable y plazo ARCO (V9), retención de pendientes (V10).
+- Pendiente: confirmar si «Ignorar cadena de consulta» está activo en la regla de la API en Cloudflare; campaña `test-fresh` debe quedar en `draft`/cerrada.
+- Sin commitear: `loadtest/*`, `specs/cache-lecturas-publicas/tasks.md`, `specs/verificacion-confirmacion-privacidad/*`, `progress/current.md`.
+
+
 **Fase 1 de `hardening-campana`: 60 %** (`bash infra/progress.sh`: 11 completadas, 8 con ajustes, 6 pendientes de 25). Features `cache-lecturas-publicas` y `verificacion-confirmacion-privacidad`: `in_progress` (no `done`).
 
 **Hecho (todo sin commitear; drafts de commits redactados y entregados al usuario):**

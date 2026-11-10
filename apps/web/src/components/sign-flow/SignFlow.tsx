@@ -3,19 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import StepForm, { type FormValues } from "./StepForm";
 import StepSending from "./StepSending";
-import StepSuccess from "./StepSuccess";
+import StepReview from "./StepReview";
+import StepSuccess, { type ResendUi } from "./StepSuccess";
 import StepError from "./StepError";
 import StepThanks from "./StepThanks";
 import {
   submitSignature,
-  getCampaignCount,
   resendConfirmation,
   setNewsletterConsent,
   type SignatureError,
 } from "@/lib/signatures-api";
 import type { FormConfig } from "@/lib/campaign-api";
+import { toSignaturePayload } from "@/lib/sign-payload";
+import { buildReviewRows } from "@/lib/review-rows";
+import { displayFirstName } from "@/lib/names";
 
-type Step = 0 | 1 | 2 | 3 | 4;
+type Step = "form" | "review" | "sending" | "success" | "error" | "thanks";
 
 interface Props {
   campaignId: string;
@@ -40,7 +43,8 @@ function buildInitForm(formConfig: FormConfig): FormValues {
   return {
     signer_type: "natural",
     org_name: "",
-    name: "",
+    first_name: "",
+    last_name: "",
     email: "",
     cedula: "",
     celular: "",
@@ -77,11 +81,15 @@ export default function SignFlow({
   welcomeSlogan,
   onClose,
 }: Props) {
-  const [step, setStep]           = useState<Step>(0);
+  const [step, setStep]           = useState<Step>("form");
   const [form, setForm]           = useState<FormValues>(() => buildInitForm(formConfig));
   const [errorMsg, setErrorMsg]   = useState("");
-  const [confirmData, setConfirmData] = useState<{ count: number; goal: number | null } | null>(null);
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [resend, setResend] = useState<ResendUi>("idle");
+  const [signing, setSigning] = useState(false);
+  const signingRef = useRef(false); // guardia síncrona: el estado llega tarde para un doble clic
+  // Último valor del formulario (incluido el token anti-bot, que se renueva solo aunque el formulario esté oculto).
+  const formRef = useRef(form);
+  formRef.current = form;
   // Token del consentimiento de Anuncios post-firma (embudo-post-firma).
   const [newsletterToken, setNewsletterToken] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -115,32 +123,35 @@ export default function SignFlow({
     return () => el.removeEventListener("keydown", trap);
   }, [step]);
 
-  async function handleSubmit(values: FormValues) {
+  /** Formulario válido → revisión. Todavía no se envía nada. */
+  function handleReview(values: FormValues) {
     setForm(values);
-    setStep(1);
-    const result = await submitSignature(campaignId, {
-      signer_type: values.signer_type,
-      org_name: values.signer_type === "org" ? values.org_name : undefined,
-      name: values.name,
-      email: values.email,
-      cedula: values.cedula || undefined,
-      celular: values.celular || undefined,
-      location_mode: values.location_mode,
-      provincia: values.location_mode === "nacional" ? values.provincia : undefined,
-      country: values.location_mode === "internacional" ? values.country : undefined,
-      visibility: values.visibility,
-      consent: values.consent,
-      subscribe_newsletter: false,
-      cf_turnstile_token: values.cf_turnstile_token,
-    });
-    if (result.ok) { setNewsletterToken(result.data.newsletter_token ?? null); setStep(2); }
-    else { setErrorMsg(errorMessage(result.error)); setStep(3); }
+    setStep("review");
   }
 
-  async function handleContinue() {
-    const data = await getCampaignCount(campaignId);
-    if (data) setConfirmData(data);
-    setStep(4);
+  async function handleSign() {
+    if (signingRef.current) return;
+    signingRef.current = true;
+    setSigning(true);
+    // Turnstile es invisible y se resolvió con el formulario; si venció o aún no llega, se espera hasta 5 s.
+    for (let i = 0; i < 50 && !formRef.current.cf_turnstile_token; i++) await new Promise((r) => setTimeout(r, 100));
+    await submit(formRef.current);
+    signingRef.current = false;
+    setSigning(false);
+  }
+
+  async function submit(values: FormValues) {
+    setStep("sending");
+    const result = await submitSignature(campaignId, toSignaturePayload(values));
+    if (result.ok) { setNewsletterToken(result.data.newsletter_token ?? null); setResend("idle"); setStep("success"); }
+    else { setErrorMsg(errorMessage(result.error)); setStep("error"); }
+  }
+
+  async function handleResend() {
+    setResend("sending");
+    const r = await resendConfirmation(campaignId, form.email);
+    setResend(r);
+    if (r === "rate_limited") setTimeout(() => setResend("idle"), 60_000);
   }
 
   const FONT_BODY = "var(--font-work-sans, 'Work Sans', sans-serif)";
@@ -153,7 +164,7 @@ export default function SignFlow({
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-modal="true"
-      aria-label={step === 4 ? "Tu apoyo quedó registrado" : "Firmar esta petición"}
+      aria-label={step === "thanks" ? "Tu apoyo quedó registrado" : "Firmar esta petición"}
     >
       {/* Panel */}
       <div
@@ -193,42 +204,47 @@ export default function SignFlow({
           ✕
         </button>
 
-        {step === 0 && (
+        {/* El formulario se mantiene montado (oculto) durante la revisión: conserva lo escrito y el token de Turnstile. */}
+        <div hidden={step !== "form"}>
           <StepForm
             initial={form}
             campaignId={campaignId}
             campaignTitle={campaignTitle}
             formConfig={formConfig}
             categoryColor={categoryColor}
-            onSubmit={handleSubmit}
+            onSubmit={handleReview}
+            onValuesChange={setForm}
+          />
+        </div>
+        {step === "review" && (
+          <StepReview
+            firstName={displayFirstName(form.first_name)}
+            rows={buildReviewRows(form, formConfig)}
+            busy={signing}
+            onSign={handleSign}
+            onEdit={() => setStep("form")}
           />
         )}
-        {step === 1 && <StepSending />}
-        {step === 2 && (
+        {step === "sending" && <StepSending />}
+        {step === "success" && (
           <StepSuccess
-            name={form.name}
+            name={displayFirstName(form.first_name)}
             email={form.email}
-            resendState={resendState}
-            onContinue={handleContinue}
-            onResend={async () => {
-              setResendState("sending");
-              await resendConfirmation(campaignId, form.email);
-              setResendState("sent");
-            }}
+            resend={resend}
+            onResend={handleResend}
+            onDone={() => setStep("thanks")}
           />
         )}
-        {step === 3 && (
+        {step === "error" && (
           <StepError
             message={errorMsg}
-            onRetry={() => handleSubmit(form)}
-            onBack={() => setStep(0)}
+            onRetry={() => submit(form)}
+            onBack={() => setStep("form")}
           />
         )}
-        {step === 4 && (
+        {step === "thanks" && (
           <StepThanks
-            name={form.name}
-            count={confirmData?.count ?? 0}
-            goal={confirmData?.goal ?? null}
+            name={displayFirstName(form.first_name)}
             campaignUrl={campaignUrl}
             campaignTitle={campaignTitle}
             categoryColor={categoryColor}

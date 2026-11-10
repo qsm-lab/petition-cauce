@@ -5,7 +5,9 @@
 //
 //   k6 run -e BASE_URL=http://staging:8011 -e CAMPAIGN_ID=<uuid> -e SCENARIO=ramp loadtest/signatures.js
 //
-// SCENARIO: smoke | nominal | ramp | spike | simultaneous | race | soak | read | read_cold | read_random_slugs | ssr | abuse
+// SCENARIO: smoke | nominal | ramp | spike | simultaneous | race | soak | read | read_cold | read_random_slugs | ssr | confirm | abuse
+//   confirm   = POST /confirm/<token> con tokens reales de firmas pendientes (verificacion-confirmacion-privacidad V5/R2: p95 < 5 s). Requiere
+//               TOKENS_FILE (JSON con un arreglo de tokens, montado en el contenedor de k6) y CONFIRM_COUNT (por defecto 300).
 //   read_cold = como `read` pero para lanzarlo con Redis recién vaciado (RK9); read_random_slugs = 100 lectores reales + 100 que piden
 //   slugs/ids inventados (RK10). Ambos de cache-lecturas-publicas; ver loadtest/README.md.
 //   nominal   = carga esperada (OBLIGATORIA): 1 firma/s sostenida + ráfaga de 10/s (≈ 3 000 firmas/hora)
@@ -13,6 +15,8 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
+import { SharedArray } from 'k6/data';
+import exec from 'k6/execution';
 
 const BASE = (__ENV.BASE_URL || 'http://localhost:8011').replace(/\/$/, '');
 const CAMPAIGN = __ENV.CAMPAIGN_ID;
@@ -83,6 +87,8 @@ const PROFILES = {
   ssr: { executor: 'constant-vus', vus: Number(__ENV.SSR_VUS || 300), duration: __ENV.SSR_DURATION || '2m', exec: 'ssrFlow' },
   read_cold: { executor: 'constant-vus', vus: 300, duration: '1m', exec: 'readFlow' },
   abuse: { executor: 'constant-vus', vus: 3, duration: '1m', exec: 'abuseFlow' },
+  // V5/R2: cada iteración confirma un token distinto; 30 en paralelo ≈ picos de clics al abrir la campaña.
+  confirm: { executor: 'shared-iterations', vus: 30, iterations: Number(__ENV.CONFIRM_COUNT || 300), maxDuration: '5m', exec: 'confirmFlow' },
 };
 
 // RK10: dos grupos a la vez (no cabe en un solo perfil). Los lectores reales deben salir sin 5xx aunque otros pidan slugs inventados.
@@ -99,6 +105,7 @@ export const options = {
     'http_req_duration{name:signature}': ['p(95)<1500'],
     'http_req_duration{name:read}': ['p(95)<800'],
     'http_req_duration{name:ssr}': ['p(95)<1500'],
+    'http_req_duration{name:confirm}': ['p(95)<5000'],
     server_errors: ['count==0'],
     net_errors: ['count==0'],
     ...(SCENARIO === 'race' ? { signatures_created: ['count==1'] } : {}),
@@ -165,6 +172,18 @@ export function readFlow() {
   if (SLUG) calls.push(`${API}/by-slug/${SLUG}`);
   const res = http.batch(calls.map((u) => ['GET', u, null, { headers: headers(), tags: { name: 'read' } }]));
   res.forEach((r) => { if (is5xx(r)) server5xx.add(1); else if (r.status === 503) degraded503.add(1); });
+}
+
+// V5/R2: confirmación por POST. Espera {status:'confirmed'} con el token real; un token repetido sería idempotente, así que cada VU toma uno distinto.
+const TOKENS = __ENV.TOKENS_FILE ? new SharedArray('tokens', () => JSON.parse(open(__ENV.TOKENS_FILE))) : [];
+export const confirmed = new Counter('confirmations_confirmed');
+export function confirmFlow() {
+  const tok = TOKENS[exec.scenario.iterationInTest % TOKENS.length];
+  const r = http.post(`${API}/confirm/${tok}`, null, { headers: headers(), tags: { name: 'confirm' } });
+  if (is5xx(r)) server5xx.add(1);
+  const ok = r.status === 200 && r.json('status') === 'confirmed';
+  if (ok) confirmed.add(1);
+  check(r, { 'confirmed': () => ok });
 }
 
 // RK13: HTML de la landing (SSR de Next); depende de la API por detrás, así que un 5xx aquí puede venir de cualquiera de las dos.

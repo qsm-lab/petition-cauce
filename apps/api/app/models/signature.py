@@ -12,6 +12,9 @@ class Signature(Base):
     campaign_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
     org_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255))
+    # revision-datos-al-firmar: `name` es el nombre completo compuesto; first/last solo existen en firmas nuevas (migración 043).
+    first_name: Mapped[str | None] = mapped_column(String(120))
+    last_name: Mapped[str | None] = mapped_column(String(120))
     email_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     email_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     cedula_encrypted: Mapped[str | None] = mapped_column(Text)
@@ -66,3 +69,9 @@ class Signature(Base):
     campaign = relationship("Campaign", back_populates="signatures")
     organization = relationship("Organization", back_populates="signatures")
     consents = relationship("Consent", back_populates="signature", cascade="all, delete-orphan")
+
+    @property
+    def greeting_name(self) -> str:
+        """Lo único que se entrega a las funciones de correo como nombre del firmante: `first_name`, o `name` en las firmas
+        anteriores a la separación. Las plantillas toman de aquí solo la primera palabra (RAT: solo el primer nombre llega a los proveedores)."""
+        return self.first_name or self.name or ""

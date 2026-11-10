@@ -300,7 +300,7 @@ async def get_recipients_by_ids(db: AsyncSession, ids: list[uuid.UUID]) -> list[
     resolverse)."""
     if not ids:
         return []
-    query = select(Signature.id, Signature.email_encrypted, Signature.name).where(Signature.id.in_(ids))
+    query = select(Signature.id, Signature.email_encrypted, func.coalesce(Signature.first_name, Signature.name)).where(Signature.id.in_(ids))
     result = await db.execute(query)
     recipients: list[tuple[str, str, uuid.UUID]] = []
     for sig_id, enc, name in result.all():
@@ -347,7 +347,7 @@ async def get_recipient_data_by_ids(db: AsyncSession, ids: list[uuid.UUID]) -> l
             email = decrypt_pii(sig.email_encrypted, ref=str(sig.id))
         except PIIDecryptError:
             continue
-        recipients.append(RecipientData(signature_id=sig.id, email=email, name=sig.name or ""))
+        recipients.append(RecipientData(signature_id=sig.id, email=email, name=sig.greeting_name))
     return recipients
 
 

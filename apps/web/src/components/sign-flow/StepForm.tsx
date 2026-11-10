@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TurnstileWidget from "@/components/form-renderer/TurnstileWidget";
 import SignHandIcon from "@/components/ui/SignHandIcon";
 import type { FormConfig } from "@/lib/campaign-api";
 import { PROVINCIAS } from "@/lib/provincias";
+import { VIS_HINTS } from "@/lib/visibility";
 
 /** Azul de la paleta — selección activa después de que el usuario interactúa con un grupo */
 const ACTIVE_BLUE = "#2B4EEA";
@@ -15,17 +16,11 @@ const ALL_VIS_OPTIONS = [
   { value: "sec"  as const, db: "secreta"  as const, label: "Secreta" },
 ];
 
-/** Qué implica cada visibilidad — se muestra bajo los botones según la selección */
-const VIS_HINTS: Record<"pub" | "anon" | "sec", string> = {
-  pub:  "Su nombre aparecerá en el listado público de apoyos y en el documento de entrega de la campaña.",
-  anon: "Su firma se suma al conteo y al documento de entrega, pero su nombre no se muestra públicamente.",
-  sec:  "Su firma solo se suma al conteo. No se muestra ni se incluirá en el documento de entrega oficial a autoridades.",
-};
-
 export interface FormValues {
   signer_type: "natural" | "org";
   org_name: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   cedula: string;
   celular: string;
@@ -43,7 +38,10 @@ interface Props {
   campaignTitle: string;
   formConfig: FormConfig;
   categoryColor: string;
+  /** «Firmar» con el formulario válido: SignFlow abre la revisión; no se envía nada todavía. */
   onSubmit: (values: FormValues) => void;
+  /** Mantiene a SignFlow al día con los valores (y con el token anti-bot, que se renueva solo) mientras el formulario está oculto en la revisión. */
+  onValuesChange?: (values: FormValues) => void;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -67,8 +65,13 @@ const labelStyle: React.CSSProperties = {
   color: "#16261F",
 };
 
-export default function StepForm({ initial, campaignId, campaignTitle, formConfig, categoryColor, onSubmit }: Props) {
+export default function StepForm({ initial, campaignId, campaignTitle, formConfig, categoryColor, onSubmit, onValuesChange }: Props) {
   const [vals, setVals] = useState<FormValues>(initial);
+  useEffect(() => { onValuesChange?.(vals); }, [vals]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [nameErrors, setNameErrors] = useState<{ first?: string; last?: string }>({});
+  const firstRef = useRef<HTMLInputElement>(null);
+  const lastRef = useRef<HTMLInputElement>(null);
   const set = <K extends keyof FormValues>(k: K, v: FormValues[K]) =>
     setVals((prev) => ({ ...prev, [k]: v }));
 
@@ -103,12 +106,20 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
   const showVisGroup      = visOptions.length > 1;
   const isIntl            = vals.location_mode === "internacional";
   const cedulaRequired    = !isIntl && required.has("cedula");
-  const canSubmit         = !!(vals.name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email) && vals.consent);
+  const canSubmit         = !!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vals.email) && vals.consent);
+
+  const nameError = (field: "first" | "last", value: string) =>
+    value.trim() ? undefined : field === "first" ? "Falta el nombre" : "Falta el apellido";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    onSubmit(vals);
+    // El foco va al primer campo inválido y no se abre la revisión (revision-datos-al-firmar R14).
+    const errors = { first: nameError("first", vals.first_name), last: nameError("last", vals.last_name) };
+    setNameErrors(errors);
+    if (errors.first) { firstRef.current?.focus(); return; }
+    if (errors.last) { lastRef.current?.focus(); return; }
+    onSubmit({ ...vals, first_name: vals.first_name.trim(), last_name: vals.last_name.trim() });
   }
 
   const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
@@ -212,18 +223,40 @@ export default function StepForm({ initial, campaignId, campaignTitle, formConfi
         </div>
       )}
 
-      {/* Nombre completo */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Nombre completo *</label>
-        <input
-          type="text"
-          required
-          autoComplete="name"
-          value={vals.name}
-          onChange={(e) => set("name", e.target.value)}
-          style={inputStyle}
-          placeholder="Nombre Apellido"
-        />
+      {/* Nombre(s) y Apellido(s): dos campos; en pantallas anchas, lado a lado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: 16 }}>
+        {([
+          { key: "first", label: "Nombre(s)", field: "first_name", ref: firstRef, auto: "given-name", id: "sf-first-name" },
+          { key: "last", label: "Apellido(s)", field: "last_name", ref: lastRef, auto: "family-name", id: "sf-last-name" },
+        ] as const).map((f) => {
+          const err = nameErrors[f.key];
+          return (
+            <div key={f.key}>
+              <label htmlFor={f.id} style={labelStyle}>{f.label} <span aria-hidden="true">*</span></label>
+              <input
+                ref={f.ref}
+                id={f.id}
+                type="text"
+                autoComplete={f.auto}
+                aria-required="true"
+                aria-invalid={err ? true : undefined}
+                aria-describedby={err ? `${f.id}-err` : undefined}
+                maxLength={120}
+                value={vals[f.field]}
+                onChange={(e) => {
+                  set(f.field, e.target.value);
+                  if (err) setNameErrors((prev) => ({ ...prev, [f.key]: undefined }));
+                }}
+                style={err ? { ...inputStyle, borderColor: "#c2410c", background: "#fdf6f3" } : inputStyle}
+              />
+              {err && (
+                <p id={`${f.id}-err`} style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 600, color: "#9a3412", lineHeight: 1.35 }}>
+                  {err}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Correo */}

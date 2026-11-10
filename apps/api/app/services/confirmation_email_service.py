@@ -26,7 +26,6 @@ from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.organization import Organization
 from app.models.signature import Signature
-from app.services.admin_signature_service import _mask_cedula, _mask_phone
 from app.services.email_service import send_confirmation_email
 from app.services.signature_service import _ARCO_REVIEW_TTL_HOURS, _TOKEN_TTL_HOURS, build_privacy_url
 
@@ -133,25 +132,18 @@ async def _deliver(db, sig: Signature) -> bool | None:
 
     ref = str(sig.id)
     to_email = decrypt_pii(sig.email_encrypted, ref=ref)
-    cedula = decrypt_pii(sig.cedula_encrypted, ref=ref) if sig.cedula_encrypted else ""
-    celular = decrypt_pii(sig.celular_encrypted, ref=ref) if sig.celular_encrypted else ""
 
     app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
     return await send_confirmation_email(
         to_email=to_email,
         token=sig.confirmation_token,
         campaign_title=campaign.petition_title or campaign.title,
-        signer_name=sig.name or "",
+        signer_name=sig.greeting_name,
         org_name=org.name if org else "",
         org_logo_url=(org.logo_url or "") if org else "",
         visibility=sig.visibility,
         privacy_url=build_privacy_url(campaign.slug),
         org_contact_email=(org.contact_email or "") if org else "",
-        entered_name=sig.name or "",
-        entered_cedula_masked=_mask_cedula(cedula) if cedula else "",
-        entered_org_name=(sig.org_name or "") if sig.signer_type == "org" else "",
-        entered_location=sig.provincia or sig.country or "",
-        entered_celular_masked=_mask_phone(celular) if celular else "",
         arco_review_url=f"{app_url}/mis-datos/portal?token={arco_review_token}&campaign={campaign.id}",
     )
 
