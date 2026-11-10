@@ -36,16 +36,15 @@ en GreenGeeks compartido, alertas por correo, Resend Pro.
 - [x] **Correo transaccional:** *decidido* — Resend Pro (50.000/mes). Falta activar el plan
       en la cuenta y fijar `RESEND_PLATFORM_PLAN=pro` en producción. (R5, D7)
 - [ ] **TOTP admin** dentro de la Fase 1 (≈1 día) o aceptar el riesgo con medidas mínimas. (R9)
-- [ ] **Staging:** host temporal separado (preferible) o ventana en el VPS actual. (D6)
-- [ ] **Destino de backups offsite** (almacenamiento de objetos) y quién guarda la clave
-      privada de cifrado. (R4)
-- [ ] **Fecha objetivo de lanzamiento** y persona de guardia los primeros 7 días. (R6, R13)
+- [ ] **Staging:** de hecho se usó un entorno aislado en el Mac (ver T4.1). Confirmar que basta o pedir un host temporal para el soak y S7. (D6)
+- [x] **Destino de backups offsite:** *decidido* — R2 UE. Falta anotar quién guarda la clave privada de cifrado. (R4)
+- [ ] **Fecha objetivo de lanzamiento** y persona de guardia los primeros 7 días. *Abierta a propósito: se define cuando se decida crear la nueva campaña.* (R6, R13)
 
 ---
 
 # FASE 1 — Antes del lanzamiento (objetivo: 5 días hábiles)
 
-**Progreso de la fase: 46 %** (6 completadas, 11 con ajustes, 8 pendientes de 25).
+**Progreso de la fase: 68 %** (13 completadas, 8 con ajustes, 4 pendientes de 25; reconciliado con la evidencia el 10 nov 2026).
 
 Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga se haga
 **cuando ya estén aplicados los cambios** (no antes).
@@ -55,29 +54,35 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 - [~] **T1.1 · Diagnóstico de solo lectura en el VPS** (R1, R3, R4, R8) · 1 h
   *Preparada. Falta ejecutarla (SSH de `ssdn` rechazado desde esta sesión):
   `ssh ssdn 'bash -s' < infra/monitoring/vps_readonly_audit.sh` (Paso 1 del runbook).*
+  **Actualizado 10 nov 2026:** el usuario ya aplicó SSH por clave, fail2ban y servidor por defecto en 443. **Falta ejecutar `vps_readonly_audit.sh`**: confirma `ENVIRONMENT=production`, la clave real de Turnstile, `FORCE RLS`/dueño de tablas, reglas `ufw` y parches (`apt list --upgradable`). Cierra T2.1, T3.2 y T1.3 a la vez.
 - [x] **T1.2 · Guarda de arranque de Turnstile + fail-closed** (R1, D1) · 1,5 h
   *Hecho: `config.py`, `turnstile_service.py`, 8 tests. Sin desplegar. Antes de desplegar, confirmar con
   T1.1 que `ENVIRONMENT=production` y la clave real existen en el VPS, o la API no arrancará.*
+  **Actualizado 10 nov 2026:** en `main` y desplegado (la API arranca en producción con la guarda activa).
 - [~] **T1.3 · Higiene de dependencias y secretos** (R11) · 2 h
   *Hecho: sin secretos reales en el historial (solo site keys públicas); `pip-audit` limpio
   («No known vulnerabilities found»); `pnpm audit` de 44 avisos a 3. Falta: parches del SO en el VPS
   (`apt list --upgradable`, en el script de T1.1), y decidir `zod` (alta, exige v4) y
   `postcss-selector-parser` (de Tailwind), sin solución sin salto mayor.*
+  **Actualizado 10 nov 2026:** sigue pendiente solo lo del VPS (parches del SO) y decidir por escrito `zod` y `postcss-selector-parser`.
 - [~] **T1.3b · Next.js 14 → 15.5.29** (R11) · 1–2 días
   *Hecho: Next 15.5.29 + React 19.3.1, codemod async API (15 archivos), tipos OK, `next build` OK
   (24 páginas, con fuentes simuladas), prueba de runtime (landing SSR, `/admin` redirige, cabeceras
   CSP). Críticas 3 → 0. Falta: **(a)** build Docker real (esta máquina no llega a Google Fonts; el VPS
   sí), **(b)** revisión visual en navegador de landing, formulario de firma y admin (React 19),
   **(c)** reconstruir `petition-web-dev` local.*
+  **Actualizado 10 nov 2026:** rama `chore/next-15-react-19`; **no se fusiona antes del lanzamiento** (decisión). Queda para después: build Docker real y revisión visual completa.
 - [x] **T1.3c · FastAPI/Starlette actualizados** (R11) · 0,5–1 día
   *Hecho: FastAPI 0.162.0, Starlette 1.10.0, `python-jose` → PyJWT 2.15.0, `cryptography` 50.0.2,
   `python-multipart` 0.0.33, `jinja2` 3.1.6, `pyarrow` retirado (no se usaba). 302 tests verdes.
   Imagen Docker de producción de la API construida correctamente (1,01 GB).*
-- [~] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
+- [x] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
   *Decidido. Falta activar el plan y `RESEND_PLATFORM_PLAN=pro` (Paso 2 del runbook).*
+  **Actualizado 10 nov 2026:** Resend Pro activo en producción (`/comms/quota`: sin cuota diaria, 50.000/mes; `RESEND_PLATFORM_PLAN=pro`).
 
-- [~] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST*
+- [x] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST*
   *Código y tests hechos (spec `specs/correo-recuperacion/`, 342 passed). Falta C10 (k6 con proveedor simulado) y desplegar. Corrige además un defecto previo: no salía ningún correo de confirmación al firmar (ver spec). Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
+  **Actualizado 10 nov 2026:** desplegado (migración 042 en producción). C10 hecho: k6 `race`/`simultaneous` con proveedor simulado; 1.662 firmas del `nominal` quedaron en `sent` (ver `specs/correo-recuperacion/tasks.md`).
 
 ## Día 2 — Datos y borde · *1,5/3*
 
@@ -86,11 +91,14 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   escritura, borrado ni inserción cruzada entre organizaciones, y sin firmas secretas/anuladas sin
   contexto. En dev `petition_admin` es dueño y `petition_app` no, así que `FORCE` no es necesario;
   falta confirmar lo mismo en producción (T1.1). **Hallazgos:** ver "Hallazgos" abajo.*
+  **Actualizado 10 nov 2026:** en dev está verificado; falta comprobarlo en producción con el diagnóstico de T1.1 (`petition_app` sin superusuario/BYPASSRLS, dueño de las tablas, `FORCE` descartado o aplicado).
 - [x] **T2.2 · Backups cifrados offsite + restore probado** (R4, D4) · 4 h
   *Scripts `infra/backup/pg_backup.sh` y `restore_test.sh` probados en dev (41 firmas = 41 restauradas,
   RTO 1 s). Falta instalarlos en el VPS, elegir el destino offsite y probar el restore real (Paso 4).*
+  **Actualizado 10 nov 2026:** instalado y con cron horario+diario a R2 (UE). Restauración real probada: 2.373 firmas, RTO 20 s; RPO = 1 h. Pendiente: reglas de ciclo de vida del bucket y registrar R2 como subencargado en el RAT (V8).
 - [x] **T2.3 · Copia de claves críticas** (R4) · 1 h
   *Script `infra/backup/backup_keys.sh` probado (cifra sin imprimir). Falta ejecutarlo en el VPS (Paso 5).*
+  **Actualizado 10 nov 2026:** ejecutado en el VPS. `PROVIDER_SECRET_KEY` vacía: se usa `PII_ENCRYPTION_KEY`.
 
 - [x] **T2.4 · Contexto RLS aislado del pool** (R3) · 2 h
   *Hecho: `set_rls_context` + listener `checkin`; 5 tests con pool de 1 conexión. Ver «Hallazgo T2.4».*
@@ -101,29 +109,35 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/client_ip.py` (solo confía en `CF-Connecting-IP` si la conexión viene de Cloudflare),
   usado por rate limit, `ip_hmac`, login, exportación y endpoint legado; 8 tests. Ya no depende del
   `real_ip` del conf de forms-qsm. Opcional: Paso 6 del runbook para logs de nginx con IP real.*
-- [x] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
+- [~] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
   *Solo runbook (Pasos 6 y 7): servidor por defecto `444` y reglas ufw con rangos de Cloudflare.
   Acción manual en el VPS, con segunda sesión SSH y confirmando que forms-qsm también está tras Cloudflare.*
+  **Actualizado 10 nov 2026:** hecho: servidor por defecto en 443 (`ssl_reject_handshake`). **No hay evidencia** de las reglas `ufw` con rangos de Cloudflare: verificar con T1.1 (`sudo ufw status`).
 - [x] **T3.3 · Logs estructurados sin PII + alerta por 5xx** (R6a, D5) · 2 h
   *Hecho: `app/observability.py` (una línea JSON por petición: ruta-plantilla, estado, ms, `X-Request-ID`;
   sin query, cabeceras, cuerpo ni IP; ante excepción solo la clase), 3 tests; `business_signals.sh` alerta
   por 5xx (≥1 % aviso, ≥5 % crítico). La suite total es 305 passed. Sin desplegar.*
+  **Actualizado 10 nov 2026:** en `main` y desplegado.
 - [x] **T3.4 · Monitor externo, Netdata, señales de negocio y alertas por correo** (R6b–d) · 6 h
   *Hecho: `infra/monitoring/healthcheck_remote.sh` (GreenGeeks) y `business_signals.sh` (VPS: firmas
   sin confirmar, cola atascada, backup, disco, memoria, contenedores); SQL validado en dev. Falta
   instalarlos y la prueba real de correo (Pasos 8–10).*
+  **Actualizado 10 nov 2026:** instalado: alertas por SMTP propio probadas y chequeo externo en GreenGeeks (cron). Netdata sin evidencia de prueba de alerta.
 
 ## Día 4 — Capacidad · *1/3*
 
-- [~] **T4.1 · Staging + scripts k6 S0–S7** (R7, D6) · 5 h
+- [x] **T4.1 · Staging + scripts k6 S0–S7** (R7, D6) · 5 h
   *Hecho: `loadtest/signatures.js` (smoke, ramp, spike, simultaneous, race, soak, read, abuse) y
   `cleanup.sql`. Falta el staging con correo *stub*; **no se debe apuntar a la API dev actual**, que
   tiene `RESEND_API_KEY` real. S7 (caída de Redis/Turnstile) es manual.*
-- [ ] **T4.2 · Ejecutar S0–S3 y S5–S7; ajustar** (R7, R8) · 4 h
+  **Actualizado 10 nov 2026:** el «staging» fue un entorno aislado en el Mac (`petition_loadtest_net`, proveedor de correo simulado), no un host aparte. Limitación: la CPU del Mac no es la del VPS; las cifras son relativas.
+- [~] **T4.2 · Ejecutar S0–S3 y S5–S7; ajustar** (R7, R8) · 4 h
   *Pendiente (depende del staging). Ajustar `pool_size`, workers, límites y rate limit (CGNAT).*
+  **Actualizado 10 nov 2026:** ejecutados `smoke`, `nominal`, `ramp`, `spike`, `simultaneous`, `race`, `abuse`, `read` (2.100 req/s sin errores tras la caché) y Redis caído (3 corridas, 0 errores 500). Faltan: S7 con Turnstile caído y ajustar `pool_size`/workers/rate limit frente a CGNAT.
 - [~] **T4.3 · Límites de recursos y pool** (R8) · 1,5 h
   *Hecho (valores iniciales): `mem_limit`/`cpus` en `docker-compose.yml`, `maxmemory` de Redis, pool
   `10 + 10` por worker (`DB_POOL_*`). Se afinan con T4.2.*
+  **Actualizado 10 nov 2026:** límites iniciales aplicados (`feef0d4`); con `spike` el límite es la CPU de los 2 workers. Falta afinarlos con T4.2.
 
 ## Día 5 — Soak, admin y cierre · *1/6*
 
@@ -132,8 +146,9 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/csv_safe.py` aplicado a las dos exportaciones de firmas (incluido el sello); 12 tests;
   alerta de >3 exportaciones/hora en `business_signals.sh`. No se aplicó al CSV de portabilidad ARCO (datos del propio
   titular) ni a la exportación legada de formularios.*
-- [ ] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *spec aprobada; D1 = A; V1–V4 hechas (API POST + página `/confirmar`, sin desplegar); faltan V5–V10: `specs/verificacion-confirmacion-privacidad/`*
+- [~] **T5.7 · Verificación mínima de confirmación y privacidad** (R12, R20) · 3 h · *spec aprobada; D1 = A; V1–V4 hechas (API POST + página `/confirmar`, sin desplegar); faltan V5–V10: `specs/verificacion-confirmacion-privacidad/`*
   *Prueba con escáneres de enlaces (Outlook, Gmail, corporativo) y métrica de confirmaciones <5 s; contrastar aviso de privacidad con proveedores reales y pixel de Brevo; definir quién atiende ARCO y en qué plazo.*
+  **Actualizado 10 nov 2026:** V1–V5 hechas (V5 cerrada el 10 nov con firma real). Quedan V6–V10 (`preparacion-v6-v10.md`); la verificación de datos pasó a un paso en el diálogo de firma (`revision-datos-al-firmar`).
 - [ ] **T5.3 · TOTP admin** (R9, D8) · 6 h — *si se decide en Fase 1*; si no, medidas
       mínimas + riesgo aceptado con fecha de revisión · 1 h
 - [x] **T5.4 · Runbook de incidentes + playbooks mínimos** (R11) · 2 h
@@ -246,14 +261,14 @@ firma real de prueba que llega el correo con el resumen de datos.
 
 ### Criterios de salida (go / no-go de lanzamiento)
 
-- [ ] Turnstile no puede quedar abierto en producción (arranque falla sin clave).
-- [ ] Restore de backup probado, con RPO/RTO anotados.
+- [x] Turnstile no puede quedar abierto en producción (arranque falla sin clave). _T1.2, en `main`._
+- [x] Restore de backup probado, con RPO/RTO anotados. _2.373 firmas, RTO 20 s, RPO 1 h._
 - [ ] Pruebas de aislamiento entre organizaciones en verde; FORCE RLS aplicado o descartado con evidencia.
 - [ ] Rate limit distingue IP reales (prueba con IP distintas); origen cerrado a Cloudflare.
 - [ ] Confirmación por correo con capacidad ≥ 3.000/día y alerta al 70 %.
 - [ ] S1–S3 y S5–S7 cumplen los criterios de R7; S4 sin fugas.
-- [ ] Una alerta de prueba real llega **por correo** al canal de guardia, desde el monitor
-      externo y desde Netdata, con el SMTP independiente; los logs de error no contienen PII.
+- [~] Una alerta de prueba real llega **por correo** al canal de guardia, desde el monitor
+      externo y desde Netdata, con el SMTP independiente; los logs de error no contienen PII. _Monitor externo y alertas SMTP probados; falta evidencia de Netdata._
 - [ ] Sin vulnerabilidades altas/críticas abiertas sin decisión escrita.
 
 ### Umbrales de alerta iniciales (a calibrar con S1–S5)

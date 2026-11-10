@@ -1,5 +1,9 @@
 # Estado actual — sesión 46 (2026-11-08) — CERRADA con cambios sin commitear: caché de lecturas públicas, borde de Cloudflare y página de confirmación
 
+## Hotfix (2026-11-10): build del VPS sin Google Fonts
+
+El deploy fallaba de forma persistente al bajar Google Fonts en `pnpm run build`. `layout.tsx` usa ahora `next/font/local` con 24 woff2 en `apps/web/src/fonts/` (424 KB, OFL, subset latin). Verificado con `docker build` real (24 woff2 en `.next/static/media`).
+
 ## Continuación (2026-11-10): revision-datos-al-firmar implementada (sin commitear)
 
 - API: correo solo con el primer nombre; migración 043 (`first_name`/`last_name`); `greeting_name`; anulación en retención y ARCO; 16 tests nuevos.
