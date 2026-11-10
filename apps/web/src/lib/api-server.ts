@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 const INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://petition-api-dev:8000";
 
 export async function apiServer<T>(path: string): Promise<T | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("access_token")?.value;
 
   try {

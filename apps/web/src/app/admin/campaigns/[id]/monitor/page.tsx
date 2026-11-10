@@ -3,7 +3,7 @@ import { Campaign, CampaignStats } from "@/lib/types";
 import Link from "next/link";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function formatSeconds(secs: number): string {
@@ -13,7 +13,8 @@ function formatSeconds(secs: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-export default async function MonitorPage({ params }: Props) {
+export default async function MonitorPage(props: Props) {
+  const params = await props.params;
   const [campaign, stats] = await Promise.all([
     apiServer<Campaign>(`/v1/campaigns/${params.id}`),
     apiServer<CampaignStats>(`/v1/dashboard/campaigns/${params.id}/stats`),

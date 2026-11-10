@@ -10,10 +10,11 @@ import CampaignTitleEditor from "./CampaignTitleEditor";
 import LinkedFormsSection from "./LinkedFormsSection";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default async function CampaignDetailPage({ params }: Props) {
+export default async function CampaignDetailPage(props: Props) {
+  const params = await props.params;
   const campaign = await apiServer<Campaign>(`/v1/campaigns/${params.id}`);
 
   if (!campaign) {

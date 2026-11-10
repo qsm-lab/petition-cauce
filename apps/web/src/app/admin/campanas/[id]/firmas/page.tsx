@@ -91,16 +91,18 @@ function fmtDate(iso: string | null): string {
 // ─── Página ──────────────────────────────────────────────────────────────────
 
 interface PageProps {
-  params: { id: string };
-  searchParams: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{
     page?: string;
     provincia?: string;
     visibility?: string;
     status?: string;
-  };
+  }>;
 }
 
-export default async function FirmasCampanaPage({ params, searchParams }: PageProps) {
+export default async function FirmasCampanaPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const campaignId = params.id;
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
   const provincia = searchParams.provincia ?? "";

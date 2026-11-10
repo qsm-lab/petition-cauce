@@ -5,10 +5,11 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function MisDatosPage({
-  searchParams,
-}: {
-  searchParams: { campaign?: string };
-}) {
+export default async function MisDatosPage(
+  props: {
+    searchParams: Promise<{ campaign?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   return <RequestAccessForm originCampaignId={searchParams.campaign || null} />;
 }
