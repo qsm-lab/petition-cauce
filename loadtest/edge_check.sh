@@ -58,30 +58,33 @@ variants)
   for i in $(seq 1 10); do hdr "$BASE/c/$SLUG?x=$i"; done | awk '{print $2}' | sort | uniq -c
   ;;
 fresh)
-  # URL limpia: es lo que ve un visitante normal (sin parámetros que esquiven la caché).
+  # Mide dos capas a la vez: la URL limpia (lo que ve un visitante: Cloudflare + Redis) y una variante ?z=<aleatorio> que esquiva la copia de Cloudflare
+  # y llega al origen (solo la caché de Redis). Así, si hay retraso, se ve en qué capa está.
   clean() { curl -s "$API/by-slug/$SLUG" | jq -r '[.petition_title, .status, .signature_count, .total_count] | @tsv' 2>/dev/null; }
+  origin() { curl -s "$API/by-slug/$SLUG?z=$RANDOM$RANDOM" | jq -r '[.petition_title, .status, .signature_count, .total_count] | @tsv' 2>/dev/null; }
+  measure() {  # measure <etiqueta> <criterio-s>
+    local base_c base_o seen_c="" seen_o="" t0 e now_c now_o
+    base_c="$(clean)"; base_o="$(origin)"; t0=$(date +%s)
+    echo "   línea base → borde: $base_c"
+    echo "   (guarda el cambio AHORA; el reloj ya corre; máximo 240 s)"
+    while :; do
+      sleep 2; e=$(( $(date +%s) - t0 ))
+      now_o="$(origin)"; now_c="$(clean)"
+      [ -z "$seen_o" ] && [ "$now_o" != "$base_o" ] && { seen_o=$e; echo "   · origen (Redis) ya lo muestra a los ${e} s"; }
+      [ -z "$seen_c" ] && [ "$now_c" != "$base_c" ] && { seen_c=$e; echo "   · BORDE (visitante) ya lo muestra a los ${e} s:  $now_c"; }
+      [ -n "$seen_c" ] && break
+      [ "$e" -ge 240 ] && { echo "   → sin cambio en el borde tras 240 s (¡revisar!). Origen: ${seen_o:-tampoco}"; break; }
+    done
+    echo "   Criterio $1: ≤ $2 s desde que se GUARDA el cambio. Medido en el borde: ${seen_c:-NO}"
+  }
   echo "Valor actual (título · estado · firmas · total):"; clean
   echo
-  echo "1) Cambia el TÍTULO (o el estado) en el panel de administración y pulsa Enter EN ESE MOMENTO."
-  read -r _
-  T0=$(date +%s); BASE_VAL="$(clean)"
-  echo "Sondeo cada 2 s sobre la URL limpia; termina solo al ver un cambio o a los 180 s…"
-  while :; do
-    sleep 2; NOW="$(clean)"; E=$(( $(date +%s) - T0 ))
-    if [ "$NOW" != "$BASE_VAL" ]; then echo "→ cambio visible a los ${E} s:  $NOW"; break; fi
-    [ "$E" -ge 180 ] && { echo "→ sin cambio tras 180 s (¡revisar!)"; break; }
-  done
-  echo "Criterio: ≤ 45 s para título/estado. Si pasa de eso, baja stale-while-revalidate de 30 a 5 (RK1, RK8)."
+  echo "1) TÍTULO/ESTADO. Ten el panel de administración listo con el cambio escrito pero SIN guardar. Pulsa Enter y guarda de inmediato."
+  read -r _; measure "título/estado" 45
   echo
-  echo "2) CONTADOR: confirma una firma de prueba (o pide que se confirme) y pulsa Enter EN ESE MOMENTO."
-  read -r _
-  T0=$(date +%s); BASE_VAL="$(clean)"
-  while :; do
-    sleep 2; NOW="$(clean)"; E=$(( $(date +%s) - T0 ))
-    if [ "$NOW" != "$BASE_VAL" ]; then echo "→ contador visible a los ${E} s:  $NOW"; break; fi
-    [ "$E" -ge 180 ] && { echo "→ sin cambio tras 180 s (¡revisar!)"; break; }
-  done
-  echo "Criterio: ≤ 60 s."
+  echo "2) CONTADOR. Ten lista la confirmación de una firma de prueba (el botón del correo abierto) pero SIN pulsar. Pulsa Enter aquí y confirma de inmediato."
+  read -r _; measure "contador" 60
+  echo "Si el borde pasa de los criterios, baja stale-while-revalidate de 30 a 5 en la API (RK1, RK8)."
   ;;
 *) sed -n 2,9p "$0"; exit 1 ;;
 esac

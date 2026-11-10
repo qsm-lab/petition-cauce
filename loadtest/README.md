@@ -32,6 +32,7 @@ k6 run -e SCENARIO=read_random_slugs loadtest/signatures.js                     
 #   docker run -d --name lt-web --network petition_loadtest_net --cpus 1.5 --memory 1g -e API_INTERNAL_URL=http://lt-api:8000 -e HOSTNAME=0.0.0.0 lt-web:test
 #   …k6 en Docker con -e WEB_URL=http://lt-web:3000 -e SSR_VUS=50|100|150 -e SSR_DURATION=90s -e SCENARIO=ssr
 docker stop lt-redis; k6 run -e SCENARIO=read -e ALLOW_503=1 loadtest/signatures.js; docker start lt-redis                  # RK6: Redis caído (503 limpios, sin 500)
+# V5/R2: confirmación por POST con tokens reales (extraerlos de lt-db a un JSON y montarlo): -v "$PWD/tok:/tok:ro" -e TOKENS_FILE=/tok/tokens.json -e CONFIRM_COUNT=300 -e SCENARIO=confirm
 docker exec lt-redis redis-cli DBSIZE; docker exec lt-redis redis-cli INFO memory | grep used_memory_human   # RK12 (solo números)
 
 docker compose -f docker-compose.loadtest.yml down -v      # borra todo
