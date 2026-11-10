@@ -131,6 +131,8 @@ async def create_signature(
         # exposición (feed público, export CSV enmascarado, dashboard según
         # rol), no en la captura.
         name=data.name.strip(),
+        first_name=data.first_name,
+        last_name=data.last_name,
         email_encrypted=encrypt_pii(email_normalized),
         email_hash=email_hash,
         cedula_encrypted=encrypt_pii(data.cedula) if data.cedula else None,
@@ -313,7 +315,7 @@ async def confirm_signature(db: AsyncSession, token: str) -> dict | None:
     )
     count = count_result.scalar() or 0
 
-    signer_name = sig.name or ""
+    signer_name = sig.greeting_name
     email_encrypted = sig.email_encrypted
 
     await db.commit()
@@ -482,6 +484,8 @@ async def complete_signature_name(db: AsyncSession, token: str, name: str) -> di
 
     newly_confirmed = sig.status == "pending_confirmation"
     sig.name = clean_name
+    sig.first_name = None
+    sig.last_name = None
     if newly_confirmed:
         sig.status = "confirmed"
         sig.confirmed_at = datetime.now(timezone.utc)

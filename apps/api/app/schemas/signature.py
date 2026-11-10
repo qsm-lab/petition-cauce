@@ -1,12 +1,18 @@
 import uuid
 from typing import Literal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
+
+
+_NAME_PART_MAX = 120
 
 
 class SignatureCreate(BaseModel):
     signer_type: Literal["natural", "org"] = "natural"
     org_name: str | None = None
-    name: str
+    # revision-datos-al-firmar: el formulario envía first_name + last_name; `name` solo lo envía un cliente anterior (transición).
+    name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     email: str
     cedula: str | None = None
     celular: str | None = None
@@ -36,6 +42,22 @@ class SignatureCreate(BaseModel):
         if not v:
             raise ValueError("El consentimiento es obligatorio")
         return v
+
+    @model_validator(mode="after")
+    def compose_name(self):
+        """Con first_name/last_name, `name` es su composición; con solo `name` (cliente anterior) se acepta tal cual."""
+        first = " ".join((self.first_name or "").split())
+        last = " ".join((self.last_name or "").split())
+        if first or last:
+            if not first or not last:
+                raise ValueError("Nombre y apellido son obligatorios")
+            if len(first) > _NAME_PART_MAX or len(last) > _NAME_PART_MAX:
+                raise ValueError("Nombre o apellido demasiado largo")
+            self.first_name, self.last_name = first, last
+            self.name = f"{first} {last}"
+        elif not (self.name or "").strip():
+            raise ValueError("El nombre es obligatorio")
+        return self
 
 
 class SignatureCreated(BaseModel):

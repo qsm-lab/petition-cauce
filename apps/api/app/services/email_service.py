@@ -270,14 +270,12 @@ async def send_confirmation_email(
     visibility: str = "",
     privacy_url: str = "",
     org_contact_email: str = "",
-    entered_name: str = "",
-    entered_cedula_masked: str = "",
-    entered_org_name: str = "",
-    entered_location: str = "",
-    entered_celular_masked: str = "",
     arco_review_url: str = "",
 ) -> bool:
     """`campaign_title` debe ser el título público (petition_title), no el interno.
+
+    A los proveedores de correo solo llega el primer nombre (saludo): el RAT y el contrato lo declaran así
+    (`app/legal/subencargados.py`). La revisión de datos se hace al firmar (revision-datos-al-firmar), no aquí.
 
     Devuelve True si el proveedor aceptó el mensaje (en desarrollo, sin proveedor, True)."""
     confirm_url = f"{settings.api_public_url}{_CONFIRM_PATH}{token}"
@@ -310,19 +308,6 @@ async def send_confirmation_email(
             "style='color:#3d6b35;font-weight:600;'>aviso de privacidad</a> de la campaña."
         )
 
-    # derechos-arco R19: resumen de lo ingresado (nunca el correo) para corregir antes de confirmar.
-    review_rows = [
-        ("Nombre completo", entered_name),
-        ("Organización", entered_org_name),
-        ("Cédula", entered_cedula_masked),
-        ("Celular", entered_celular_masked),
-        ("Ubicación", entered_location),
-    ]
-    review_block = "".join(
-        f"<br>{label}: <strong>{_html.escape(value)}</strong>" for label, value in review_rows if value
-    )
-    if review_block:
-        review_block = f"<br><br>Revisa que tus datos hayan quedado bien escritos:{review_block}"
     correct_link = ""
     if arco_review_url:
         correct_link = (
@@ -335,7 +320,7 @@ async def send_confirmation_email(
         body_html=(
             f"Gracias por apoyar <strong>{campaign_title}</strong>.<br>"
             "Haz clic en el botón para activar tu firma. El enlace es válido por 24 horas."
-            f"{review_block}{vis_block}{privacy_block}"
+            f"{vis_block}{privacy_block}"
         ),
         cta_label="Confirmar mi firma →",
         cta_url=confirm_url,

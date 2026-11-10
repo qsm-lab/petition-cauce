@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 
 interface Props {
+  /** Primer nombre ya listo para mostrar. */
   name: string;
-  count: number;
-  goal: number | null;
   campaignUrl: string;
   campaignTitle: string;
   categoryColor: string;
@@ -32,8 +31,6 @@ const IG_ICON = (
 
 export default function StepThanks({
   name,
-  count,
-  goal,
   campaignUrl,
   campaignTitle,
   categoryColor,
@@ -43,7 +40,7 @@ export default function StepThanks({
   welcomeSlogan,
   onSubscribe,
 }: Props) {
-  const firstName = name.trim().split(" ")[0] || name.trim();
+  const firstName = name;
   const [copied, setCopied] = useState(false);
 
   // Consentimiento de Anuncios post-firma (embudo-post-firma, R10): estado del
@@ -97,7 +94,6 @@ export default function StepThanks({
     `${copyBase}\n\nFirma aqui: ${campaignUrl}` +
     (heroImageUrl ? `\n\n${heroImageUrl}` : "")
   );
-  const goalPct = goal && goal > 0 ? Math.min(100, Math.round((count / goal) * 100)) : 0;
 
   async function handleNativeShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -180,30 +176,15 @@ export default function StepThanks({
         </div>
 
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 30, marginBottom: 8, color: "#16261F" }}>
-          ¡Gracias, {firstName}!
+          ¡Gracias{firstName && <>, <span style={{ color: "#1d5fa8" }}>{firstName}</span></>}!
         </div>
         <div style={{ fontSize: 15, color: "rgba(22,38,31,0.7)", lineHeight: 1.5, marginBottom: 20, fontFamily: FONT_BODY }}>
-          Tu firma quedó registrada. Acabás de mover el contador.
-        </div>
-
-        {/* Contador */}
-        <div style={{ background: "#FBF0E6", borderRadius: 14, padding: 20, marginBottom: 24 }}>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, color: "#16261F" }}>
-            {count.toLocaleString("es-EC")}
-          </div>
-          <div style={{ fontSize: 13, color: "rgba(22,38,31,0.6)", marginBottom: goal ? 10 : 0, fontFamily: FONT_BODY }}>
-            firmas{goal ? ` de ${goal.toLocaleString("es-EC")}` : ""}
-          </div>
-          {goal && (
-            <div style={{ height: 8, borderRadius: 5, background: "rgba(22,38,31,0.12)" }}>
-              <div style={{ height: "100%", borderRadius: 5, background: categoryColor, width: `${goalPct}%` }} />
-            </div>
-          )}
+          Falta un paso: confirme su firma desde el correo que le enviamos. Mientras tanto, ayude a que esta campaña llegue a más personas.
         </div>
 
         {/* Compartir */}
         <div style={{ fontSize: 14, fontWeight: 700, textAlign: "left", marginBottom: 10, color: "#16261F", fontFamily: FONT_BODY }}>
-          Ayudá a que llegue a más personas
+          Comparta la campaña
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ShareSection from "./ShareSection";
+import { displayFirstName } from "@/lib/names";
 
 interface Props {
   /** Nombre del firmante (solo llega si la firma es pública) */
@@ -12,6 +13,8 @@ interface Props {
   showQr?: boolean;
   qrCodeData?: string | null;
   shareText?: string | null;
+  /** Firmas hasta el momento (revision-datos-al-firmar R27b). Si falta, no se muestra el contador. */
+  signatureCount?: number | null;
 }
 
 /** Popup mostrado al volver del email de confirmación (?confirmada=1):
@@ -24,6 +27,7 @@ export default function ConfirmedSharePopup({
   showQr = false,
   qrCodeData,
   shareText,
+  signatureCount,
 }: Props) {
   const [open, setOpen] = useState(true);
 
@@ -43,7 +47,7 @@ export default function ConfirmedSharePopup({
 
   if (!open) return null;
 
-  const firstName = (name ?? "").trim().split(" ")[0];
+  const firstName = displayFirstName(name);
   const FONT_DISPLAY = "var(--font-anton, 'Anton', sans-serif)";
   const FONT_BODY = "var(--font-work-sans, 'Work Sans', sans-serif)";
 
@@ -102,13 +106,24 @@ export default function ConfirmedSharePopup({
               marginBottom: 8,
             }}
           >
-            {firstName ? `¡Gracias, ${firstName}!` : "¡Gracias por tu firma!"}
+            {firstName ? <>¡Gracias, <span style={{ color: "#1d5fa8" }}>{firstName}</span>!</> : "¡Gracias por tu firma!"}
           </div>
           <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.55, color: "rgba(22,38,31,0.75)" }}>
             Tu firma quedó confirmada y ya suma. Ahora ayúdala a llegar más lejos:
             comparte la campaña con tu gente — cada voz cuenta.
           </p>
         </div>
+
+        {typeof signatureCount === "number" && signatureCount > 0 && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: 16, margin: "0 0 16px", border: "1px solid rgba(22,38,31,0.15)" }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 40, lineHeight: 1, color: "#16261F" }}>
+              {signatureCount.toLocaleString("es-EC")}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4, color: "#16261F" }}>
+              firmas <span style={{ fontWeight: 400, color: "rgba(22,38,31,0.72)" }}>hasta el momento</span>
+            </div>
+          </div>
+        )}
 
         <ShareSection
           title={title}
