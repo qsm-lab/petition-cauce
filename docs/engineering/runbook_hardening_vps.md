@@ -210,8 +210,8 @@ curl -sk -o /dev/null -w '%{http_code}\n' --resolve host-falso.test:443:127.0.0.
 Con una **segunda sesión SSH abierta**, crear `/etc/nginx/conf.d/00-default-reject.conf`:
 ```nginx
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
+    listen 443 ssl http2 default_server;      # mismas opciones que los demás sitios (si no, nginx avisa y manda las del default)
+    listen [::]:443 ssl http2 default_server;
     server_name _;
     ssl_reject_handshake on;
 }
@@ -222,7 +222,7 @@ curl -sk -o /dev/null -w '%{http_code}\n' --resolve host-falso.test:443:127.0.0.
 for u in https://cauce.ecuadornotlc.org/api/health https://forms.quitosinmineria.org/ https://boletin.ecuadornotlc.org/; do
   curl -s -o /dev/null -w "%{http_code} $u\n" "$u"; done                      # los sitios reales siguen respondiendo
 ```
-Los sitios legítimos tienen `server_name` explícito y no se ven afectados. Reversión inmediata: `sudo rm /etc/nginx/conf.d/00-default-reject.conf && sudo nginx -t && sudo systemctl reload nginx`.
+Los sitios legítimos tienen `server_name` explícito y no se ven afectados. Los avisos `protocol options redefined` de `nginx -t` ya existían en otros vhosts y son inofensivos. Verificado el 2026-11-07: `host-falso.test` → `000`, IP real de cliente en `cauce.access.log`. Reversión inmediata: `sudo rm /etc/nginx/conf.d/00-default-reject.conf && sudo nginx -t && sudo systemctl reload nginx`.
 
 ## Paso 7 — Origen cerrado a Cloudflare (T3.2) — **ya aplicado en el VPS; solo verificar**
 

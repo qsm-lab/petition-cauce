@@ -50,6 +50,7 @@ const config: Config = {
         "pc-pop":      "pc-pop 0.4s ease both",
         "pc-spin":     "pc-spin 0.9s linear infinite",
         "pc-rise":     "pc-rise 0.25s ease both",
+        "pc-bar":      "pc-bar 1.5s linear both",
       },
       keyframes: {
         fadeIn: {

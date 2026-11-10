@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>verificacion-confirmacion-privacidad — /confirmar/&lt;token&gt; (design reference V2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ===== Tokens (tokens.md, valores por defecto «Bosque») ===== */
+  :root{
+    --bp:#D7F24C; --bop:#16261F; --bsec:#DCE9E6; --bink:#16261F; --bmut:rgba(22,38,31,.55);
+    --bsurf:#fff; --bbg:#EDF4F1; --bbord:rgba(22,38,31,.15); --br:14px;
+    --ok:#3d6b35; --okbg:color-mix(in srgb,#3d6b35 10%,transparent);
+    --danger:#c2410c; --dangerbg:color-mix(in srgb,#c2410c 9%,transparent);
+    --amber:#b45309; --amberbg:color-mix(in srgb,#b45309 12%,transparent);
+    /* NUEVO: --bmut (.55) da ~3,4:1 sobre blanco y no cumple 4,5:1 en texto pequeño.
+       Para texto secundario legible se usa .72 (~6:1 sobre blanco, ~5,5:1 sobre --bbg). Tailwind: text-[rgba(22,38,31,0.72)] */
+    --bmut-txt:rgba(22,38,31,.72);
+  }
+  @keyframes pc-pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+  @keyframes pc-spin{to{transform:rotate(360deg)}}
+  @keyframes pc-float-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes pc-rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @keyframes pc-bar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    .spin{animation:none!important;border-top-color:var(--bink)!important} /* el spinner queda estático; el texto «Confirmando…» ya informa */
+  }
+
+  /* ===== Andamiaje del documento (NO se implementa) ===== */
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Work Sans',sans-serif;background:#dfe6e2;color:var(--bink);}
+  .frame{max-width:1160px;margin:0 auto 40px;background:#f6f8f7;padding:36px 24px;}
+  .frame-label{max-width:1160px;margin:0 auto;padding:16px 24px 0;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#12222E;background:#fff;border:1px dashed #94a89e;border-bottom:none;}
+  .spec-note{max-width:1160px;margin:0 auto;padding:14px 24px;background:#FFF7E0;border:1px dashed #b45309;border-top:none;font-size:12.5px;line-height:1.6;color:#5c3a08;}
+  .spec-note code{font-size:12px;background:rgba(180,83,9,.1);padding:1px 4px;border-radius:4px;}
+  .spec-note + .frame-label{margin-top:40px;}
+  .row{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;align-items:flex-start;}
+  .cap{font-size:12px;font-weight:700;color:var(--bink);margin:0 0 8px;}
+  .vp{border:1px solid var(--bbord);background:var(--bbg);overflow:hidden;container-type:inline-size;} /* «viewport» simulado: las reglas @container de abajo equivalen a breakpoints sm: en Tailwind */
+  .vp-360{width:360px;} .vp-375{width:375px;} .vp-390{width:390px;} .vp-1160{width:100%;max-width:1112px;}
+  .demo-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px;font-size:13px;}
+  .demo-ctl label{display:flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--bbord);border-radius:999px;background:#fff;cursor:pointer;}
+  .demo-log{font:12px/1.5 ui-monospace,Menlo,monospace;color:#12222E;margin-top:10px;min-height:18px;}
+
+  /* ===== Pantalla /confirmar/<token> (esto SÍ se implementa) ===== */
+  .screen{min-height:680px;display:flex;flex-direction:column;}               /* prod: min-h-dvh flex flex-col bg-[--bbg] */
+  .vp-1160 .screen{min-height:720px;}
+  .top{height:56px;display:flex;align-items:center;justify-content:center;}  /* h-14; sin menú ni enlaces */
+  .wm{font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.06em;text-transform:uppercase;color:var(--bink);line-height:1;} /* text-xl tracking-[0.06em] */
+  .wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 12px 24px;} /* px-3: la tarjeta ocupa casi todo el ancho en móvil */
+  .card{width:100%;max-width:440px;background:var(--bsurf);border-radius:16px;border:1px solid var(--bbord);
+        box-shadow:0 10px 30px color-mix(in srgb,var(--bp) 9%,transparent);
+        padding:32px 22px 24px;text-align:center;animation:pc-float-in .22s ease-out;} /* pt-8 px-[22px] pb-6; rounded-card */
+  .card > *{animation:pc-rise .25s ease-out both;}                            /* cada cambio de estado re-monta el contenido */
+  .ico{width:56px;height:56px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;} /* w-14 h-14 mb-[18px]; mismo hueco en todos los estados = sin saltos */
+  .ico svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .ico--n{background:var(--bsec);color:var(--bink);}
+  .ico--ok{background:var(--bp);color:var(--bop);border:1.5px solid var(--bink);animation:pc-pop .4s ease-out both;} /* lime solo como fondo con tinta encima */
+  .ico--amber{background:var(--amberbg);color:var(--amber);}
+  .ico--danger{background:var(--dangerbg);color:var(--danger);}
+  .ttl{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;font-size:36px;line-height:1.05;letter-spacing:.01em;margin:0 0 12px;text-wrap:balance;} /* text-[36px] leading-[1.05] */
+  .lead{font-size:17px;line-height:1.5;margin:0 auto 24px;max-width:34ch;text-wrap:pretty;}  /* text-[17px] leading-normal mb-6 */
+  .btn{appearance:none;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px; /* ≥48 px táctil; 18px+padding 18 da ~58 */
+       font:700 18px/1.2 'Work Sans',sans-serif;color:var(--bop);background:var(--bp);border:1.5px solid var(--bink);
+       border-radius:30px;padding:18px 24px;cursor:pointer;transition:transform .15s,box-shadow .15s;text-decoration:none;}
+  .btn:hover{transform:scale(1.03);box-shadow:0 6px 18px rgba(22,38,31,.18);}
+  .btn:active{transform:scale(.99);}
+  .btn:focus-visible,.foot a:focus-visible{outline:3px solid #12222E;outline-offset:3px;}       /* ring-[3px] ring-offset-[3px] */
+  .btn[aria-disabled="true"]{background:rgba(22,38,31,.1);color:rgba(22,38,31,.6);border-color:rgba(22,38,31,.25);cursor:progress;transform:none;box-shadow:none;}
+  /* ↑ token dice texto .4; se sube a .6 para que «Confirmando…» se lea. Se usa aria-disabled (no disabled) para que el botón conserve el foco */
+  .btn--sec{background:#fff;}
+  .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(22,38,31,.2);border-top-color:var(--bink);animation:pc-spin .9s linear infinite;flex:0 0 auto;}
+  .why{font-size:14px;line-height:1.5;color:var(--bmut-txt);margin:16px auto 0;max-width:32ch;text-wrap:pretty;} /* text-sm mt-4 */
+  .redir{margin-top:16px;font-size:14px;color:var(--bmut-txt);}
+  .bar{height:3px;border-radius:3px;background:var(--bsec);overflow:hidden;margin:10px auto 0;max-width:160px;} /* indicador decorativo de la espera de 1,5 s; aria-hidden */
+  .bar i{display:block;height:100%;background:var(--ok);transform-origin:left;animation:pc-bar 1.5s linear both;}
+  .foot{max-width:440px;margin:20px auto 0;padding:0 10px;text-align:center;font-size:13px;line-height:1.55;color:var(--bmut-txt);text-wrap:pretty;} /* text-[13px] mt-5 */
+  .foot a{color:var(--bink);font-weight:600;text-decoration:underline;text-underline-offset:2px;}
+  .foot a:hover{color:var(--ok);}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;} /* sr-only */
+  .nojs{background:var(--amberbg);color:#7a3a06;border-radius:var(--br);padding:12px 14px;font-size:14px;font-weight:600;line-height:1.45;margin-bottom:16px;} /* contraste #7a3a06 sobre ámbar 12 %: ~7:1 */
+
+  /* ≥ 640 px (Tailwind sm:) — escritorio: más aire, título mayor; la tarjeta sigue en 440 px */
+  @container (min-width:640px){
+    .top{height:72px;}                       /* sm:h-[72px] */
+    .wrap{padding:56px 24px 48px;}           /* sm:pt-14 sm:pb-12 */
+    .card{padding:44px 40px 32px;}           /* sm:pt-11 sm:px-10 sm:pb-8 */
+    .ttl{font-size:44px;}                    /* sm:text-[44px] */
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- 0. Demo interactiva (simula la respuesta de la API)          -->
+<!-- ============================================================ -->
+<div class="frame-label">0 · Demo interactiva · /confirmar/&lt;token&gt; (respuesta simulada)</div>
+<div class="frame">
+  <div class="demo-ctl" role="radiogroup" aria-label="Respuesta simulada de la API">
+    <strong>Simular respuesta:</strong>
+    <label><input type="radio" name="sim" value="exito" checked> 200 confirmed</label>
+    <label><input type="radio" name="sim" value="exito-nombre"> 200 confirmed + name</label>
+    <label><input type="radio" name="sim" value="vencido"> 200 expired</label>
+    <label><input type="radio" name="sim" value="invalido"> 200 invalid</label>
+    <label><input type="radio" name="sim" value="error"> 429 / 5xx / red</label>
+  </div>
+  <div class="row">
+    <div class="vp vp-390"><div class="screen">
+      <header class="top"><span class="wm">Cauce</span></header>
+      <main class="wrap"><section class="card" id="demo-card"></section>
+        <footer class="foot" id="demo-foot"></footer></main>
+    </div></div>
+  </div>
+  <div class="demo-log" id="demo-log" aria-live="polite"></div>
+</div>
+<div class="spec-note">
+  <strong>Demo:</strong> reutiliza el marcado de los marcos 1–6. El «servidor» tarda 0,9 s. En éxito espera 1,5 s y muestra aquí la URL a la que redirigiría.
+  En React el <code>&lt;button&gt;</code> es el mismo elemento entre «Antes» y «Enviando» (solo cambian atributos e hijos), así que el foco se conserva sin código extra.
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. Antes (por defecto) — 360 / 390 / 1160                    -->
+<!-- ============================================================ -->
+<div class="frame-label">1 · Antes (por defecto) · móvil 360 y 390 px</div>
+<div class="frame">
+  <div class="row">
+    <div>
+      <p class="cap">360 px</p>
+      <div class="vp vp-360"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t1a">
+            <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+            <h1 class="ttl" id="t1a">Confirma tu firma</h1>
+            <p class="lead">Un toque más y tu firma queda registrada en la campaña.</p>
+            <button class="btn" type="button">Confirmar mi firma</button>
+            <p class="why">Pedimos este paso para que ningún programa automático de tu correo confirme por ti.</p>
+            <div class="sr" role="status" aria-live="polite"></div>
+          </section>
+          <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+        </main>
+      </div></div>
+    </div>
+    <div id="s-antes">
+      <p class="cap">390 px</p>
+      <div class="vp vp-390"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t1b">
+            <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+            <h1 class="ttl" id="t1b">Confirma tu firma</h1>
+            <p class="lead">Un toque más y tu firma queda registrada en la campaña.</p>
+            <button class="btn" type="button" data-act="confirm">Confirmar mi firma</button>
+            <p class="why">Pedimos este paso para que ningún programa automático de tu correo confirme por ti.</p>
+            <div class="sr" role="status" aria-live="polite"></div>
+          </section>
+          <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+        </main>
+      </div></div>
+    </div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Dispara:</strong> carga de <code>/confirmar/&lt;token&gt;</code> (llega por el <code>302</code> del <code>GET</code> del correo). <strong>No hay ninguna petición antes del clic.</strong>
+  <strong>Decisión abierta 1 (propuesta: no mostrar la campaña):</strong> la pantalla no conoce campaña ni persona; mostrarlas exigiría un endpoint que revelaría si el token existe.
+  El texto del botón coincide con el del correo («Confirmar mi firma»). El <code>role="status"</code> vive siempre en el DOM (vacío aquí) para que los cambios posteriores se anuncien.
+  El enlace «Aviso de privacidad» apunta a <code>/privacidad</code> (ajustar a la ruta real).
+</div>
+
+<div class="frame-label">1 · Antes (por defecto) · escritorio 1160 px</div>
+<div class="frame">
+  <div class="vp vp-1160" style="margin:0 auto;"><div class="screen">
+    <header class="top"><span class="wm">Cauce</span></header>
+    <main class="wrap">
+      <section class="card" aria-labelledby="t1c">
+        <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+        <h1 class="ttl" id="t1c">Confirma tu firma</h1>
+        <p class="lead">Un toque más y tu firma queda registrada en la campaña.</p>
+        <button class="btn" type="button">Confirmar mi firma</button>
+        <p class="why">Pedimos este paso para que ningún programa automático de tu correo confirme por ti.</p>
+        <div class="sr" role="status" aria-live="polite"></div>
+      </section>
+      <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+    </main>
+  </div></div>
+</div>
+<div class="spec-note">
+  <strong>Escritorio:</strong> mismo componente; a partir de 640 px (<code>sm:</code>) crece el título (36 → 44 px), el relleno de la tarjeta y el aire superior. La tarjeta no pasa de 440 px.
+  Nada se alinea al centro vertical: la tarjeta queda en el tercio superior para que el botón esté a la vista sin desplazarse.
+</div>
+
+<!-- ============================================================ -->
+<!-- 2–6. Resto de estados — móvil 375                            -->
+<!-- ============================================================ -->
+<div class="frame-label">2 · Enviando · 3 · Éxito (sin nombre / con nombre) · móvil 375 px</div>
+<div class="frame">
+  <div class="row">
+    <div id="s-enviando">
+      <p class="cap">2 · Enviando</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t2" aria-busy="true">
+            <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+            <h1 class="ttl" id="t2">Confirma tu firma</h1>
+            <p class="lead">Un toque más y tu firma queda registrada en la campaña.</p>
+            <button class="btn" type="button" aria-disabled="true" aria-busy="true"><span class="spin" aria-hidden="true"></span>Confirmando…</button>
+            <p class="why">Pedimos este paso para que ningún programa automático de tu correo confirme por ti.</p>
+            <div class="sr" role="status" aria-live="polite">Confirmando tu firma…</div>
+          </section>
+          <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+        </main>
+      </div></div>
+    </div>
+    <div id="s-exito">
+      <p class="cap">3a · Éxito (sin nombre)</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t3a">
+            <div class="ico ico--ok" aria-hidden="true"><svg viewBox="0 0 24 24" style="stroke-width:2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <h1 class="ttl" id="t3a" tabindex="-1">¡Firma confirmada!</h1>
+            <p class="lead">Gracias por sumar tu voz. Te llevamos a la campaña…</p>
+            <a class="btn" href="/c/slug?confirmada=1" data-act="go">Ir a la campaña</a>
+            <div class="bar" aria-hidden="true"><i></i></div>
+            <div class="sr" role="status" aria-live="polite">Firma confirmada. Te llevamos a la campaña.</div>
+          </section>
+        </main>
+      </div></div>
+    </div>
+    <div id="s-exito-nombre">
+      <p class="cap">3b · Éxito (con nombre)</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t3b">
+            <div class="ico ico--ok" aria-hidden="true"><svg viewBox="0 0 24 24" style="stroke-width:2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <h1 class="ttl" id="t3b" tabindex="-1">¡Gracias, Ana!</h1>
+            <p class="lead">Tu firma quedó confirmada. Te llevamos a la campaña…</p>
+            <a class="btn" href="/c/slug?confirmada=1&amp;nombre=Ana" data-act="go">Ir a la campaña</a>
+            <div class="bar" aria-hidden="true"><i></i></div>
+            <div class="sr" role="status" aria-live="polite">Gracias, Ana. Tu firma quedó confirmada. Te llevamos a la campaña.</div>
+          </section>
+        </main>
+      </div></div>
+    </div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>2 · Dispara:</strong> clic en «Confirmar mi firma» → <code>POST /v1/public-campaign/confirm/&lt;token&gt;</code>. Mismo layout que «Antes» (solo cambia el contenido del botón): sin saltos.
+  <code>aria-disabled</code> + <code>aria-busy</code> en el botón; el manejador ignora clics mientras hay una petición en curso (evita doble envío).<br>
+  <strong>3 · Dispara:</strong> <code>200 {"status":"confirmed"}</code>, también si ya estaba confirmada (idempotente). Se quita el pie «Si no fuiste tú…» porque ya no aplica.
+  El check entra con <code>pc-pop</code>; el foco pasa al título (<code>tabindex="-1"</code>). Usar «¡Gracias, {Nombre}!» solo con el <strong>primer nombre</strong> y solo si la API lo devuelve
+  (ver hallazgo de <code>contrato-api.md</code>: devolver <code>name</code> únicamente si <code>visibility == "publica"</code>); si no llega, se usa 3a.<br>
+  <strong>Decisión abierta 2 (propuesta: redirección automática):</strong> a los 1,5 s <code>location.assign('/c/&lt;slug&gt;?confirmada=1&amp;nombre=&lt;Nombre&gt;')</code>; el botón «Ir a la campaña» apunta al mismo destino y queda visible por si tarda o falla.
+  La barra de 3 px es decorativa (<code>aria-hidden</code>); con <code>prefers-reduced-motion</code> no se anima pero la redirección ocurre igual.
+</div>
+
+<div class="frame-label">4 · Vencido · 5 · No válido · 6 · Error al confirmar · móvil 375 px</div>
+<div class="frame">
+  <div class="row">
+    <div id="s-vencido">
+      <p class="cap">4 · Vencido</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t4">
+            <div class="ico ico--amber" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <h1 class="ttl" id="t4" tabindex="-1">Este enlace venció</h1>
+            <p class="lead">Los enlaces de confirmación duran 24 horas. Vuelve a la campaña y firma de nuevo para recibir uno nuevo.</p>
+            <a class="btn" href="/c/slug?confirmada=expirada" data-act="reset">Volver a la campaña</a>
+            <div class="sr" role="status" aria-live="polite">Este enlace venció.</div>
+          </section>
+        </main>
+      </div></div>
+    </div>
+    <div id="s-invalido">
+      <p class="cap">5 · No válido</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t5">
+            <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7a5 5 0 0 1 0-10h2"/><path d="M15 7h2a5 5 0 0 1 3.9 8.1"/><path d="M8 12h3"/><path d="M3 3l18 18"/></svg></div>
+            <h1 class="ttl" id="t5" tabindex="-1">Este enlace no es válido</h1>
+            <p class="lead">Puede que esté incompleto o que ya lo hayas usado. Si aún no confirmaste, firma de nuevo desde la campaña.</p>
+            <a class="btn btn--sec" href="/" data-act="reset">Ir al inicio</a>
+            <div class="sr" role="status" aria-live="polite">Este enlace no es válido.</div>
+          </section>
+        </main>
+      </div></div>
+    </div>
+    <div id="s-error">
+      <p class="cap">6 · Error al confirmar</p>
+      <div class="vp vp-375"><div class="screen">
+        <header class="top"><span class="wm">Cauce</span></header>
+        <main class="wrap">
+          <section class="card" aria-labelledby="t6">
+            <div class="ico ico--danger" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5"/><path d="M12 16.3v.01"/></svg></div>
+            <h1 class="ttl" id="t6">No pudimos confirmar ahora</h1>
+            <p class="lead">Revisa tu conexión e inténtalo de nuevo.</p>
+            <button class="btn" type="button" data-act="confirm">Reintentar</button>
+            <p class="why">Tu enlace sigue siendo válido.</p>
+            <div class="sr" role="status" aria-live="polite">No pudimos confirmar tu firma. Inténtalo de nuevo.</div>
+          </section>
+          <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+        </main>
+      </div></div>
+    </div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>4 · Dispara:</strong> <code>200 {"status":"expired","slug":"…"}</code>. Botón principal a <code>/c/&lt;slug&gt;?confirmada=expirada</code> (la landing ya muestra el aviso ámbar de vencido). La duración (24 h) coincide con el correo.<br>
+  <strong>5 · Dispara:</strong> <code>200 {"status":"invalid"}</code>. Mensaje neutro: no distingue «no existe» de «ya usado». Icono neutro (no rojo) y botón secundario a <code>/</code>; no hay <code>slug</code> para volver a la campaña.<br>
+  <strong>6 · Dispara:</strong> <code>429</code>, <code>5xx</code> o fallo de red. «Reintentar» repite el mismo <code>POST</code> y vuelve a «Enviando». Tras un <code>429</code>, el botón queda en <code>aria-disabled</code> 5 s antes de permitir el reintento (propuesta; el servidor admite 20/min por IP).
+  El foco se queda en el botón para reintentar con Enter.<br>
+  En 4 y 5 el foco pasa al título; en todos, el texto del <code>role="status"</code> resume el estado para lectores de pantalla.
+</div>
+
+<div class="frame-label">7 · Sin JavaScript (&lt;noscript&gt;) · móvil 375 px</div>
+<div class="frame">
+  <div class="row">
+    <div class="vp vp-375"><div class="screen">
+      <header class="top"><span class="wm">Cauce</span></header>
+      <main class="wrap">
+        <section class="card" aria-labelledby="t7">
+          <div class="ico ico--n" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+          <h1 class="ttl" id="t7">Confirma tu firma</h1>
+          <p class="lead">Un toque más y tu firma queda registrada en la campaña.</p>
+          <div class="nojs" role="alert">Activa JavaScript para confirmar tu firma.</div>
+          <button class="btn" type="button" aria-disabled="true">Confirmar mi firma</button>
+        </section>
+        <footer class="foot">Si no fuiste tú, cierra esta página: tu firma no quedará registrada. <a href="/privacidad">Aviso de privacidad</a></footer>
+      </main>
+    </div></div>
+  </div>
+</div>
+<div class="spec-note">
+  <strong>Dispara:</strong> JavaScript desactivado. El aviso va en <code>&lt;noscript&gt;</code> encima del botón, que se renderiza en servidor con <code>aria-disabled</code> y se habilita al hidratar.
+  <strong>Producción:</strong> sin seguimiento, píxeles ni scripts de terceros; fuentes con <code>next/font</code>; nada de Turnstile ni «reenviar correo». No se muestra token, correo, cédula ni nombre completo.
+</div>
+
+<script>
+(function(){
+  var card=document.getElementById('demo-card'),foot=document.getElementById('demo-foot'),log=document.getElementById('demo-log');
+  var footHTML=document.querySelector('#s-antes .foot').outerHTML.replace(/^<footer[^>]*>|<\/footer>$/g,'');
+  var busy=false,timer;
+  function sim(){return document.querySelector('input[name=sim]:checked').value;}
+  function show(id,keepFocus){
+    clearTimeout(timer);
+    var src=document.querySelector('#s-'+id+' .card');
+    card.innerHTML=src.innerHTML;
+    card.setAttribute('aria-busy',id==='enviando'?'true':'false');
+    var hasFoot=!!document.querySelector('#s-'+id+' .foot');
+    foot.innerHTML=hasFoot?footHTML:'';foot.style.display=hasFoot?'':'none';
+    var b=card.querySelector('.btn'),t=card.querySelector('.ttl[tabindex]');
+    if(keepFocus&&b)b.focus();else if(t&&id!=='antes')t.focus({preventScroll:true});
+  }
+  function confirmar(){
+    if(busy)return;busy=true;log.textContent='POST /v1/public-campaign/confirm/<token>';
+    show('enviando',true);
+    setTimeout(function(){
+      busy=false;var r=sim();
+      if(r==='exito'||r==='exito-nombre'){
+        show(r);var url='/c/slug?confirmada=1'+(r==='exito-nombre'?'&nombre=Ana':'');
+        log.textContent='200 confirmed → redirigiendo en 1,5 s…';
+        timer=setTimeout(function(){log.textContent='location.assign("'+url+'")  (demo: no navega)';},1500);
+      }else if(r==='vencido'){show('vencido');log.textContent='200 expired';}
+      else if(r==='invalido'){show('invalido');log.textContent='200 invalid';}
+      else{show('error',true);log.textContent='429 / 5xx / red';}
+    },900);
+  }
+  card.addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]');if(!b)return;e.preventDefault();
+    var a=b.getAttribute('data-act');
+    if(a==='confirm')confirmar();
+    else{log.textContent='→ '+b.getAttribute('href')+'  (demo: vuelve al inicio)';show('antes');}
+  });
+  show('antes');
+})();
+</script>
+</body>
+</html>

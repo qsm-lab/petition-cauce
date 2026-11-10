@@ -333,7 +333,7 @@ class CampaignService:
         personalizar la invitación al evento. Sin filtro notify_updates —
         ver comunicaciones-cierre-campana/requirements.md (nunca se capturó)."""
         result = await db.execute(
-            select(Signature.id, Signature.email_encrypted, Signature.name).where(
+            select(Signature.id, Signature.email_encrypted, func.coalesce(Signature.first_name, Signature.name)).where(
                 Signature.campaign_id == campaign_id,
                 Signature.status == "confirmed",
                 Signature.country.is_(None),
@@ -368,7 +368,7 @@ class CampaignService:
         """(email, name) de TODAS las firmas confirmed, nacional + internacional
         — para personalizar el aviso de cierre."""
         result = await db.execute(
-            select(Signature.id, Signature.email_encrypted, Signature.name).where(
+            select(Signature.id, Signature.email_encrypted, func.coalesce(Signature.first_name, Signature.name)).where(
                 Signature.campaign_id == campaign_id,
                 Signature.status == "confirmed",
             )

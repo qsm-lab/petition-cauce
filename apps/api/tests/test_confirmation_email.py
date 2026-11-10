@@ -121,8 +121,8 @@ async def test_envio_exitoso_en_las_tres_visibilidades(mundo, provider, visibili
     call = provider.calls[0]
     assert call["visibility"] == visibility
     assert call["token"] == fila.confirmation_token
-    assert call["entered_name"] == "Ana Pérez Mora"
-    assert call["entered_cedula_masked"] and "1710034065" not in call["entered_cedula_masked"]
+    assert call["signer_name"] == "Ana Pérez Mora"  # el correo solo usa el primer nombre (ver test de contenido)
+    assert not [k for k in call if k.startswith("entered_")]  # sin resumen de datos hacia el proveedor (RAT)
     assert "/mis-datos/portal?token=" in call["arco_review_url"]
 
 
@@ -209,12 +209,12 @@ async def test_firma_que_ya_no_corresponde_no_se_envia(mundo, provider, cambio):
     assert (await _fila(sig_id)).confirmation_email_status == "not_required"
 
 
-async def test_org_con_nombre_y_celular_en_el_resumen(mundo, provider):
+async def test_org_no_envia_organizacion_ni_celular_al_proveedor(mundo, provider):
     sig_id = await mundo["crear"](signer_type="org", org_name="Colectivo Río")
     await svc.attempt_send(sig_id)
     c = provider.calls[0]
-    assert c["entered_org_name"] == "Colectivo Río" and c["entered_celular_masked"]
-    assert "0991234567" not in c["entered_celular_masked"]
+    assert not [k for k in c if k.startswith("entered_")]
+    assert "Colectivo Río" not in repr(c) and "0991234567" not in repr(c) and "1710034065" not in repr(c)
 
 
 # ── Concurrencia y recuperación ─────────────────────────────────────────────────────────────────────────────

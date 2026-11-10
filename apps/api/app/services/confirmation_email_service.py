@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import case, func, or_, select, update
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from app.config import settings
 from app.crypto import compute_hmac, decrypt_pii
@@ -25,7 +26,6 @@ from app.database import AsyncSessionLocal, set_rls_context
 from app.models.campaign import Campaign
 from app.models.organization import Organization
 from app.models.signature import Signature
-from app.services.admin_signature_service import _mask_cedula, _mask_phone
 from app.services.email_service import send_confirmation_email
 from app.services.signature_service import _ARCO_REVIEW_TTL_HOURS, _TOKEN_TTL_HOURS, build_privacy_url
 
@@ -132,25 +132,18 @@ async def _deliver(db, sig: Signature) -> bool | None:
 
     ref = str(sig.id)
     to_email = decrypt_pii(sig.email_encrypted, ref=ref)
-    cedula = decrypt_pii(sig.cedula_encrypted, ref=ref) if sig.cedula_encrypted else ""
-    celular = decrypt_pii(sig.celular_encrypted, ref=ref) if sig.celular_encrypted else ""
 
     app_url = (settings.next_public_app_url or "http://localhost:3002").rstrip("/")
     return await send_confirmation_email(
         to_email=to_email,
         token=sig.confirmation_token,
         campaign_title=campaign.petition_title or campaign.title,
-        signer_name=sig.name or "",
+        signer_name=sig.greeting_name,
         org_name=org.name if org else "",
         org_logo_url=(org.logo_url or "") if org else "",
         visibility=sig.visibility,
         privacy_url=build_privacy_url(campaign.slug),
         org_contact_email=(org.contact_email or "") if org else "",
-        entered_name=sig.name or "",
-        entered_cedula_masked=_mask_cedula(cedula) if cedula else "",
-        entered_org_name=(sig.org_name or "") if sig.signer_type == "org" else "",
-        entered_location=sig.provincia or sig.country or "",
-        entered_celular_masked=_mask_phone(celular) if celular else "",
         arco_review_url=f"{app_url}/mis-datos/portal?token={arco_review_token}&campaign={campaign.id}",
     )
 
@@ -161,6 +154,16 @@ async def attempt_send(sig_id: uuid.UUID, *, max_wait: float | None = None) -> s
     `max_wait` acota la espera del turno de velocidad: el intento inmediato pasa un valor pequeño y, si no
     hay turno, deja la firma `pending` para el loop. El loop espera sin límite.
     """
+    try:
+        return await _attempt_send(sig_id, max_wait)
+    except PoolTimeoutError:
+        # Sin conexión libre (pico de altas): la firma sigue `pending` y el loop la recoge. Tarea en segundo plano:
+        # dejar subir la excepción la registraría como error de la aplicación con la respuesta ya enviada.
+        logger.warning("confirm_email_pool_saturado sig=%s; lo reintenta el loop", sig_id)
+        return "skipped"
+
+
+async def _attempt_send(sig_id: uuid.UUID, max_wait: float | None) -> str:
     limits = _get_limits()
     if not await limits.reserve(max_wait):
         return "skipped"
