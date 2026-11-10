@@ -76,6 +76,7 @@ export default async function CampaignBySlugPage({
           showQr={campaign.show_qr}
           qrCodeData={campaign.qr_code_data}
           shareText={campaign.share_text}
+          signatureCount={campaign.signature_count}
         />
       ) : searchParams.confirmada ? (
         <ConfirmationBanner estado={searchParams.confirmada} />
