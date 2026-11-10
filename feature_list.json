@@ -491,6 +491,17 @@
       "depends_on": [
         "hardening-campana"
       ]
+    },
+    {
+      "id": "revision-datos-al-firmar",
+      "title": "Revisión de datos al firmar, nombre/apellido, correo sin resumen y paso «Revisa tu correo» (sustituye R19 de derechos-arco)",
+      "description": "Spec en specs/revision-datos-al-firmar/. El correo de confirmación vuelve a llevar solo el primer nombre (hace verdadero el RAT) y la verificación de datos pasa a un segundo paso del diálogo de firma: «Verifica que tu información sea correcta» con Firmar / Editar datos. Incluye separar nombre y apellido y rehacer el paso post-firma (abrir el correo si el servicio es reconocido, aviso de spam reforzado, avance automático a los 10 s al popup de compartir). Correo sin resumen ya hecho (S2/S3). Pendiente: aprobar la spec y el privacy_config, y diseño en Claude Design (paquete en docs/diseno-revision-datos/).",
+      "status": "spec_ready",
+      "sdd": true,
+      "depends_on": [
+        "derechos-arco",
+        "verificacion-confirmacion-privacidad"
+      ]
     }
   ]
 }

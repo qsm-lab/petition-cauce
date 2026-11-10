@@ -101,3 +101,31 @@ Opciones (⏸ decide el usuario o el responsable; no implemento ninguna):
 
 Mi recomendación, a decidir: **B o C**, porque son datos de personas que no completaron el consentimiento (minimización). Decidir además si las pendientes
 deben dejar de contar en el total público.
+
+---
+
+## Resultados recogidos el 9–10 nov 2026
+
+**Cloudflare, regla de la API:** «Ignorar cadena de consulta» está **activado**. Efecto: `…/signatures/recent?limit=N` comparte una sola copia para todo `N`
+(el servidor acota `limit` a 1–20). Hoy es inocuo: el navegador siempre pide `limit=10` y el SSR de Next usa la red interna, sin pasar por Cloudflare. A cambio,
+las variantes `?x=N` se absorben en el borde. Decisión: dejarlo; si algún día se usa otro `limit` desde fuera, hay que revisarlo.
+
+**V7 (parcial, correo de confirmación real recibido en Gmail):**
+- Proveedor de envío en producción: `EMAIL_POOL=brevo,resend`; `EMAIL_PROVIDER` sin definir (por defecto `resend`). El correo de confirmación **salió por Resend**
+  (DKIM `resend` y `amazonses.com`); el pool `brevo,resend` solo aplica a la cola de comunicaciones.
+- El HTML **no tiene ningún `<img>`** (ni pixel ni logo) y los enlaces son directos a `cauce.ecuadornotlc.org`, sin reescritura de clics. **Sin cabecera `List-Unsubscribe`.**
+  → Resend: aperturas y clics **no están activos** en este mensaje. ✔
+- Brevo (cola de comunicaciones): el pixel de aperturas sigue sin resolverse (⏸ decisión abierta de V7).
+
+**V6 (parcial, Gmail):** SPF `pass`, DKIM `pass` (`cauce.ecuadornotlc.org` y `amazonses.com`), DMARC `pass` con `p=NONE`. Pendiente: bandeja (entrada/spam), celular, Outlook, iCloud, corporativo.
+Observaciones menores: el remitente es `info@cauce.ecuadornotlc.org` sin nombre visible; DMARC en `p=NONE` (endurecerlo a `quarantine` es decisión operativa posterior al lanzamiento).
+
+**⚠ Hallazgo para V8 (contradice el RAT y el contrato):** el correo de confirmación lleva, además del primer nombre, **nombre completo, organización, cédula parcialmente enmascarada
+(`17XXXXX164`), celular enmascarado y provincia** (`derechos-arco` R19, commit `d51b41a`, 6 nov). Pero `app/legal/subencargados.py` (`DATOS_COMUNICADOS`, usado por el RAT y la cláusula del contrato)
+afirma que a los proveedores de envío llegan «únicamente» email y primer nombre y que «ningún otro dato (nombre completo, cédula, teléfono, provincia…)» sale hacia ellos. ⏸ Hay que elegir:
+- **A.** Quitar el resumen del correo (se pierde la verificación previa de datos de R19; el enlace «Corregir mis datos» puede quedarse).
+- **B.** Mantener el resumen y **corregir lo declarado**: RAT, contrato y aviso deben decir qué datos viajan (nombre completo, cédula y celular enmascarados, provincia, organización).
+- **C.** Mantener el resumen mostrando solo lo mínimo (p. ej. nombre completo y provincia, sin cédula ni celular) y declararlo.
+
+**Decisión del usuario (10 nov):** el correo vuelve a llevar solo el nombre (primer nombre, como declara el RAT) y la verificación de datos pasa a un segundo popup al firmar, con «Firmar» / «Editar datos».
+Spec: `specs/revision-datos-al-firmar/` (feature `revision-datos-al-firmar`, `spec_ready`); paquete de diseño: `docs/diseno-revision-datos/`. V8 queda pendiente solo de Cloudflare/VPS/aviso (el contrato y el RAT no cambian).
