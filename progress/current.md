@@ -1,5 +1,12 @@
 # Estado actual — sesión 46 (2026-11-08) — CERRADA con cambios sin commitear: caché de lecturas públicas, borde de Cloudflare y página de confirmación
 
+## Continuación (2026-11-10): revision-datos-al-firmar implementada (sin commitear)
+
+- API: correo solo con el primer nombre; migración 043 (`first_name`/`last_name`); `greeting_name`; anulación en retención y ARCO; 16 tests nuevos.
+- Web: `StepForm` con dos campos, `StepReview` (resumen + Firmar/Editar datos), `StepSuccess` (Abrir <servicio> / Reenviar, aviso azul, cuenta atrás 10 s), `StepThanks` sin contador, `ConfirmedSharePopup` con contador. Módulos puros con tests `node --test` en `apps/web/src/lib/*.test.ts` (18).
+- Prueba en navegador contra dev con POST simulado: correcta; detectó y corrigió una carrera de doble clic.
+- Pendiente: probar con firma real en producción (S8), revisión de 360 px y teclado (S5), commit del usuario y despliegue conjunto (la migración 043 corre con el deploy).
+
 ## Continuación (2026-11-09): despliegue y cierres
 - Despliegue a `main` hecho (el primer intento falló por `ETIMEDOUT` de Google Fonts; el reintento pasó). Producción: API con caché y `/confirmar/<token>` activos.
 - **K8/K9 cerradas** (`cache-lecturas-publicas`): borde verificado en producción, RK1/RK8 con `fresh` (11 s y 10 s), RK11 (CORS), RK14 (landing con `?fbclid`/`?utm` comparte copia; en plan Free se resolvió con «ignorar query» + exclusiones en la expresión de la regla). nginx y Cloudflare ya aplicados a mano.
