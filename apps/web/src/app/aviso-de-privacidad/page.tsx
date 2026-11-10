@@ -27,12 +27,13 @@ async function getPrivacy(campaignId: string) {
   }
 }
 
-export default async function AvisoPrivacidad({
-  searchParams,
-}: {
-  searchParams: { slug?: string };
-}) {
-  const headersList = headers();
+export default async function AvisoPrivacidad(
+  props: {
+    searchParams: Promise<{ slug?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const headersList = await headers();
   const host = headersList.get("x-original-host") || headersList.get("host") || "";
   const isLocal =
     host.includes("localhost") || host.includes("127.0.0.1") || !host.includes(".");

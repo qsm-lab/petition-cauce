@@ -1,4 +1,5 @@
-export default function QuestionsPage({ params }: { params: { id: string } }) {
+export default async function QuestionsPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Preguntas del formulario</h1>

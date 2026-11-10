@@ -3,10 +3,11 @@ import FormBuilder from "./FormBuilder";
 import { Campaign } from "@/lib/types";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default async function BuilderPage({ params }: Props) {
+export default async function BuilderPage(props: Props) {
+  const params = await props.params;
   const form = await apiServer<any>(`/v1/forms/${params.id}`);
 
   if (!form) {

@@ -12,16 +12,17 @@ interface CampaignSummary {
   slug: string;
 }
 
-export default async function OrgDetailPage({ params }: { params: { id: string } }) {
+export default async function OrgDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await apiServer<User>("/v1/auth/me");
   if (!user || user.role !== "admin") redirect("/admin/campanas");
 
   const org = await apiServer<AdminOrg>(`/v1/admin/organizaciones/${params.id}`);
   if (!org) redirect("/admin/organizaciones");
 
-  const campaigns = await apiServer<CampaignSummary[]>(
+  const campaigns = (await apiServer<CampaignSummary[]>(
     `/v1/admin/organizaciones/${params.id}/campaigns`
-  ) ?? [];
+  )) ?? [];
 
   // null = sin config propia (404 del backend) → la card la muestra como "usa la de plataforma"
   const emailConfig = await apiServer<OrgEmailConfig>(

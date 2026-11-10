@@ -7,10 +7,11 @@ import type { PrivacyPolicy } from "@/lib/admin-privacy-api";
 import type { AdminOrg } from "@/lib/admin-orgs-api";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default async function CampanaDetailPage({ params }: PageProps) {
+export default async function CampanaDetailPage(props: PageProps) {
+  const params = await props.params;
   const [campaign, categories, policies, orgs] = await Promise.all([
     getAdminCampaign(params.id),
     apiServer<Category[]>("/v1/admin/categories").then((r) => r ?? []),

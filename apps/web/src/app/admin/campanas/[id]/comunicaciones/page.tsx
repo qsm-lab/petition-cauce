@@ -3,10 +3,11 @@ import { getAdminCampaign } from "@/lib/admin-campaigns-api";
 import ComunicacionesClient from "./ComunicacionesClient";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default async function ComunicacionesPage({ params }: PageProps) {
+export default async function ComunicacionesPage(props: PageProps) {
+  const params = await props.params;
   const campaign = await getAdminCampaign(params.id);
 
   if (!campaign) {
