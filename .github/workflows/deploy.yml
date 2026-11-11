@@ -20,7 +20,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           # 20m — builds Next.js con assets de campaña pueden superar el timeout por defecto (10m)
-          command_timeout: 20m
+          command_timeout: 40m
           script: |
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
