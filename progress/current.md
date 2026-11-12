@@ -1,8 +1,40 @@
-# Estado actual — sesión 46 (2026-11-08) — CERRADA con cambios sin commitear: caché de lecturas públicas, borde de Cloudflare y página de confirmación
+# Estado actual — sesión 47 (2026-11-10/12) — CERRADA: Next 15 desplegada, T1.3 y T5.1 cerradas, V6 preparada (docs sin commitear)
+
+## Cierre de sesión 47 (2026-11-12) — dónde quedamos
+
+**Fase 1 de `hardening-campana`: 78 %** (`bash infra/progress.sh`: 17 completadas, 5 con ajustes, 3 pendientes de 25). Producción: Next 15.5 / React 19, migración 043, `deploy.yml` con `command_timeout: 40m` (PR #42), VPS sincronizado con `main` y reiniciado (kernel -147, Docker 29.3.1 retenido con `apt-mark hold`).
+
+**Cerrado en esta sesión:** T1.3 (dependencias sin avisos de producción, VPS, reinicio) · **T5.1 soak S4**: 36 001 altas a 5/s durante 2 h, 0 errores 5xx, p95 34,8 ms, sin fugas (memoria 263→268 MiB, descriptores 90→116, Redis 1,3→1,4 MiB); la cola de correo crece si se firma a más de 2/s (tope de envío), sin `gave_up` — anotar en el runbook (T5.4). Entorno de carga desmontado. Detalle en `specs/hardening-campana/tasks.md`.
+
+**Hallazgo abierto (S8):** el correo de confirmación cae en Junk de Outlook en un buzón nuevo (SCL=6; SPF/DKIM/DMARC pasan). Un buzón nuevo es un solo dato: **V6 con buzones antiguos** decide qué hacer (nombre visible del remitente, calentamiento, DMARC `p=quarantine` solo tras el lanzamiento). Guion de V6 entregado; formato de resultados en `specs/verificacion-confirmacion-privacidad/preparacion-v6-v10.md`.
+
+**Al retomar, por orden:**
+1. **V6** con Outlook/Hotmail antiguo, Gmail web y app, iCloud, Yahoo y corporativo; activar `test-fresh` solo durante la prueba y devolverla a `draft`; anular las firmas de prueba. Cédulas válidas: generador en esta sesión (módulo 10, únicas por firma).
+2. **S5** (360 px y teclado, en un celular) y terminar **S8** (confirmar desde el correo, página de éxito y redirección).
+3. Probar que `GET /mis-datos/portal?token=` no consume el token con escáneres de enlaces y decidir **R8** (`GET /confirm-visibility`).
+4. Resto de Fase 1: T4.2 (pool/workers/límite de tasa frente a CGNAT; ya hay T5.1), T5.3 (TOTP o riesgo aceptado), T5.5 (congelamiento y reversión; depende de la fecha de lanzamiento), T5.6, T5.7 (V6–V10), T1.4 (Resend Pro al crear la campaña nueva: `RESEND_PLATFORM_PLAN=pro`).
+5. Deudas: medir por qué el build web tarda ≈ 16 min en el VPS; ~49 paquetes apt no críticos (ventana tranquila; Docker retenido); repo del VPS en la rama local `dev` (idealmente `main`); test inestable en `test_confirmation_email.py`; DMARC; ciclo de vida de R2; quién guarda la clave privada de respaldos.
+6. Limpieza local: `git worktree remove ../proy_petition-cauce-ci --force` (su cambio ya está en `main`).
+
+**Trampas nuevas:** no editar archivos versionados en el VPS (el `git pull` del deploy aborta); `command_timeout` vive en el repo; `caffeinate -i` no impidió que el Mac se durmiera ~28 min en el soak (usar `caffeinate -dims` o mantener enchufado y sin tapa cerrada); no crear worktrees salvo imprescindible.
+
+---
+
+## Next 15 (2026-11-10): desplegada en producción
+
+Next 15.5.29 / React 19.3.1 en producción (PRs a `dev` y `main`). Verificado tras el deploy: contenedores recreados y sanos, `alembic current` = 043, `/health` con db y redis `ok`. Falta la revisión visual de la landing (fuentes) y del login de admin. Detalle en T1.3b de `specs/hardening-campana/tasks.md`.
+
+**Trampa del deploy:** el build de la imagen web en el VPS tarda ≈ 16 min (medido 10 nov: 15 min 54 s), y `deploy.yml` corta el SSH a los 20 min (`command_timeout`). El primer deploy murió en «Collecting build traces». Se resolvió construyendo antes en el VPS con `nohup bash -c 'time docker compose build petition-web'` y relanzando el job (build de caché). Pendiente decidir: subir `command_timeout` a 40m (toca `.github/workflows/`) y/o medir por qué el build es tan lento.
+
+## T1.3 (2026-11-10): dependencias web sin avisos de producción
+
+Rama `chore/quita-zod-y-parser` en el worktree `../proy_petition-cauce-deps` (sin commitear): quita `zod` (no se usaba) y fija `postcss-selector-parser >=6.1.5`. `pnpm audit --prod` limpio, `tsc`, tests y build OK, CSS idéntico. **Desplegada el 11 nov 2026** (`alembic current` 043, `/health` ok). `command_timeout` del deploy subido a 40m (el build web tarda ≈ 16 min). **VPS (11 nov):** Docker fijado y reinicio del kernel hecho (`-85` → `-147`, 31 contenedores de vuelta, `/health` ok). T1.3 cerrada.
 
 ## Hotfix (2026-11-10): build del VPS sin Google Fonts
 
 El deploy fallaba de forma persistente al bajar Google Fonts en `pnpm run build`. `layout.tsx` usa ahora `next/font/local` con 24 woff2 en `apps/web/src/fonts/` (424 KB, OFL, subset latin). Verificado con `docker build` real (24 woff2 en `.next/static/media`).
+
+**Deploy verificado en producción (10 nov):** `alembic current` = `043 (head)`; `petition-api` y `petition-web` recreados y `healthy`; `/health` → `{"status":"ok","db":"ok","redis":"ok"}`. Pendiente: prueba real de firma (S8) y revisar fuentes en la landing.
 
 ## Continuación (2026-11-10): revision-datos-al-firmar implementada (sin commitear)
 
@@ -34,14 +66,14 @@ El deploy fallaba de forma persistente al bajar Google Fonts en `pnpm run build`
 - Suite de la API: 376 pasan (el test inestable de `test_confirmation_email.py` no falló en esta pasada; sigue siendo deuda).
 
 **Plan de commits (el usuario commitea):**
-1. `chore/next-15-react-19`: migración a Next 15.5 / React 19 (`apps/web`: package.json, lockfile, tsconfig, next-env, páginas con params asíncronos). **Retenida: no fusionar en `dev` antes del lanzamiento** (falta la revisión visual del sitio entero).
+1. `chore/next-15-react-19`: migración a Next 15.5 / React 19 (`apps/web`: package.json, lockfile, tsconfig, next-env, páginas con params asíncronos). **Ya desplegada (10 nov 2026)**; solo falta la revisión visual en producción.
 2. En `chore/hardening-carga-monitoreo`: k6, runbooks, specs/diseño/progreso (no cambian el comportamiento).
 3. `feat/confirmacion-y-cache` (**lo que se despliega**): API (confirmación POST + caché), fix de `attempt_send`, página `/confirmar`, y el archivo nginx (ya aplicado en el VPS).
 El deploy se dispara con un push a `main` (`deploy.yml`), es decir al fusionar `dev` en `main`.
 
 **Pendiente, por orden:** desplegar (3) → repetir `edge_check.sh headers|variants|fresh` (cierra K8 y K9: RK1, RK4, RK5, RK8, RK11) y hacer una firma real de prueba hasta confirmar desde el correo (V5) ·
 decidir si se añade R8 (`GET /confirm-visibility/{token}` también cambia estado por GET) · T5.1 soak, T5.3 TOTP o riesgo aceptado, T5.5 congelamiento y reversión, T5.6 · V6–V10 (buzones reales, seguimiento Brevo/Resend, aviso y RAT, ARCO, retención de `pending_confirmation`) ·
-revisión visual de Next 15 y su despliegue posterior · reglas de ciclo de vida del bucket R2, R2 UE como subencargado, 9 de 25 tablas sin RLS, `PROVIDER_SECRET_KEY`, repo del VPS en `main`, contactos de guardia en el runbook, A3 (revisar `pool_size` si se quiere más margen de altas).
+revisión visual de Next 15 en producción · reglas de ciclo de vida del bucket R2, R2 UE como subencargado, 9 de 25 tablas sin RLS, `PROVIDER_SECRET_KEY`, repo del VPS en `main`, contactos de guardia en el runbook, A3 (revisar `pool_size` si se quiere más margen de altas).
 **Trampas de esta sesión:** medir k6 dentro de la red de Docker (el proxy de puertos del Mac resetea conexiones a ≈ 2 000 req/s); `next build` en Docker falla a veces por tiempo de espera al bajar Google Fonts (repetir); en producción la CSP solo permite conectar al mismo origen (API bajo `/api`);
 nunca guardar copias de nginx dentro de `sites-enabled` (nginx las carga; mover `*.bak-*` a `/root/nginx-backups/`).
 
@@ -56,12 +88,12 @@ nunca guardar copias de nginx dentro de `sites-enabled` (nginx las carga; mover 
 **Hecho en el VPS por el usuario:** SSH por clave, T2.2 respaldos a R2 UE con restauración probada (RTO 20 s), T2.3 copia de claves, T3.4 alertas SMTP + chequeo externo GreenGeeks, T3.2 servidor por defecto en 443.
 
 **Sin commitear (el usuario commitea):** rama sugerida `chore/hardening-carga-monitoreo` con 5 commits ya redactados (proveedor de correo simulado, k6 + `verify_email_recovery.sh`, `infra/`, runbooks, specs).
-**Next 15/React 19** (19 archivos de `apps/web`) va aparte en `feat/web-next15`: falta build Docker real y revisión visual. Ramas: no usar `feat/correo-recuperacion` (obsoleta, ya fusionada); PR a `main` (el deploy corre con cualquier push a `main`).
+**Next 15/React 19** (19 archivos de `apps/web`) se desplegó el 10 nov 2026 desde `chore/next-15-react-19` (ver el bloque «Next 15» arriba). Ramas: no usar `feat/correo-recuperacion` (obsoleta, ya fusionada); PR a `main` (el deploy corre con cualquier push a `main`).
 
 **Specs nuevas en `spec_ready` (esperan tu aprobación):** `cache-lecturas-publicas` (el escenario `read` dio 21 % de 5xx por agotamiento del pool; caché Redis 10 s + `Cache-Control` + 503 con `Retry-After`)
 y `verificacion-confirmacion-privacidad` (T5.7; `GET /confirm` confirma por escáner; **decide D1**, recomendada A: botón con `POST`, requiere Claude Design).
 
-**Pendiente de otros, por orden:** aprobar las dos specs → implementar `cache-lecturas-publicas` y repetir `read` · decidir TOTP (T5.3) · T5.1 soak, T5.4 runbook de incidentes, T5.5 congelamiento y reversión ·
+**Pendiente de otros, por orden:** aprobar las dos specs → implementar `cache-lecturas-publicas` y repetir `read` · decidir TOTP (T5.3) · T5.4 runbook de incidentes, T5.5 congelamiento y reversión ·
 reglas de ciclo de vida del bucket R2 y R2 UE como subencargado (RAT y contrato) · purga de 1 137 `pending_confirmation` · repo del VPS en `main` · `PROVIDER_SECRET_KEY` dedicada (Fase 2).
 Entorno de carga: `LT_API_PORT=8031 docker compose -f docker-compose.loadtest.yml up -d` (el 8021 de tu Mac está ocupado); escenarios en `loadtest/README.md`.
 **Reglas vigentes:** ningún comando al VPS imprime secretos; `source` de archivos de config solo con comillas simples; los `sudo` por `ssh` requieren sesión interactiva.

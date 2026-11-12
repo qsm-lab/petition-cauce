@@ -51,34 +51,36 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 
 ## Día 1 — Medir y cerrar lo crítico · *4/6*
 
-- [~] **T1.1 · Diagnóstico de solo lectura en el VPS** (R1, R3, R4, R8) · 1 h
+- [x] **T1.1 · Diagnóstico de solo lectura en el VPS** (R1, R3, R4, R8) · 1 h
   *Preparada. Falta ejecutarla (SSH de `ssdn` rechazado desde esta sesión):
   `ssh ssdn 'bash -s' < infra/monitoring/vps_readonly_audit.sh` (Paso 1 del runbook).*
-  **Actualizado 10 nov 2026:** el usuario ya aplicó SSH por clave, fail2ban y servidor por defecto en 443. **Falta ejecutar `vps_readonly_audit.sh`**: confirma `ENVIRONMENT=production`, la clave real de Turnstile, `FORCE RLS`/dueño de tablas, reglas `ufw` y parches (`apt list --upgradable`). Cierra T2.1, T3.2 y T1.3 a la vez.
+  **Actualizado 10 nov 2026:** ejecutado (`audit_vps.txt`, 10 nov). VPS compartido: 12 vCPU, 47 GiB (36 libres), disco 31 %, 240 días de uptime. `petition-api` healthy; límites activos (api 1,5 GiB/2 CPU, web 1 GiB/1,5, db 2 GiB/2, redis 512 MiB/0,5); `restart=unless-stopped`. `ENVIRONMENT=production`, Turnstile con clave real (len 35), `RESEND_PLATFORM_PLAN=free`, `EMAIL_POOL=brevo,resend`; `PROVIDER_SECRET_KEY` vacía (usa `PII_ENCRYPTION_KEY`, ya conocido). Puertos internos solo en `127.0.0.1`; solo 80/443 públicos. Lo que no pudo leer por falta de `sudo` (ufw/iptables, crontab completo) pasa a T3.2 y T3.4.
 - [x] **T1.2 · Guarda de arranque de Turnstile + fail-closed** (R1, D1) · 1,5 h
   *Hecho: `config.py`, `turnstile_service.py`, 8 tests. Sin desplegar. Antes de desplegar, confirmar con
   T1.1 que `ENVIRONMENT=production` y la clave real existen en el VPS, o la API no arrancará.*
   **Actualizado 10 nov 2026:** en `main` y desplegado (la API arranca en producción con la guarda activa).
-- [~] **T1.3 · Higiene de dependencias y secretos** (R11) · 2 h
+- [x] **T1.3 · Higiene de dependencias y secretos** (R11) · 2 h
   *Hecho: sin secretos reales en el historial (solo site keys públicas); `pip-audit` limpio
   («No known vulnerabilities found»); `pnpm audit` de 44 avisos a 3. Falta: parches del SO en el VPS
   (`apt list --upgradable`, en el script de T1.1), y decidir `zod` (alta, exige v4) y
   `postcss-selector-parser` (de Tailwind), sin solución sin salto mayor.*
-  **Actualizado 10 nov 2026:** sigue pendiente solo lo del VPS (parches del SO) y decidir por escrito `zod` y `postcss-selector-parser`.
+  **Actualizado 10 nov 2026:** VPS (10 nov): 55 paquetes pendientes, **0 de seguridad**. **Reinicio pendiente confirmado:** está instalado `linux-image-6.8.0-147` y corre el `-85` (240 días de uptime); reiniciar afecta a todos los servicios del VPS compartido → ventana a decidir. Docker **no** está fijado y 6 paquetes suyos están entre los pendientes (`docker-ce` 29.3.1→29.9.3, `containerd.io`, `docker-compose-plugin`…): fijar con `apt-mark hold` antes de cualquier `apt upgrade`. **`pnpm audit --prod` sobre el lockfile actual (Next 14): 3 críticas y ≈ 20 altas, casi todas de `next`** (parche solo en ≥ 15.5.x): ver T1.3b. `zod` (alta, memoria en colecciones enormes; exige v4): **corregido 10 nov:** no se importa en ningún archivo de `apps/web/src` y ninguna otra dependencia lo necesita (solo figuraba en `package.json`), así que se quita en vez de aceptarlo. `postcss-selector-parser`, `postcss`, `browserslist`, `source-map-js`, `nanoid` son de build.
+  **Actualizado 10 nov 2026 (tarde):** rama `chore/quita-zod-y-parser` (worktree `../proy_petition-cauce-deps`, sin commitear): se quita `zod` de `package.json` y se añade el override `postcss-selector-parser: ">=6.1.5 <7"` (resuelve 6.1.6; solo lo usa Tailwind en el build). `pnpm audit --prod`: **«No known vulnerabilities found»** (antes `zod` alta + `postcss-selector-parser` moderada y baja). Verificado: `tsc` limpio, 18/18 tests de `src/lib`, `next build` correcto y el **CSS generado idéntico byte a byte** (60 043 bytes, mismo hash) con el lockfile anterior y el nuevo. `pnpm audit` completo sigue con 18 avisos, todos de devDependencies (`eslint-config-next`, etc.) que no entran en la imagen de producción. **Desplegado el 11 nov 2026** (PR #39/#40 y #42): `alembic current` = 043, `/health` ok (db y redis ok), contenedores api y web recreados y sanos. Los dos primeros intentos cortaron por `command_timeout: 20m` (el build web tarda ≈ 16 min); `deploy.yml` pasó a **40m** (PR #42). Una edición manual del `deploy.yml` en el VPS hizo abortar un `git pull`: **no editar archivos versionados en el VPS**. **Docker fijado (11 nov 2026):** `apt-mark showhold` lista los 6 paquetes (`containerd.io`, `docker-buildx-plugin`, `docker-ce`, `docker-ce-cli`, `docker-ce-rootless-extras`, `docker-compose-plugin`). **Falta en T1.3:** (c) ventana para el reinicio del kernel (`-85` → `-147`).
+  **Cerrado 11 nov 2026:** reinicio del VPS hecho a las 05:45 UTC tras respaldo fresco, comprobar que los 31 contenedores tienen `unless-stopped`/`always` y que `docker`, `nginx`, `cron`, `ufw` y `ssh.socket` arrancan solos. Verificado: kernel `6.8.0-147` (antes `-85`), los 31 contenedores de vuelta (petition-api/db/redis sanos), `/health` ok, `ufw` activo, landing y favicon 200 por Cloudflare (≈ 5 s en frío durante el arranque con load 11; ≈ 1 s a los pocos minutos). Docker fijado (`apt-mark showhold`, 6 paquetes). `twenty-crm-production-server-1` (otro proyecto) salió `unhealthy` en el arranque; revisar. Los demás paquetes pendientes (≈ 49, 0 de seguridad) se dejan para una ventana tranquila: no hay urgencia.
 - [~] **T1.3b · Next.js 14 → 15.5.29** (R11) · 1–2 días
   *Hecho: Next 15.5.29 + React 19.3.1, codemod async API (15 archivos), tipos OK, `next build` OK
   (24 páginas, con fuentes simuladas), prueba de runtime (landing SSR, `/admin` redirige, cabeceras
   CSP). Críticas 3 → 0. Falta: **(a)** build Docker real (esta máquina no llega a Google Fonts; el VPS
   sí), **(b)** revisión visual en navegador de landing, formulario de firma y admin (React 19),
   **(c)** reconstruir `petition-web-dev` local.*
-  **Actualizado 10 nov 2026:** rama `chore/next-15-react-19`; **no se fusiona antes del lanzamiento** (decisión). Queda para después: build Docker real y revisión visual completa.
+  **Actualizado 10 nov 2026:** *decisión del usuario: migrar ahora (no hay campaña activa).* Rama `chore/next-15-react-19` con `dev` fusionado (sin conflictos), en un worktree aparte. Verificado: `tsc` limpio, 18 tests de `src/lib`, `next build` OK, **imagen Docker de producción** con Next 15.5.29 y React 19.3.1 (todas las rutas 200, CSP y cabeceras intactas); revisión visual Next 14 vs 15 en 36 capturas (390 y 1160 px, públicas y admin tras login) con diferencias solo de ruido, y el flujo de firma (revisión, triple clic = 1 POST, «Revisa tu correo», reenvío, paso a compartir) idéntico. `pnpm audit --prod`: de 3 críticas y ≈ 20 altas a **0 críticas y 3 avisos** (`zod` alta, `postcss` moderada, `postcss-selector-parser` baja; los tres de build o del renderizador heredado). Se quitó el `favicon.ico` duplicado de `public/` (Next 15 lo marca como conflicto). **Desplegada el 10 nov 2026** (PR a `dev` y `main`): el primer deploy cortó por `command_timeout: 20m` (el build web tarda ≈ 16 min en el VPS); se construyó la imagen a mano en el VPS y se relanzó el job. Verificado: `alembic current` = 043, `/health` ok. **Falta:** revisión visual de la landing y del login de admin en producción; decidir subir `command_timeout` a 40m.
 - [x] **T1.3c · FastAPI/Starlette actualizados** (R11) · 0,5–1 día
   *Hecho: FastAPI 0.162.0, Starlette 1.10.0, `python-jose` → PyJWT 2.15.0, `cryptography` 50.0.2,
   `python-multipart` 0.0.33, `jinja2` 3.1.6, `pyarrow` retirado (no se usaba). 302 tests verdes.
   Imagen Docker de producción de la API construida correctamente (1,01 GB).*
-- [x] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
+- [~] **T1.4 · Correo transaccional: Resend Pro** (R5, D7) · 1 h + trámite
   *Decidido. Falta activar el plan y `RESEND_PLATFORM_PLAN=pro` (Paso 2 del runbook).*
-  **Actualizado 10 nov 2026:** Resend Pro activo en producción (`/comms/quota`: sin cuota diaria, 50.000/mes; `RESEND_PLATFORM_PLAN=pro`).
+  **Actualizado 10 nov 2026:** *decisión del usuario:* Resend queda en **free** (`RESEND_PLATFORM_PLAN=free`, 150/día) **hasta que se cree la nueva campaña**; entonces se activa Pro y se fija `RESEND_PLATFORM_PLAN=pro` (Paso 2 del runbook). Pro estuvo activo en sesiones anteriores (50.000/mes). Hasta entonces no hay capacidad de 3.000/día.
 
 - [x] **T1.5 · Recuperación del correo de confirmación fuera de la petición** (R5) · 1 día · *MUST*
   *Código y tests hechos (spec `specs/correo-recuperacion/`, 342 passed). Falta C10 (k6 con proveedor simulado) y desplegar. Corrige además un defecto previo: no salía ningún correo de confirmación al firmar (ver spec). Marca de envío por firma, reintentos con reclamo atómico (sin duplicados), límite de velocidad, tope de intentos, tokens nuevos si el enlace caducó, tres visibilidades. Requiere migración.*
@@ -86,12 +88,12 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 
 ## Día 2 — Datos y borde · *1,5/3*
 
-- [~] **T2.1 · RLS: pruebas negativas (+ `042_force_rls` si hace falta)** (R3, D3) · 4 h
+- [x] **T2.1 · RLS: pruebas negativas (+ `042_force_rls` si hace falta)** (R3, D3) · 4 h
   *Hecho: 5 tests (`test_rls_isolation.py`): rol de la app sin superusuario/BYPASSRLS/no dueño, sin lectura,
   escritura, borrado ni inserción cruzada entre organizaciones, y sin firmas secretas/anuladas sin
   contexto. En dev `petition_admin` es dueño y `petition_app` no, así que `FORCE` no es necesario;
   falta confirmar lo mismo en producción (T1.1). **Hallazgos:** ver "Hallazgos" abajo.*
-  **Actualizado 10 nov 2026:** en dev está verificado; falta comprobarlo en producción con el diagnóstico de T1.1 (`petition_app` sin superusuario/BYPASSRLS, dueño de las tablas, `FORCE` descartado o aplicado).
+  **Actualizado 10 nov 2026:** verificado en producción: la API conecta como `petition_app` (4 conexiones; `petition_admin` solo la sesión de diagnóstico), que no es superusuario, ni `BYPASSRLS`, ni dueño. Dueño de las 30 tablas: `petition_admin`. **`FORCE RLS` descartado con evidencia** (solo importaría si la app conectara como dueña). RLS activo en las 7 tablas con PII o de campaña. **Hallazgo:** en dev 16 tablas no tienen RLS (`users`, `login_audit`, `organizations`, `privacy_consents`, `privacy_config`, `lifecycle_events`, `exports_log`, `responses`, `response_answers`…): metadatos, autenticación y formularios heredados, no firmas; se revisan en T7.2.
 - [x] **T2.2 · Backups cifrados offsite + restore probado** (R4, D4) · 4 h
   *Scripts `infra/backup/pg_backup.sh` y `restore_test.sh` probados en dev (41 firmas = 41 restauradas,
   RTO 1 s). Falta instalarlos en el VPS, elegir el destino offsite y probar el restore real (Paso 4).*
@@ -109,10 +111,10 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `app/client_ip.py` (solo confía en `CF-Connecting-IP` si la conexión viene de Cloudflare),
   usado por rate limit, `ip_hmac`, login, exportación y endpoint legado; 8 tests. Ya no depende del
   `real_ip` del conf de forms-qsm. Opcional: Paso 6 del runbook para logs de nginx con IP real.*
-- [~] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
+- [x] **T3.2 · Origen solo desde Cloudflare + validación de Host** (R2) · 2 h
   *Solo runbook (Pasos 6 y 7): servidor por defecto `444` y reglas ufw con rangos de Cloudflare.
   Acción manual en el VPS, con segunda sesión SSH y confirmando que forms-qsm también está tras Cloudflare.*
-  **Actualizado 10 nov 2026:** hecho: servidor por defecto en 443 (`ssl_reject_handshake`). **No hay evidencia** de las reglas `ufw` con rangos de Cloudflare: verificar con T1.1 (`sudo ufw status`).
+  **Actualizado 10 nov 2026:** `ufw` activo (deny entrante por defecto): 443 solo desde los 15 rangos IPv4 de Cloudflare más la red de Docker, 80 sin regla pública, 22 abierto a cualquiera (clave + fail2ban). Solo hay una regla IPv6 (22): el 443 por IPv6 cae en el deny por defecto. Rangos renovados por `/etc/cron.d/update-cloudflare-ips` (domingos 03:00). Prueba externa: el origen no responde fuera de Cloudflare (curl 28 por 443 y 80).
 - [x] **T3.3 · Logs estructurados sin PII + alerta por 5xx** (R6a, D5) · 2 h
   *Hecho: `app/observability.py` (una línea JSON por petición: ruta-plantilla, estado, ms, `X-Request-ID`;
   sin query, cabeceras, cuerpo ni IP; ante excepción solo la clase), 3 tests; `business_signals.sh` alerta
@@ -122,7 +124,7 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
   *Hecho: `infra/monitoring/healthcheck_remote.sh` (GreenGeeks) y `business_signals.sh` (VPS: firmas
   sin confirmar, cola atascada, backup, disco, memoria, contenedores); SQL validado en dev. Falta
   instalarlos y la prueba real de correo (Pasos 8–10).*
-  **Actualizado 10 nov 2026:** instalado: alertas por SMTP propio probadas y chequeo externo en GreenGeeks (cron). Netdata sin evidencia de prueba de alerta.
+  **Actualizado 10 nov 2026:** instalado: `business_signals.sh` en el cron del VPS cada 5 min, alertas por SMTP propio probadas y chequeo externo en GreenGeeks. Netdata sin evidencia de prueba de alerta.
 
 ## Día 4 — Capacidad · *1/3*
 
@@ -141,7 +143,16 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 
 ## Día 5 — Soak, admin y cierre · *1/6*
 
-- [ ] **T5.1 · Soak S4 (2 h, en segundo plano)** (R7) · 2 h de reloj, 0,5 h de trabajo
+- [x] **T5.1 · Soak S4 (2 h, en segundo plano)** (R7) · 2 h de reloj, 0,5 h de trabajo
+  *Hecho el 11 nov 2026 en el entorno aislado (Docker Desktop: 8 CPU, ~3,8 GiB; no mide capacidad del VPS, busca fugas).
+  36 001 altas a 5/s durante 2 h (la corrida duró 2 h 21 min: el Mac se durmió ~28 min a las 02:50 pese a `caffeinate`;
+  explica el único máximo de 28,7 s). 0 errores 5xx y 0 de red; 35 892 firmas creadas y 109 duplicadas (colisión de cédula
+  aleatoria, respuesta controlada). Latencia: mediana 20,7 ms, p95 34,8 ms. **Sin fugas:** memoria de la API 263→268 MiB,
+  descriptores 90→116 (estables), conexiones a la base 16→21, Redis 1,3→1,4 MiB, sin conexiones colgadas (`idle in
+  transaction` ≤ 9, transitorias). Correo: el envío está limitado a 2/s (`confirm_email_max_per_second`) y se firmaba a 5/s,
+  así que la cola creció a ~3/s (15 397 pendientes al final, 0 `gave_up`, reintentos ≤ 3 con 7 % de fallos simulados); drenó
+  ~1,7/s durante la verificación. Con tráfico real (picos de pocas firmas/s) no se acumula, pero un pico sostenido > 2/s retrasa
+  la confirmación por correo: avisar en el runbook. Entorno desmontado (`down -v`).*
 - [x] **T5.2 · CSV injection + alerta de exportación anómala** (R10) · 2 h
   *Hecho: `app/csv_safe.py` aplicado a las dos exportaciones de firmas (incluido el sello); 12 tests;
   alerta de >3 exportaciones/hora en `business_signals.sh`. No se aplicó al CSV de portabilidad ARCO (datos del propio
@@ -264,8 +275,8 @@ firma real de prueba que llega el correo con el resumen de datos.
 - [x] Turnstile no puede quedar abierto en producción (arranque falla sin clave). _T1.2, en `main`._
 - [x] Restore de backup probado, con RPO/RTO anotados. _2.373 firmas, RTO 20 s, RPO 1 h._
 - [ ] Pruebas de aislamiento entre organizaciones en verde; FORCE RLS aplicado o descartado con evidencia.
-- [ ] Rate limit distingue IP reales (prueba con IP distintas); origen cerrado a Cloudflare.
-- [ ] Confirmación por correo con capacidad ≥ 3.000/día y alerta al 70 %.
+- [~] Rate limit distingue IP reales (prueba con IP distintas); origen cerrado a Cloudflare. _Origen cerrado: verificado (ufw + prueba externa). Falta la prueba de rate limit con IP distintas en producción._
+- [ ] Confirmación por correo con capacidad ≥ 3.000/día y alerta al 70 %. _Diferido: requiere Resend Pro, que se activa al crear la nueva campaña._
 - [ ] S1–S3 y S5–S7 cumplen los criterios de R7; S4 sin fugas.
 - [~] Una alerta de prueba real llega **por correo** al canal de guardia, desde el monitor
       externo y desde Netdata, con el SMTP independiente; los logs de error no contienen PII. _Monitor externo y alertas SMTP probados; falta evidencia de Netdata._
