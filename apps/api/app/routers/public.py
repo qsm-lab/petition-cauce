@@ -61,11 +61,3 @@ async def track(slug: str, data: TrackRequest, db: AsyncSession = Depends(get_db
     if campaign:
         await ResponseService.track_event(db, campaign, data)
     return {"ok": True}
-
-
-@router.post("/verify-turnstile")
-async def verify_turnstile_endpoint(request: Request):
-    body = await request.json()
-    token = body.get("token", "")
-    ok = await verify_turnstile(token)
-    return {"valid": ok}
