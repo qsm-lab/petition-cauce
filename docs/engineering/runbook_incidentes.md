@@ -56,6 +56,20 @@ Si `health` no responde 200, ir a la fila de la tabla de abajo. Si responde 200 
 - Si el DNS apunta mal: restaurar los registros desde la anotación de la zona (guardar una copia fuera de Cloudflare antes del lanzamiento).
 - Comunicar en las redes de la campaña: «estamos con una incidencia, sus firmas no se pierden; vuelvan en un rato».
 
+### 3.4 Turnstile caído o lento (S7, comportamiento por diseño)
+- En producción la verificación **falla cerrada** (T1.2): si Cloudflare Turnstile no responde, el alta devuelve `422 turnstile_failed`
+  y **no se guarda la firma**. Las lecturas (landing, contador) siguen funcionando.
+- Comprobar `https://www.cloudflarestatus.com` (componente Turnstile). No hay que tocar la API: se recupera sola cuando vuelve Turnstile.
+- **No** desactivar Turnstile para «dejar firmar»: abre el alta a bots y no hay vuelta atrás sobre las firmas que entren.
+- Comunicar: «el formulario está pausado unos minutos por un proveedor externo; vuelve a intentarlo en un rato».
+
+### 3.5 Firmas legítimas frenadas por el límite de tasa (429)
+- El alta admite `SIGNATURE_RATE_LIMIT` por IP (20/minuto por defecto). En un acto presencial con una sola wifi o con CGNAT móvil
+  puede quedarse corto.
+- Subirlo en el `.env` del VPS (p. ej. `SIGNATURE_RATE_LIMIT=60/minute`, sin imprimir el archivo) y
+  `docker compose up -d --force-recreate petition-api`. Turnstile, la validación de cédula y el índice único siguen frenando el abuso.
+- Bajarlo de nuevo al terminar el acto.
+
 ## 4. Reversión de un despliegue
 Plan por tipo de cambio (R12). Siempre respaldo antes: `pg_backup.sh` a mano y comprobar `LAST_OK`.
 | Cambio | Reversión |

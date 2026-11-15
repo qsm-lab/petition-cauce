@@ -1,3 +1,15 @@
+# Estado actual — sesión 48 (2026-11-14) — EN CURSO: ruta crítica al lanzamiento y bloque A
+
+**Análisis:** `specs/hardening-campana/tasks.md` tiene ahora la «Ruta crítica al lanzamiento» (bloques A/B/C y lo pospuesto con disparador). Fase 1: 78 %.
+
+**Bloque A hecho en local (sin commitear ni desplegar):** A1 `SIGNATURE_RATE_LIMIT` (5 → 20/min por IP, CGNAT) · A2 retirado `POST /v1/public/verify-turnstile` · A3 parte en texto plano en todos los correos y nombre de la organización como remitente visible de la confirmación · A4 criterios go/no-go y runbook de incidentes §3.4 (Turnstile caído) y §3.5 (429).
+Tests: `tests/test_entregabilidad_correo.py` (12 pasan); suite 406 passed + 1 fallo del test inestable de `test_confirmation_email.py` (también falla sin los cambios).
+Archivos: `apps/api/app/{config.py,routers/public.py,routers/public_campaign.py,services/email_service.py,services/email_transport.py,services/email_text.py}`, `apps/api/tests/test_entregabilidad_correo.py`, `docs/engineering/runbook_incidentes.md`, `docs/diagrams/resumen-arquitectura-y-flujo-firmas.md`, `loadtest/signatures.js`, `specs/hardening-campana/tasks.md`.
+
+**Siguiente:** commit del usuario → A5 desplegar → bloque B (una sesión de pruebas manuales) y bloque C (decisiones).
+
+---
+
 # Estado actual — sesión 47 (2026-11-10/12) — CERRADA: Next 15 desplegada, T1.3 y T5.1 cerradas, V6 preparada (docs sin commitear)
 
 ## Cierre de sesión 47 (2026-11-12) — dónde quedamos

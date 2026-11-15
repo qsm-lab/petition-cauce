@@ -1,10 +1,13 @@
 # Tasks — hardening-campana (primera propuesta de plan)
 
-Borrador para revisión. Estado: `spec_ready`, **pendiente de aprobación**; nada implementado.
-Referencias Rn → `requirements.md`; decisiones Dn → `design.md`.
-Estimaciones en horas de trabajo efectivo, orientativas.
+Estado: `in_progress` (spec aprobada). Referencias Rn → `requirements.md`; decisiones Dn → `design.md`.
+Estimaciones en horas de trabajo efectivo, orientativas. **Empezar por la «Ruta crítica al lanzamiento»** (abajo): reordena lo
+pendiente según lo que protege la campaña y deja fuera lo que puede esperar.
 
-## Progreso (actualizado 2026-11-06)
+## Progreso
+
+**Al 14 nov 2026 (`bash infra/progress.sh`):** Fase 1 **78 %** (17 completadas, 5 con ajustes, 3 pendientes de 25) · Fase 2 0 %.
+La tabla de abajo es la foto del 6 nov y se conserva como histórico.
 
 Leyenda: `[x]` completada · `[~]` revisada o iniciada, **requiere ajustes** · `[ ]` pendiente
 (incluye las bloqueadas). Cálculo: completada = 1, con ajustes = 0,5, pendiente = 0, sobre el
@@ -42,9 +45,72 @@ en GreenGeeks compartido, alertas por correo, Resend Pro.
 
 ---
 
+# Ruta crítica al lanzamiento (reordenada el 14 nov 2026)
+
+Análisis de la sesión 48: lo que protege de verdad ya está en producción (Turnstile fail-closed, aislamiento RLS, respaldos con
+restauración probada, origen cerrado a Cloudflare, caché de lecturas, pruebas de carga y soak). El riesgo principal ya no es un
+ataque sino que **el correo de confirmación no llegue** (52 % de confirmación en la campaña anterior, Outlook lo manda a Junk).
+Lo que queda se agrupa en tres bloques; **≈ 1,5–2 días** de trabajo en total.
+
+## Bloque A — Código (Claude, ≈ 3 h, un solo deploy) · *hecho en local, sin commitear ni desplegar*
+
+- [x] **A1 · Límite de altas por IP configurable, 5 → 20/min** (`SIGNATURE_RATE_LIMIT`). CGNAT móvil y wifi de actos presenciales;
+      Turnstile, cédula e índice único siguen frenando el abuso. Cerrar en caliente: runbook de incidentes §3.5. *Cierra el ajuste de rate limit de T4.2.*
+- [x] **A2 · Retirado `POST /v1/public/verify-turnstile`** (hallazgo 4): sin uso en la web, sin límite de tasa, oráculo de tokens y
+      una petición saliente a Cloudflare por llamada. `/c/{slug}/respond` se queda: lo usa `FormRenderer` (formularios heredados).
+- [x] **A3 · Entregabilidad del correo:** todos los correos llevan **parte en texto plano** (`app/services/email_text.py`; Resend `text`,
+      SES `Body.Text`, Brevo `textContent`) y la confirmación sale con el **nombre de la organización** como remitente visible
+      (`"Colectivo Río" <info@…>`; nombre saneado, *encoded-word* en SES). Antes: solo HTML y sin nombre visible (señales de spam).
+- [x] **A4 · Criterios go/no-go** marcados con la evidencia que ya existía; S7 (Turnstile caído) documentado en el runbook §3.4.
+- [ ] **A5 · Desplegar** A1–A3 (fuera de cualquier envío masivo; R12). Tras el deploy: una firma real de prueba y «Mostrar original»
+      para ver `text/plain` y el nombre del remitente. **Si se cambia `RESEND_FROM_EMAIL` a un valor con nombre, ese nombre manda.**
+
+Tests: `tests/test_entregabilidad_correo.py` (12). Suite: 406 passed + 1 fallo del test inestable conocido de
+`test_confirmation_email.py` (falla también sin estos cambios, un test distinto en cada pasada: deuda abierta).
+
+## Bloque B — Verificación manual (usuario, ≈ 2–3 h, **una sola sesión** con `test-fresh` activa)
+
+- [ ] **B1 · V6 reducido:** Gmail (app), un Outlook/Hotmail **antiguo** y un corporativo. iCloud y Yahoo, opcionales.
+- [ ] **B2 · S8:** confirmar desde el correo, página de éxito y redirección.
+- [ ] **B3 · S5 (accesibilidad):** 360 px en un Android y recorrido completo con teclado (Tab/Enter/Esc) en el diálogo de firma.
+- [ ] **B4 · Escáner:** con el corporativo, **sin pulsar nada**, la firma sigue en `pending_confirmation`.
+- [ ] **B5 · V9:** recorrido ARCO de extremo a extremo (`/mis-datos` → portal → rectificar → solicitud visible en admin).
+- [ ] **B6 · Cierre:** `test-fresh` de vuelta a `draft` y firmas de prueba anuladas.
+
+## Bloque C — Decisiones y textos (usuario + organización responsable, ≈ 2 h)
+
+- [ ] **C1 · T1.4:** Resend Pro, `RESEND_PLATFORM_PLAN=pro`, alerta del 70 % en el panel de Resend.
+- [ ] **C2 · V8:** el aviso de privacidad de la campaña declara Cloudflare (proxy y Turnstile), R2 UE y el VPS.
+- [ ] **C3 · V9:** responsable, canal y plazo de ARCO (confirmar el plazo legal de la LOPDP); el aviso dice lo mismo.
+- [ ] **C4 · T5.3 (recomendado):** aceptar el riesgo de no tener TOTP con medidas mínimas — `PLATFORM_ADMIN_EMAILS` al mínimo, rotar
+      contraseñas, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` de 120 a 60 — con fecha de revisión (T6.2). Ahorra ≈ 6 h.
+- [ ] **C5 · Contador público:** decidir **antes** del lanzamiento si cuenta las `pending_confirmation` (hoy sí; 48 % en la campaña
+      anterior). Cambiarlo con la campaña en marcha hace bajar la cifra en público.
+- [ ] **C6 · T5.4:** nombres y canales de guardia en el runbook.
+- [ ] **C7 · T5.5:** fecha de lanzamiento → congelamiento (48 h antes / 72 h después) y **reversión rápida por imagen**: el build web
+      tarda ≈ 16 min y el deploy hasta 40; antes de cada deploy, etiquetar las imágenes actuales (`petition-web:prev`, `petition-api:prev`)
+      para volver en segundos sin reconstruir.
+- [ ] **C8 · Regla operativa:** nada de envíos masivos por Resend en los días pico (comparte cuenta y ritmo con las confirmaciones).
+
+## Pospuesto con disparador (no bloquea el lanzamiento)
+
+| Pendiente | Por qué puede esperar | Hacerlo antes de… |
+|---|---|---|
+| Baja de Anuncios por `GET` (`/signatures/{id}/unsubscribe`): un escáner puede dar de baja sin que la persona lo sepa | Solo afecta a comunicaciones posteriores | **el primer envío masivo** (junto con `List-Unsubscribe` de un clic, que Gmail/Yahoo exigen a envíos masivos) |
+| Portal ARCO verifica el token al cargar: un escáner con JavaScript lo gasta | No expone datos; se pide otro enlace | Ola A |
+| R8: `GET /confirm-visibility` cambia estado | Lo inicia un admin y es raro | Ola A |
+| V7: pixel de Brevo | El correo de confirmación sale por Resend, sin pixel | usar Brevo para comunicaciones |
+| V10: 1 137 pendientes de la campaña cerrada | No afecta a la campaña nueva | fecha dentro de 30 días (minimización) |
+| Netdata sin evidencia de alerta | `business_signals.sh` ya cubre memoria y disco | Ola A |
+| Tablas sin RLS, políticas anchas de `signatures` | El aislamiento por código está probado (T2.1) | T7.2 |
+| Capacidad real del VPS (las pruebas fueron en el Mac, el VPS es compartido) | Pico previsto ≈ 1 alta/s frente a ≈ 100/s medidas; lecturas en caché | se vigila con el monitoreo |
+| GlitchTip, TOTP completo, buzones iCloud/Yahoo, repetir el soak, build de 16 min | — | Fase 2 |
+
+---
+
 # FASE 1 — Antes del lanzamiento (objetivo: 5 días hábiles)
 
-**Progreso de la fase: 68 %** (13 completadas, 8 con ajustes, 4 pendientes de 25; reconciliado con la evidencia el 10 nov 2026).
+**Progreso de la fase: 78 %** (17 completadas, 5 con ajustes, 3 pendientes de 25; `bash infra/progress.sh`, 14 nov 2026). Lo pendiente está ordenado en la «Ruta crítica» de arriba.
 
 Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga se haga
 **cuando ya estén aplicados los cambios** (no antes).
@@ -136,6 +202,7 @@ Orden pensado para que lo que mide y protege vaya primero, y la prueba de carga 
 - [~] **T4.2 · Ejecutar S0–S3 y S5–S7; ajustar** (R7, R8) · 4 h
   *Pendiente (depende del staging). Ajustar `pool_size`, workers, límites y rate limit (CGNAT).*
   **Actualizado 10 nov 2026:** ejecutados `smoke`, `nominal`, `ramp`, `spike`, `simultaneous`, `race`, `abuse`, `read` (2.100 req/s sin errores tras la caché) y Redis caído (3 corridas, 0 errores 500). Faltan: S7 con Turnstile caído y ajustar `pool_size`/workers/rate limit frente a CGNAT.
+  **Actualizado 14 nov 2026:** rate limit frente a CGNAT → A1 (20/min, configurable). S7 con Turnstile caído: no se ensaya, el comportamiento es por diseño (fail-closed, 422 sin guardar la firma) y queda en el runbook §3.4. `pool_size`/workers se mantienen (spike: ≈ 100 altas/s, cuello en CPU, no en el pool). Queda: desplegar A1 (A5).
 - [~] **T4.3 · Límites de recursos y pool** (R8) · 1,5 h
   *Hecho (valores iniciales): `mem_limit`/`cpus` en `docker-compose.yml`, `maxmemory` de Redis, pool
   `10 + 10` por worker (`DB_POOL_*`). Se afinan con T4.2.*
@@ -258,7 +325,7 @@ firma real de prueba que llega el correo con el resumen de datos.
    el filtro por token del código. Los campos `name`, `provincia`, `org_name` e `ip_hmac` no están
    cifrados. Candidato a endurecer en T7.2 (p. ej. política con el token como parámetro de sesión).
 3. **Campañas `draft` son legibles públicamente** a nivel de BD (modo prueba, con `is_test`). Intencional.
-4. **Endpoint legado `POST /v1/public/verify-turnstile`** (del código de forms-qsm) responde si un
+4. **[Retirado el 14 nov, A2]** **Endpoint legado `POST /v1/public/verify-turnstile`** (del código de forms-qsm) responde si un
    token es válido: sirve de oráculo y no tiene límite propio. Y `/v1/public/c/{slug}/respond` es otra
    superficie heredada. Candidatos a retirar si ya no se usan.
 5. **Resend Pro y cupo:** el contador de cupo de la app (`resend_daily_quota`, Redis) es del pool de
@@ -274,13 +341,13 @@ firma real de prueba que llega el correo con el resumen de datos.
 
 - [x] Turnstile no puede quedar abierto en producción (arranque falla sin clave). _T1.2, en `main`._
 - [x] Restore de backup probado, con RPO/RTO anotados. _2.373 firmas, RTO 20 s, RPO 1 h._
-- [ ] Pruebas de aislamiento entre organizaciones en verde; FORCE RLS aplicado o descartado con evidencia.
+- [x] Pruebas de aislamiento entre organizaciones en verde; FORCE RLS aplicado o descartado con evidencia. _T2.1: 5 tests; `FORCE` descartado en producción (la app no es dueña de las tablas)._
 - [~] Rate limit distingue IP reales (prueba con IP distintas); origen cerrado a Cloudflare. _Origen cerrado: verificado (ufw + prueba externa). Falta la prueba de rate limit con IP distintas en producción._
 - [ ] Confirmación por correo con capacidad ≥ 3.000/día y alerta al 70 %. _Diferido: requiere Resend Pro, que se activa al crear la nueva campaña._
-- [ ] S1–S3 y S5–S7 cumplen los criterios de R7; S4 sin fugas.
+- [x] S1–S3 y S5–S7 cumplen los criterios de R7; S4 sin fugas. _Todos ejecutados salvo S7-Turnstile (por diseño, runbook §3.4); S4 sin fugas (T5.1). En el entorno aislado del Mac, no en el VPS._
 - [~] Una alerta de prueba real llega **por correo** al canal de guardia, desde el monitor
       externo y desde Netdata, con el SMTP independiente; los logs de error no contienen PII. _Monitor externo y alertas SMTP probados; falta evidencia de Netdata._
-- [ ] Sin vulnerabilidades altas/críticas abiertas sin decisión escrita.
+- [x] Sin vulnerabilidades altas/críticas abiertas sin decisión escrita. _T1.3: `pip-audit` y `pnpm audit --prod` limpios (11 nov)._
 
 ### Umbrales de alerta iniciales (a calibrar con S1–S5)
 
