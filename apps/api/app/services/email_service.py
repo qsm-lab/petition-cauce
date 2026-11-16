@@ -11,7 +11,10 @@ import httpx
 from app.config import settings
 from app.services.email_quota import platform_quota_key, record_usage
 from app.services.signer_name import simple_name
-from app.services.email_transport import EmailMessage, EmailTransport, default_from_email, email_enabled, platform_transport
+from app.services.email_text import html_to_text
+from app.services.email_transport import (
+    EmailMessage, EmailTransport, default_from_email, email_enabled, platform_transport, with_display_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +143,7 @@ async def _send(
         html=html,
         from_=from_ or default_from_email(),
         reply_to=reply_to,
+        text=html_to_text(html),
     )
     result = await tr.send(msg)
     if result.ok:
@@ -330,7 +334,9 @@ async def send_confirmation_email(
         org_name=org_name,
         org_logo_url=org_logo_url,
     )
-    return await _send(to_email, f"Confirma tu firma: {campaign_title}", html)
+    # Nombre visible = la organización por la que se firmó: un remitente reconocible pasa mejor los filtros de spam.
+    from_ = with_display_name(default_from_email(), org_name)
+    return await _send(to_email, f"Confirma tu firma: {campaign_title}", html, from_=from_)
 
 
 async def send_thanks_share_email(

@@ -212,6 +212,10 @@ class Settings(BaseSettings):
     # Por PROCESO (la API corre con 2 workers: el total es el doble). Confirmar el límite
     # real de peticiones por segundo del proveedor antes de subirlo.
     confirm_email_max_per_second: float = 2.0
+    # Límite de altas de firma por IP (sintaxis slowapi). Alto a propósito: en Ecuador muchas personas
+    # comparten IP pública (CGNAT móvil, wifi de un acto presencial); el abuso lo frenan Turnstile,
+    # la cédula y el índice único. Se lee en cada petición: cambiarlo solo pide --force-recreate.
+    signature_rate_limit: str = "20/minute"
     confirm_email_max_concurrent: int = 5
     confirm_email_loop_seconds: int = 10
     confirm_email_max_attempts: int = 6

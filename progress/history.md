@@ -1,5 +1,17 @@
 # Historial de sesiones — proy_petition-cauce
 
+---
+
+## 2026-11-10/12 — Sesión 47: Next 15 en producción, hardening T1.3 y soak T5.1 (Fase 1 al 78 %)
+
+**Foco:** `hardening-campana` (T1.3, T5.1) y `verificacion-confirmacion-privacidad` (V5, V6 preparada); despliegue de Next 15.5 / React 19.
+
+**Hecho:** PRs a `dev` y `main` de la migración a Next 15 (desplegada). Dos deploys murieron por `Run Command Timeout` (build web ≈ 16 min vs límite de 20): se construyó antes en el VPS y luego `command_timeout` pasó a 40m (PR #42). Un intento posterior abortó porque se había editado `deploy.yml` a mano en el VPS (el `git pull` no pisa cambios locales); se revirtió. T1.3: `zod` quitado, `postcss-selector-parser` fijado (`pnpm audit --prod` limpio, CSS idéntico), Docker retenido (`apt-mark hold`), reinicio al kernel -147 con 31 contenedores sanos. Firma real en `test-fresh` (S8): datos correctos, correo en Junk de Outlook (buzón nuevo; SPF/DKIM/DMARC pasan). Errores de Turnstile/uBlock en consola: no son del sitio.
+**Soak S4 (T5.1):** 36 001 altas a 5/s en 2 h (corrida de 2 h 21 min por una pausa del Mac), 0 errores 5xx/red, p95 34,8 ms, sin fugas; la cola de correo crece al firmar a más de 2/s (tope de envío), sin `gave_up`.
+**Correcciones propias:** una nota afirmaba que `zod` lo usaba el renderizador legado (falso, corregida); el aviso de `postcss` no coincidía con la auditoría real (registrada la real).
+
+**Pendiente:** V6 con buzones antiguos, S5/S8, R8, T4.2, T5.3, T5.5, T5.6, T5.7 (V6–V10), T1.4; deudas en `progress/current.md`.
+
 
 ---
 
