@@ -236,7 +236,7 @@ _IMMEDIATE_SEND_MAX_WAIT = 0.5
 
 
 @router.post("/{campaign_id}/signatures", status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")
+@limiter.limit(lambda: settings.signature_rate_limit)
 async def submit_signature(
     campaign_id: str,
     request: Request,

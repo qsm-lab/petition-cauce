@@ -11,9 +11,10 @@ import asyncio
 import json
 import logging
 import random
+import re
 import time
 from dataclasses import dataclass, replace
-from email.utils import parseaddr
+from email.utils import formataddr, parseaddr
 from typing import Protocol
 
 import httpx
@@ -31,6 +32,7 @@ class EmailMessage:
     html: str
     from_: str
     reply_to: str | None = None
+    text: str | None = None  # parte en texto plano (entregabilidad); la genera `_send` desde el HTML
 
 
 @dataclass
@@ -90,6 +92,8 @@ class ResendTransport:
             "subject": msg.subject,
             "html": msg.html,
         }
+        if msg.text:
+            payload["text"] = msg.text
         if msg.reply_to:
             payload["reply_to"] = msg.reply_to
         async with httpx.AsyncClient(timeout=10) as client:
@@ -166,12 +170,15 @@ class SesTransport:
         if not self._access_key_id:
             logger.info("[dev] email | to=%s | subject=%s", msg.to, msg.subject)
             return SendResult(ok=True)
+        body: dict = {"Html": {"Data": msg.html, "Charset": "UTF-8"}}
+        if msg.text:
+            body["Text"] = {"Data": msg.text, "Charset": "UTF-8"}
         params: dict = {
-            "FromEmailAddress": msg.from_,
+            "FromEmailAddress": _ses_from(msg.from_),
             "Destination": {"ToAddresses": list(msg.to)},
             "Content": {"Simple": {
                 "Subject": {"Data": msg.subject, "Charset": "UTF-8"},
-                "Body": {"Html": {"Data": msg.html, "Charset": "UTF-8"}},
+                "Body": body,
             }},
         }
         if msg.reply_to:
@@ -227,6 +234,8 @@ class BrevoTransport:
             "subject": msg.subject,
             "htmlContent": msg.html,
         }
+        if msg.text:
+            payload["textContent"] = msg.text
         if msg.reply_to:
             payload["replyTo"] = {"email": parseaddr(msg.reply_to)[1] or msg.reply_to}
         async with httpx.AsyncClient(timeout=10) as client:
@@ -303,6 +312,23 @@ class FakeTransport:
 
     def capabilities(self) -> TransportCaps:
         return TransportCaps()
+
+
+def _ses_from(from_: str) -> str:
+    """SES exige el nombre visible no ASCII como *encoded-word* (RFC 2047); `formataddr` lo codifica."""
+    name, addr = parseaddr(from_)
+    if name and addr and not name.isascii():
+        return formataddr((name, addr))
+    return from_
+
+
+def with_display_name(address: str, name: str | None) -> str:
+    """`Nombre <correo>` para el remitente. Si la dirección ya trae nombre o no hay nombre, la deja igual.
+    Quita comillas, ángulos y saltos de línea del nombre (no inyecta cabeceras)."""
+    clean = " ".join(re.sub(r'["<>\\\r\n]', " ", name or "").split())
+    if not clean or not address or "<" in address:
+        return address
+    return f'"{clean}" <{address}>'
 
 
 def default_from_email() -> str:

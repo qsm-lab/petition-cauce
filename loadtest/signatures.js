@@ -24,7 +24,7 @@ const SLUG = __ENV.CAMPAIGN_SLUG || '';
 const SCENARIO = __ENV.SCENARIO || 'smoke';
 const API = `${BASE}/v1/public-campaign`;
 // En staging se golpea la API directo: X-Real-IP aleatorio simula clientes distintos (el límite de
-// 5/min es por IP). Con RANDOM_IP=0 se usa la IP real de la máquina de pruebas.
+// SIGNATURE_RATE_LIMIT, 20/min por defecto, es por IP). Con RANDOM_IP=0 se usa la IP real de la máquina de pruebas.
 const RANDOM_IP = (__ENV.RANDOM_IP || '1') === '1';
 
 function randomIntBetween(min, max) {
